@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from utils.logger import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger()
 
 
 def run_kline_update():
