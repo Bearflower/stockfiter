@@ -22,12 +22,12 @@ from utils.logger import get_logger
 from data.database import DatabaseManager
 
 # 导入回测器
-from backtester_scheme_ab import BacktesterWithRules_AB
+from core.backtester import Backtester
 
 logger = get_logger()
 
 
-def load_config(config_file='config_v21_final.yaml'):
+def load_config(config_file='config/config.yaml'):
     """加载配置文件"""
     with open(config_file, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
@@ -80,7 +80,7 @@ def scan_daily_signals(config: dict, output_dir='signals'):
         return []
     
     # 初始化回测器
-    backtester = BacktesterWithRules_AB(config_path='config_v21_final.yaml')
+    backtester = Backtester(config_path='config/config.yaml', version='v24')
     
     print(f"开始扫描 {len(stock_list_df)} 只股票...")
     print()
