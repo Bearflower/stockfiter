@@ -97,7 +97,7 @@ class DailyKlineUpdater:
             # 检查该股票已有数据的最新日期
             latest_data = self.db.get_latest_kline_date(code)
             
-            # 如果最新日期在最近 N 天内，跳过
+            # 判断是否需要更新
             if latest_data:
                 # 确保类型一致（datetime.date 或 datetime.datetime）
                 from datetime import datetime as dt
@@ -114,8 +114,9 @@ class DailyKlineUpdater:
                 else:
                     latest_data_date = latest_data
                 
-                days_diff = (today.date() - latest_data_date).days
-                if days_diff < self.days_to_update:
+                # 检查是否有今天的数据
+                # 如果最新数据是今天,才跳过
+                if latest_data_date == today.date():
                     skip += 1
                     if (idx + 1) % 200 == 0:
                         logger.info(f"进度：{idx + 1}/{total} | 成功：{success} | 失败：{error} | 跳过：{skip}")
