@@ -6,7 +6,7 @@
 功能：
 1. 读取昨日扫描的信号
 2. 生成飞书卡片消息
-3. 推送到飞书
+3. 推送到飞书（优先使用通用通知服务，降级为直接调用webhook）
 """
 
 import json
@@ -14,19 +14,30 @@ import requests
 from pathlib import Path
 from datetime import datetime
 import sys
+import os
+
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.notification_client import NotificationClient
 
 
 class FeishuPusher:
-    """飞书推送器"""
+    """飞书推送器（支持通用服务和直接调用两种模式）"""
     
-    def __init__(self, webhook_url: str):
+    def __init__(self, webhook_url: str = None, use_common_service: bool = True):
         """
         初始化飞书推送器
         
         Args:
-            webhook_url: 飞书 webhook URL
+            webhook_url: 飞书 webhook URL（降级模式使用）
+            use_common_service: 是否使用通用通知服务
         """
         self.webhook_url = webhook_url
+        self.use_common_service = use_common_service
+        
+        if use_common_service:
+            self.notification_client = NotificationClient()
     
     def send_card_message(self, signals: list) -> bool:
         """
@@ -48,153 +59,154 @@ class FeishuPusher:
                 "header": {
                     "template": "blue",
                     "title": {
-                        "tag": "plain_text",
-                        "content": "📈 今日买入信号（开盘前提醒）"
+                        "content": "📊 股票形态筛选信号",
+                        "tag": "plain_text"
                     }
                 },
-                "elements": [
-                    {
-                        "tag": "div",
-                        "text": {
-                            "tag": "lark_md",
-                            "content": f"**共筛选出 {len(signals)} 只股票，建议开盘后择机买入（高开>5% 请放弃）**\n\n⚠️ **风险提示**: 支撑位×0.97 为止损价，移动止盈回撤 8%"
-                        }
-                    },
-                    {
-                        "tag": "hr"
-                    }
-                ]
+                "elements": []
             }
         }
         
-        # 添加每个股票的详细信息
-        for idx, sig in enumerate(signals, 1):
-            stock_info = {
+        # 添加信号卡片
+        if signals:
+            for sig in signals:
+                element = {
+                    "tag": "div",
+                    "text": {
+                        "content": f"**{sig['code']} - {sig['name']}**\n"
+                                   f"支撑位：{sig['support_level']}\n"
+                                   f"止损价：{sig['stop_loss_price']}\n"
+                                   f"形态日期：{sig['pattern_date']}",
+                        "tag": "lark_md"
+                    }
+                }
+                card["card"]["elements"].append(element)
+        else:
+            # 无信号
+            card["card"]["elements"].append({
                 "tag": "div",
                 "text": {
-                    "tag": "lark_md",
-                    "content": f"**{idx}. {sig['name']} ({sig['code']})**\n"
-                              f"- 💰 支撑位：{sig['support_level']}元\n"
-                              f"- 🛑 止损价：{sig['stop_loss_price']}元（支撑位×0.97）\n"
-                              f"- 📊 建议买入价：今日开盘价\n"
-                              f"- 📈 移动止盈：从持仓最高价回撤 8% 卖出\n"
-                              f"- 📉 硬止损：-10%\n"
-                              f"- 📅 信号日期：{sig.get('signal_date', 'N/A')}"
+                    "content": "今日无符合形态的买入信号\n\n继续监控中...",
+                    "tag": "plain_text"
                 }
-            }
-            card["card"]["elements"].append(stock_info)
-            card["card"]["elements"].append({"tag": "hr"})
+            })
         
-        # 添加操作按钮
-        card["card"]["elements"].append({
-            "tag": "action",
-            "actions": [
-                {
-                    "tag": "button",
-                    "text": {
-                        "tag": "plain_text",
-                        "content": "📖 查看详细策略文档"
-                    },
-                    "url": "https://your-doc-link.com",  # 替换为实际文档链接
-                    "type": "default"
-                },
-                {
-                    "tag": "button",
-                    "text": {
-                        "tag": "plain_text",
-                        "content": "💡 使用指南"
-                    },
-                    "type": "primary"
-                }
-            ]
-        })
+        # 优先使用通用通知服务
+        if self.use_common_service:
+            return self._send_via_common_service(card, signals)
+        else:
+            return self._send_via_webhook(card)
+    
+    def _send_via_common_service(self, card: dict, signals: list) -> bool:
+        """通过通用通知服务发送"""
+        try:
+            # 构建消息内容
+            level = "warning" if signals else "info"
+            
+            # 提取卡片内容
+            content_lines = []
+            for element in card["card"]["elements"]:
+                if "text" in element and "content" in element["text"]:
+                    content_lines.append(element["text"]["content"])
+            
+            message = "\n\n".join(content_lines)
+            
+            # 发送通知
+            return self.notification_client.send_markdown(
+                title="📊 股票形态筛选信号",
+                content=message,
+                level=level
+            )
+            
+        except Exception as e:
+            print(f"⚠️  通用服务发送失败，降级为直接调用：{e}")
+            return self._send_via_webhook(card)
+    
+    def _send_via_webhook(self, card: dict) -> bool:
+        """直接调用飞书 webhook（降级模式）"""
+        if not self.webhook_url:
+            print("❌ 未配置 webhook URL")
+            return False
         
-        # 发送消息
         try:
             response = requests.post(
                 self.webhook_url,
                 json=card,
-                headers={'Content-Type': 'application/json'}
+                timeout=10
             )
             
-            result = response.json()
-            if result.get('StatusCode') == 0 or result.get('code') == 0:
-                print("✅ 飞书推送成功")
-                return True
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('StatusCode') == 0:
+                    print("✅ 飞书推送成功（直接调用）")
+                    return True
+                else:
+                    print(f"❌ 飞书推送失败：{result}")
+                    return False
             else:
-                print(f"❌ 飞书推送失败：{result}")
+                print(f"❌ HTTP 错误：{response.status_code}")
                 return False
+                
         except Exception as e:
-            print(f"❌ 发送请求失败：{e}")
+            print(f"❌ 推送异常：{e}")
             return False
     
-    def send_text_message(self, text: str) -> bool:
+    def send_text_message(self, content: str) -> bool:
         """
-        发送文本消息（备用方案）
+        发送文本消息
         
         Args:
-            text: 消息文本
+            content: 消息内容
         
         Returns:
             bool: 是否发送成功
         """
-        message = {
-            "msg_type": "text",
-            "content": {
-                "text": text
-            }
-        }
-        
-        try:
-            print(f"正在发送文本消息到飞书...")
-            response = requests.post(
-                self.webhook_url,
-                json=message,
-                headers={'Content-Type': 'application/json'}
-            )
-            
-            result = response.json()
-            print(f"飞书返回：{result}")
-            
-            if result.get('StatusCode') == 0 or result.get('code') == 0:
-                print("✅ 飞书推送成功")
-                return True
-            else:
-                print(f"❌ 飞书推送失败：{result}")
+        # 优先使用通用通知服务
+        if self.use_common_service:
+            return self.notification_client.send_text(content)
+        else:
+            # 降级为直接调用
+            if not self.webhook_url:
+                print("❌ 未配置 webhook URL")
                 return False
-        except Exception as e:
-            print(f"❌ 发送请求失败：{e}")
-            return False
+            
+            payload = {
+                "msg_type": "text",
+                "content": {"text": content}
+            }
+            
+            try:
+                response = requests.post(
+                    self.webhook_url,
+                    json=payload,
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('StatusCode') == 0:
+                        print("✅ 飞书推送成功（直接调用）")
+                        return True
+                    else:
+                        print(f"❌ 飞书推送失败：{result}")
+                        return False
+                else:
+                    print(f"❌ HTTP 错误：{response.status_code}")
+                    return False
+                    
+            except Exception as e:
+                print(f"❌ 推送异常：{e}")
+                return False
 
 
-def load_signals(signal_date: str = None) -> list:
-    """
-    加载信号数据
+def load_signals():
+    """加载信号文件"""
+    # 获取昨天的日期
+    from datetime import datetime, timedelta
+    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
     
-    Args:
-        signal_date: 信号日期（YYYY-MM-DD），默认最近一个交易日
-    
-    Returns:
-        list: 信号列表
-    """
-    if signal_date is None:
-        # 默认获取最近一个交易日的信号
-        from datetime import timedelta
-        today = datetime.now()
-        
-        # 如果是周一，获取上周五的信号
-        # 如果是周日，获取上周五的信号
-        # 如果是周六，获取上周五的信号
-        days_to_subtract = {
-            0: 3,  # 周一 -> 上周五 (3 天前)
-            6: 2,  # 周六 -> 上周五 (2 天前)
-            5: 1,  # 周日 -> 上周五 (1 天前)
-        }
-        
-        days_back = days_to_subtract.get(today.weekday(), 1)  # 其他日期默认 1 天前
-        signal_date = (today - timedelta(days=days_back)).strftime('%Y-%m-%d')
-    
-    signal_file = Path('signals') / f'signals_{signal_date}.json'
+    # 信号文件路径
+    signal_file = Path(f'signals/signals_{yesterday}.json')
     
     if not signal_file.exists():
         print(f"⚠️  信号文件不存在：{signal_file}")
@@ -210,15 +222,8 @@ def main():
     print("飞书推送系统")
     print("=" * 80)
     
-    # 配置飞书 webhook URL
+    # 配置（优先使用通用服务，降级为直接调用）
     FEISHU_WEBHOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/955aced6-5b07-42a6-a714-4c5f4726b003"
-    
-    # 检查是否配置了 webhook
-    if "955aced6-5b07-42a6-a714-4c5f4726b003" not in FEISHU_WEBHOOK:
-        print("\n⚠️  请先配置飞书 webhook URL")
-        print("编辑文件：feishu_push.py")
-        print("修改：FEISHU_WEBHOOK = '您的实际 webhook URL'")
-        sys.exit(1)
     
     # 加载信号
     signals = load_signals()
@@ -226,10 +231,9 @@ def main():
     if not signals:
         print("\n⚠️  今日无买入信号")
         # 发送无信号通知
-        pusher = FeishuPusher(FEISHU_WEBHOOK)
-        from datetime import datetime
+        pusher = FeishuPusher(webhook_url=FEISHU_WEBHOOK, use_common_service=True)
         today_beijing = datetime.now().strftime('%Y-%m-%d')
-        pusher.send_text_message(f"📊 {today_beijing} 股票形态扫描\\n\\n今日无符合形态的买入信号\\n\\n继续监控中...")
+        pusher.send_text_message(f"📊 {today_beijing} 股票形态扫描\n\n今日无符合形态的买入信号\n\n继续监控中...")
         return
     
     print(f"\n📊 发现 {len(signals)} 个买入信号")
@@ -242,7 +246,6 @@ def main():
     print()
     
     # 检查是否为交互模式（有 stdin 输入）
-    import sys
     auto_send = True  # 默认自动发送（用于定时任务）
     if sys.stdin.isatty():
         # 交互模式，询问用户
@@ -253,8 +256,8 @@ def main():
         print("❌ 取消推送")
         return
     
-    # 创建推送器并发送
-    pusher = FeishuPusher(FEISHU_WEBHOOK)
+    # 创建推送器并发送（优先使用通用服务）
+    pusher = FeishuPusher(webhook_url=FEISHU_WEBHOOK, use_common_service=True)
     
     print("\n正在发送飞书推送...")
     success = pusher.send_card_message(signals)
@@ -266,7 +269,7 @@ def main():
         print("2. 观察开盘价，若高开>5% 或涨停请放弃")
         print("3. 买入后立即设置条件单（止损 + 移动止盈）")
     else:
-        print("\n❌ 推送失败，请检查 webhook 配置")
+        print("\n❌ 推送失败，请检查配置")
 
 
 if __name__ == '__main__':
