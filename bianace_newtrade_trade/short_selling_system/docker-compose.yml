@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: short_selling_system_v41
+    container_name: short_selling_system_v31
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs

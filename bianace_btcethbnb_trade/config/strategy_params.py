@@ -103,6 +103,12 @@ class StrategyParams:
                 'high_low_distance_threshold': Decimal('0.03'),  # 距离前高/前低 < 3% 禁止入场
             },
             
+            # 信号过滤器参数
+            'signal_filters': {
+                'min_atr_pct': Decimal('0.003'),  # 最小 ATR 百分比（0.3%）
+                'max_atr_pct': Decimal('0.10'),  # 最大 ATR 百分比（10%）
+            },
+            
             # ========== 第四章：仓位管理 ==========
             'position_sizing': {
                 'risk_amount': Decimal('10'),  # 单笔风险金额（总资金的 2% = 10U）

@@ -1,12 +1,19 @@
 import requests
 import json
 import os
+import logging
 from config.settings import LOG_DIR
+from typing import Optional, Dict, Any
 
 
 class LarkNotifier:
     """
     飞书通知类，用于向飞书群聊发送消息
+    
+    改造说明：
+    - 保持原有接口不变，确保向后兼容
+    - 内部实现改为调用通用通知服务
+    - 通用服务地址：http://43.156.242.184:8766/api/v1
     """
     
     def __init__(self, webhook_url=None):
@@ -14,61 +21,72 @@ class LarkNotifier:
         初始化飞书通知器
         
         Args:
-            webhook_url (str): 飞书机器人的 webhook URL
+            webhook_url (str): 飞书机器人的 webhook URL（已废弃，保留参数以兼容旧代码）
         """
-        self.webhook_url = webhook_url or os.getenv('LARK_WEBHOOK_URL')
+        # 通用通知服务配置
+        self.notification_service_url = os.getenv(
+            'NOTIFICATION_SERVICE_URL', 
+            'http://43.156.242.184:8766/api/v1'
+        )
+        # 项目标识
+        self.project = os.getenv('NOTIFICATION_PROJECT', 'btc_eth_bnb')
+        # 请求超时时间（秒）
+        self.timeout = 10
         
-        # 验证 webhook URL 格式
-        if self.webhook_url and not self._is_valid_url(self.webhook_url):
-            logger = logging.getLogger('lark_notifier')
-            logger.error(f"无效的飞书 webhook URL 格式：{self.webhook_url}，应以 https:// 开头")
-            self.webhook_url = None
+        # 配置日志
+        self.logger = logging.getLogger('lark_notifier')
+        self.logger.info(f"飞书通知器初始化完成，项目标识：{self.project}")
         
-    def send_text_message(self, content):
+    def send_text_message(self, content, level='info'):
         """
-        发送文本消息到飞书
+        发送文本消息到飞书（通过通用通知服务）
         
         Args:
             content (str): 消息内容
+            level (str): 通知级别（info/warning/error），默认info
             
         Returns:
             dict: API 响应结果
         """
-        if not self.webhook_url:
-            print("警告：未配置飞书 webhook URL，跳过消息发送")
-            return {"status": "skipped", "reason": "webhook_url not configured"}
-        
-        # 验证 URL 格式
-        if not self._is_valid_url(self.webhook_url):
-            error_msg = f"无效的 webhook URL 格式：'{self.webhook_url}'，应以 https:// 或 http:// 开头"
-            print(error_msg)
-            return {"status": "error", "message": error_msg}
-            
-        headers = {'Content-Type': 'application/json'}
-        payload = {
-            "msg_type": "text",
-            "content": {
-                "text": content
-            }
-        }
-        
         try:
-            response = requests.post(self.webhook_url, headers=headers, data=json.dumps(payload), timeout=10)
+            # 构建请求参数
+            payload = {
+                "project": self.project,
+                "message": content,
+                "type": "text",
+                "level": level
+            }
+            
+            # 调用通用通知服务
+            response = requests.post(
+                f"{self.notification_service_url}/send",
+                json=payload,
+                timeout=self.timeout
+            )
+            
             response.raise_for_status()
             result = response.json()
-            print(f"飞书消息发送成功：{result}")
-            return result
+            
+            # 检查响应结果
+            if result.get('code') == 0:
+                self.logger.info(f"飞书消息发送成功：{result.get('data', {}).get('msg_id', 'N/A')}")
+                return {"status": "success", "message": "Message sent", "data": result.get('data')}
+            else:
+                error_msg = result.get('message', 'Unknown error')
+                self.logger.error(f"飞书消息发送失败：{error_msg}")
+                return {"status": "error", "message": error_msg}
+                
         except requests.exceptions.Timeout:
             error_msg = "发送飞书消息超时"
-            print(error_msg)
+            self.logger.error(error_msg)
             return {"status": "error", "message": error_msg}
         except requests.exceptions.RequestException as e:
             error_msg = f"发送飞书消息网络异常：{str(e)}"
-            print(error_msg)
+            self.logger.error(error_msg)
             return {"status": "error", "message": error_msg}
         except Exception as e:
             error_msg = f"发送飞书消息失败：{str(e)}"
-            print(error_msg)
+            self.logger.error(error_msg)
             return {"status": "error", "message": error_msg}
     
     def send_success_notification(self, currency, report_path, screenshot_path):
@@ -90,7 +108,7 @@ class LarkNotifier:
 
 请查看分析结果并采取相应行动。
         """
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='info')
     
     def send_error_notification(self, currency, error_message):
         """
@@ -109,7 +127,7 @@ class LarkNotifier:
 
 请检查系统状态和日志文件。
         """
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='error')
     
     def send_scheduler_startup_notification(self, next_run_time, timezone):
         """
@@ -120,7 +138,7 @@ class LarkNotifier:
             timezone (str): 时区
         """
         message = f"🚀 币安期货分析调度器已启动，下次执行时间: {next_run_time} ({timezone})"
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='info')
     
     def send_scheduler_shutdown_notification(self, timezone):
         """
@@ -130,7 +148,7 @@ class LarkNotifier:
             timezone (str): 时区
         """
         message = f"🛑 币安期货分析调度器已停止，当前时间: {self._get_current_time()} ({timezone})"
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='warning')
     
     def send_scheduler_completion_notification(self, next_run_time, timezone):
         """
@@ -141,7 +159,7 @@ class LarkNotifier:
             timezone (str): 时区
         """
         message = f"✅ 定时任务已执行完成，下次执行时间: {next_run_time} ({timezone})"
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='info')
     
     def send_scheduler_before_run_notification(self, currencies, timezone):
         """
@@ -152,7 +170,7 @@ class LarkNotifier:
             timezone (str): 时区
         """
         message = f"🔄 币安期货分析任务即将开始，交易对: {', '.join(currencies)}，当前时间: {self._get_current_time()} ({timezone})"
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='info')
     
     def send_analysis_result_notification(self, currencies, report_content):
         """
@@ -233,7 +251,7 @@ class LarkNotifier:
 详细报告已生成，请查看完整分析内容。
             """
         
-        return self.send_text_message(message)
+        return self.send_text_message(message, level='info')
     
     def _extract_trading_summary(self, report_content):
         """
@@ -402,22 +420,6 @@ class LarkNotifier:
             return '\n'.join(summary_lines)
         
         return None
-    
-    def _is_valid_url(self, url: str) -> bool:
-        """
-        验证 URL 格式是否有效
-        
-        Args:
-            url (str): 要验证的 URL
-            
-        Returns:
-            bool: URL 是否有效
-        """
-        if not url or not isinstance(url, str):
-            return False
-        
-        # 检查 URL 是否以 http:// 或 https:// 开头
-        return url.startswith('http://') or url.startswith('https://')
     
     def _get_current_time(self):
         """

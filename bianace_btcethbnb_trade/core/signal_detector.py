@@ -5,6 +5,6 @@
 为了保持向后兼容，从 core/signal/detector.py 重新导出所需的类和函数
 """
 
-from core.signal.detector import SignalDetector, get_signal_detector
+from .signal.detector import SignalDetector, get_signal_detector
 
 __all__ = ['SignalDetector', 'get_signal_detector']

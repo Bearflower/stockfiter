@@ -103,14 +103,50 @@ python3 feishu_push.py
 
 ## 使用方式
 
+### 主程序模式（推荐）
+
+项目提供了统一的主程序 `main.py`,支持定时任务和命令行模式:
+
+```bash
+# 启动定时任务模式（默认）
+python main.py
+
+# 或显式指定定时任务模式
+python main.py --schedule
+
+# 执行形态扫描
+python main.py --scan
+
+# 执行飞书推送
+python main.py --push
+
+# 执行K线数据更新
+python main.py --update
+
+# 执行历史数据补全
+python main.py --backfill
+```
+
+**定时任务时间表**:
+- 每日 14:00 UTC (22:00 北京) - K线数据更新
+- 每日 14:10 UTC (22:10 北京) - 形态扫描
+- 每日 00:10 UTC (08:10 北京) - 飞书推送
+- 每日 02:00 UTC (10:00 北京) - 历史数据补全
+
 ### 命令行模式
 
 ```bash
 # 执行形态扫描
-python3 daily_scan.py
+python3 scripts/daily_scan.py
 
 # 发送飞书推送
-python3 feishu_push.py
+python3 scripts/feishu_push.py
+
+# 执行全量回测
+python3 scripts/backtest_full.py
+
+# 执行单只股票回测
+python3 scripts/backtest_single.py --code 000001
 ```
 
 ### 定时任务模式
@@ -183,50 +219,107 @@ crontab -e
 
 ## 配置说明
 
-### V2.4 最终配置
+### 统一配置文件
 
-编辑 `config_v24_final.yaml` 文件：
+项目使用统一配置文件 `config/config.yaml`,支持多版本参数切换:
 
 ```yaml
-pattern:
-  # 激进参数（V2.4 最终版）
-  drop_threshold: 0.08          # 跌幅 8%（V2.1: 12%）
-  limit_up_threshold: 0.03      # 放量涨幅 3%（V2.1: 5%）
-  min_volume_ratio: 1.2         # 量比 1.2 倍（V2.1: 1.5）
-  max_volume_ratio: 15.0        # 量比 15 倍（V2.1: 12）
-  
-  # 时间窗口放宽
-  shrink_to_surge_days: 60      # 缩量到放量 60 天（V2.1: 10 天）
-  
-  # 缩量要求
-  volume_shrink_ratio: 0.8      # 缩量 80%（V2.1: 50-60%）
-  
-  # 取消缩量走平（V2.4 延续 V2.1）
-  flat_days: 0                  # 0=取消缩量走平
-  post_surge_check_days: 5      # 启动后观察 5 天
-  post_surge_max_drop: 0.97     # 最低不低于启动价 97%
+# 当前使用的版本
+current_version: "v24"
 
+# 版本参数配置
+versions:
+  v22:
+    drop_threshold: 0.12          # 跌幅阈值 12%
+    surge_price_ratio: 0.05       # 放量涨幅 5%
+    min_volume_ratio: 1.5         # 最小量比 1.5倍
+    max_volume_ratio: 12.0        # 最大量比 12倍
+    volume_shrink_ratio: 0.6      # 缩量比例 60%
+    shrink_to_surge_days: 10      # 缩量到放量时间窗口 10天
+
+  v23:
+    drop_threshold: 0.10          # 跌幅阈值 10%
+    surge_price_ratio: 0.04       # 放量涨幅 4%
+    min_volume_ratio: 1.3         # 最小量比 1.3倍
+    max_volume_ratio: 13.0        # 最大量比 13倍
+    volume_shrink_ratio: 0.7      # 缩量比例 70%
+    shrink_to_surge_days: 20      # 缩量到放量时间窗口 20天
+
+  v24:
+    drop_threshold: 0.08          # 跌幅阈值 8%
+    surge_price_ratio: 0.03       # 放量涨幅 3%
+    min_volume_ratio: 1.2         # 最小量比 1.2倍
+    max_volume_ratio: 15.0        # 最大量比 15倍
+    volume_shrink_ratio: 0.8      # 缩量比例 80%
+    shrink_to_surge_days: 60      # 缩量到放量时间窗口 60天
+
+  v25:
+    drop_threshold: 0.09          # 跌幅阈值 9%
+    surge_price_ratio: 0.035      # 放量涨幅 3.5%
+    min_volume_ratio: 1.3         # 最小量比 1.3倍
+    max_volume_ratio: 15.0        # 最大量比 15倍
+    volume_shrink_ratio: 0.8      # 缩量比例 80%
+    shrink_to_surge_days: 50      # 缩量到放量时间窗口 50天
+
+# 当前版本配置(根据current_version自动加载)
+pattern:
+  drop_threshold: 0.08              # 跌幅阈值 8%
+  surge_price_ratio: 0.03           # 放量涨幅 3%
+  min_volume_ratio: 1.2             # 最小量比 1.2倍
+  max_volume_ratio: 15.0            # 最大量比 15倍
+  volume_shrink_ratio: 0.8          # 缩量比例 80%
+  shrink_to_surge_days: 60          # 缩量到放量时间窗口 60天
+  
+  # 方案B参数
+  flat_days: 0                      # 取消缩量走平(0=取消)
+  flat_volume_threshold: 0.85       # 走平期量能阈值
+  flat_price_range: 0.08            # 走平期价格波动范围
+  post_surge_check_days: 5          # 启动后观察 5天
+  post_surge_max_drop: 0.97         # 最低不低于启动价 97%
+
+# 交易参数
 trading:
   # 止盈止损
-  trailing_stop_ratio: 0.08     # 移动止盈 8%
-  hard_stop_loss: 0.10          # 硬止损 10%
-  min_hold_days: 5              # 最短持仓 5 天
-  max_hold_days: 30             # 最长持仓 30 天
+  trailing_stop_ratio: 0.08         # 移动止盈 8%
+  hard_stop_loss: 0.10              # 硬止损 10%
+  min_hold_days: 5                  # 最短持仓 5天
+  max_hold_days: 30                 # 最长持仓 30天
   
   # 交易成本
-  commission: 0.00025           # 佣金 0.025%
-  stamp_tax: 0.001              # 印花税 0.1%
-  slippage: 0.001               # 滑点 0.1%
+  commission: 0.00025               # 佣金 0.025%
+  stamp_tax: 0.001                  # 印花税 0.1%
+  slippage: 0.001                   # 滑点 0.1%
   
-  # 流动性过滤（V2.4 降低要求）
-  min_avg_volume: 20_000_000    # 日均成交额≥2000 万（V2.1: 3000 万）
-  volume_check_period: 20       # 统计 20 日均值
+  # 流动性过滤
+  min_avg_volume: 20_000_000        # 日均成交额≥2000万
+  volume_check_period: 20           # 统计 20日均值
   
   # 买入规则
-  entry_timing: next_open       # 次日开盘买入
-  skip_high_open_threshold: 0.05  # 高开>5% 跳过
-  skip_limit_up_open: true      # 涨停开盘跳过
+  entry_timing: next_open           # 次日开盘买入
+  skip_high_open_threshold: 0.05    # 高开>5% 跳过
+  skip_limit_up_open: true          # 涨停开盘跳过
+
+# 数据库配置
+database:
+  host: localhost
+  port: 5432
+  database: stockfilter
+  user: postgres
+  password: your_password
+
+# 飞书推送配置
+feishu:
+  webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/your_webhook_url"
+  enabled: true
+
+# 日志配置
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: logs/stockfilter.log
 ```
+
+### V2.4 最终配置
 
 ## 项目结构
 
@@ -240,7 +333,11 @@ stockfilter/
 │   ├── backtest_single.py      # 单只股票回测脚本
 │   ├── backtest_compare.py     # 版本对比脚本
 │   ├── daily_scan.py           # 每日形态扫描
-│   └── feishu_push.py          # 飞书推送
+│   ├── feishu_push.py          # 飞书推送
+│   └── data/                   # 数据管理脚本
+│       ├── update_kline_daily.py    # 每日K线更新
+│       ├── quick_backfill.py        # 历史数据补全
+│       └── sync_kline_history.py    # K线历史同步
 ├── config/                      # 配置文件
 │   └── config.yaml             # 统一配置文件(支持版本切换)
 ├── data/                        # 数据管理
@@ -257,6 +354,7 @@ stockfilter/
 ├── docs/                        # 文档目录
 ├── signals/                     # 信号输出目录
 ├── logs/                        # 日志目录
+├── main.py                      # 主程序(支持定时任务和命令行模式)
 └── README.md                    # 项目说明
 ```
 
@@ -396,6 +494,40 @@ stockfilter/
    - ✅ 已实现股票池过滤（剔除 ST、北交所、退市、科创板、创业板）
 4. **风险提示**: 本系统仅供参考，不构成投资建议
 5. **建议**: 使用券商条件单自动执行止盈止损，无需手动监控
+
+## 项目重构说明
+
+### 重构完成情况（2026-04-27）
+
+项目已完成系统性重构,主要变更如下:
+
+#### 1. 代码统一
+- ✅ 创建统一回测器 `core/backtester.py`,支持 v22/v23/v24/v25 版本切换
+- ✅ 创建统一配置文件 `config/config.yaml`,支持多版本参数配置
+- ✅ 创建主程序 `main.py`,支持定时任务和命令行模式
+- ✅ 修复 `scripts/daily_scan.py` 的导入路径
+
+#### 2. 历史版本归档
+- ✅ 创建 `archived/` 目录,归档历史版本代码
+- ✅ 归档历史回测器到 `archived/backtesters/`
+- ✅ 归档历史配置到 `archived/configs/`
+- ✅ 归档历史文档到 `archived/docs/`
+- ✅ 归档历史脚本到 `archived/scripts/`
+
+#### 3. 项目结构优化
+- ✅ 核心代码集中在 `core/` 目录
+- ✅ 脚本工具集中在 `scripts/` 目录
+- ✅ 配置文件集中在 `config/` 目录
+- ✅ 文档集中在 `docs/` 目录
+
+#### 4. 使用方式变更
+- ✅ 推荐使用主程序 `main.py` 运行系统
+- ✅ 支持定时任务自动运行
+- ✅ 支持命令行参数执行特定任务
+
+**详细文档**:
+- [重构需求文档](docs/requirements/股票形态筛选系统重构需求文档.md)
+- [重构实施计划](docs/requirements/股票形态筛选系统重构实施计划.md)
 
 ## 技术架构
 

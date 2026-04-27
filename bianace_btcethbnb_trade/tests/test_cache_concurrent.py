@@ -221,25 +221,19 @@ class TestCacheDecorator(unittest.TestCase):
 class TestConcurrentFetch(unittest.TestCase):
     """测试并发数据获取"""
 
-    @patch('core.data.fetcher.requests.get')
-    def test_fetch_concurrent(self, mock_get):
+    @patch('utils.kline_service.KlineServiceClient.get_latest_klines')
+    def test_fetch_concurrent(self, mock_get_klines):
         """测试并发获取数据"""
-        # Mock API响应
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'code': 0,
-            'data': [
-                {
-                    'close_price': 50000.0,
-                    'high_price': 51000.0,
-                    'low_price': 49000.0,
-                    'open_price': 49500.0,
-                    'volume': 1000.0
-                }
-            ]
-        }
-        mock_get.return_value = mock_response
+        # Mock K线服务响应
+        mock_get_klines.return_value = [
+            {
+                'close_price': 50000.0,
+                'high_price': 51000.0,
+                'low_price': 49000.0,
+                'open_price': 49500.0,
+                'volume': 1000.0
+            }
+        ]
 
         from core.data.fetcher import MarketDataFetcher
 
@@ -258,25 +252,19 @@ class TestConcurrentFetch(unittest.TestCase):
         self.assertIsNotNone(data)
         # 注意：由于Mock的原因，实际数据可能不完整，这里主要测试并发逻辑不报错
 
-    @patch('core.data.fetcher.requests.get')
-    def test_fetch_serial(self, mock_get):
+    @patch('utils.kline_service.KlineServiceClient.get_latest_klines')
+    def test_fetch_serial(self, mock_get_klines):
         """测试串行获取数据"""
-        # Mock API响应
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'code': 0,
-            'data': [
-                {
-                    'close_price': 50000.0,
-                    'high_price': 51000.0,
-                    'low_price': 49000.0,
-                    'open_price': 49500.0,
-                    'volume': 1000.0
-                }
-            ]
-        }
-        mock_get.return_value = mock_response
+        # Mock K线服务响应
+        mock_get_klines.return_value = [
+            {
+                'close_price': 50000.0,
+                'high_price': 51000.0,
+                'low_price': 49000.0,
+                'open_price': 49500.0,
+                'volume': 1000.0
+            }
+        ]
 
         from core.data.fetcher import MarketDataFetcher
 

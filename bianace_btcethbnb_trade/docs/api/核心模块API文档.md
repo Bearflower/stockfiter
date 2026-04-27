@@ -205,13 +205,17 @@ for tp in tp_levels:
 
 ## 信号检测模块
 
-**模块路径**: `core.signal_detector`
+**模块路径**: `core.signal.detector`
 
 ### 主要类
 
 #### `SignalDetector`
 
 信号检测器类，负责检测交易信号。
+
+**初始化参数**:
+- `params`: StrategyParams - 策略参数对象（可选）
+- `data_fetcher`: MarketDataFetcher - 数据获取器（可选）
 
 **主要方法**:
 
@@ -228,13 +232,107 @@ for tp in tp_levels:
     {
         '币种': str,
         '开仓方向': str,      # '多' 或 '空'
-        '信号等级': str,      # 'S', 'A', 'B'
-        '开仓价': Decimal,
-        '止损价': Decimal,
-        # ... 其他字段
+        '开仓推荐度': int,    # 评分（v5.5 新增）
+        '信号等级': str,      # 'S', 'A', 'B', 'C'
+        'score': int,         # 总分（v5.5 新增）
+        'score_detail': dict, # 评分明细（v5.5 新增）
+        '开仓价': float,      # Decimal 转换为 float
+        '强平价': float,      # 或 None
+        '止损价': float,
+        '止盈设置': dict,
+        '保证金': float,
+        '实际杠杆': int,
+        '风险占比': str,      # 格式化百分比字符串
+        '通过检查清单': bool,
+        '备注': str,
+        'suggested_position_ratio': float, # 建议仓位系数（v5.5 新增）
     }
 ]
 ```
+
+##### `_determine_signal_grade(symbol, data, direction)`
+
+判定信号等级（v5.5 新增，使用评分引擎）。
+
+**参数**:
+- `symbol` (str): 交易对
+- `data` (dict): 行情数据
+- `direction` (int): 方向（1=多，-1=空）
+
+**返回值**: `(grade, score)` - 信号等级和评分
+
+**说明**: 使用评分引擎进行多维度评分，返回等级和详细评分。
+
+---
+
+## 信号过滤器模块
+
+**模块路径**: `core.signal.filter`
+
+### 主要类
+
+#### `SignalFilter`
+
+信号过滤器类，负责趋势判断和过滤。
+
+**初始化参数**:
+- `params`: StrategyParams - 策略参数对象（可选）
+
+**主要方法**:
+
+##### `determine_trend_direction(data)`
+
+判断趋势方向。
+
+**参数**:
+- `data` (dict): 行情数据
+
+**返回值**: 
+- `1`: 多头方向
+- `-1`: 空头方向
+- `0`: 趋势不明
+
+##### `check_adx_filter(data, min_adx=Decimal('20'))`
+
+检查 ADX 趋势强度过滤。
+
+**参数**:
+- `data` (dict): 行情数据
+- `min_adx` (Decimal): 最小 ADX 值（默认 20）
+
+**返回值**: bool
+
+##### `check_volume_filter(data, signal_grade)`
+
+检查成交量过滤。
+
+**参数**:
+- `data` (dict): 行情数据
+- `signal_grade` (str): 信号等级
+
+**返回值**: bool
+
+##### `check_atr_filter(data)`
+
+检查 ATR 波动率过滤。
+
+**参数**:
+- `data` (dict): 行情数据
+
+**返回值**: bool
+
+**说明**: 计算 ATR%，检查是否在区间内（默认 2.0% ~ 4.5%）。内部自动处理 float/Decimal 类型转换。
+
+##### `apply_all_filters(data, direction, grade)`
+
+应用所有过滤器。
+
+**参数**:
+- `data` (dict): 行情数据
+- `direction` (int): 趋势方向
+- `grade` (str): 信号等级
+
+**返回值**: `(passed, reason)` - 是否通过和失败原因
 
 ---
 
@@ -276,6 +374,209 @@ for tp in tp_levels:
 
 **参数**:
 - `daily_loss` (Decimal): 单日亏损金额
+
+---
+
+## 数据获取模块（增强版）
+
+**模块路径**: `core.data.fetcher`
+
+### 主要类
+
+#### `MarketDataFetcher`
+
+行情数据获取类（增强版），负责从K线服务获取数据，处理数据格式，计算技术指标，并管理缓存。
+
+**初始化参数**:
+- `cache_duration_hours` (int): 缓存有效期（小时），默认1小时
+- `max_workers` (int): 并发线程池最大线程数，默认5
+- `enable_concurrent` (bool): 是否启用并发获取，默认True
+
+**主要方法**:
+
+##### `fetch_market_data(symbols=None)`
+
+获取市场行情数据。
+
+**参数**:
+- `symbols` (list): 交易对列表，默认 ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']
+
+**返回值**: 行情数据字典 `{symbol: data}`
+
+**说明**: 支持并发获取多个交易对的数据，提高性能。
+
+##### `get_symbol_data(symbol)`
+
+获取单个交易对的行情数据。
+
+**参数**:
+- `symbol` (str): 交易对
+
+**返回值**: 行情数据，如果不存在则返回None
+
+##### `clear_cache()`
+
+清除缓存。
+
+##### `get_cache_stats()`
+
+获取缓存统计信息。
+
+##### `get_performance_stats()`
+
+获取性能统计信息。
+
+**返回值**:
+```python
+{
+    'fetch_count': int,           # 获取次数
+    'total_fetch_time': float,    # 总耗时（秒）
+    'avg_fetch_time': float,      # 平均耗时（秒）
+    'concurrent_enabled': bool,   # 是否启用并发
+    'max_workers': int            # 最大线程数
+}
+```
+
+**示例**:
+```python
+from core.data.fetcher import get_data_fetcher
+
+# 获取数据获取器实例（单例模式）
+fetcher = get_data_fetcher(
+    cache_duration_hours=1,
+    max_workers=5,
+    enable_concurrent=True
+)
+
+# 获取行情数据
+data = fetcher.fetch_market_data(['BTCUSDT', 'ETHUSDT'])
+
+# 查看性能统计
+stats = fetcher.get_performance_stats()
+print(f"平均获取耗时: {stats['avg_fetch_time']}秒")
+```
+
+**数据流**:
+```
+通用K线服务 → 数据获取（并发/串行） → 指标计算 → 缓存 → 提供给信号检测模块
+```
+
+---
+
+## K 线服务客户端模块
+
+**模块路径**: `utils.kline_service`
+
+### 主要类
+
+#### `KlineServiceClient`
+
+通用 K 线服务客户端，封装对通用 K 线服务的调用。
+
+**初始化参数**:
+- `service_url` (str): K 线服务地址，默认使用环境变量 `KLINE_SERVICE_URL`
+
+**主要方法**:
+
+##### `get_latest_klines(symbol, interval, limit=100)`
+
+获取最新 K 线数据。
+
+**参数**:
+- `symbol` (str): 交易对，如 BTCUSDT
+- `interval` (str): 时间间隔，如 1h, 4h, 1d, 15m
+- `limit` (int): 获取数量，默认 100
+
+**返回值**: K 线数据列表，失败返回 None
+
+**示例**:
+```python
+from utils.kline_service import KlineServiceClient
+
+client = KlineServiceClient()
+klines = client.get_latest_klines('BTCUSDT', '1h', limit=100)
+
+# K 线数据格式
+# [
+#     {
+#         'timestamp': '2026-04-27T10:00:00',
+#         'open_price': 95000.00,
+#         'high_price': 96000.00,
+#         'low_price': 94000.00,
+#         'close_price': 95500.00,
+#         'volume': 1234.56,
+#         'price_change_percent': 1.5
+#     },
+#     ...
+# ]
+```
+
+##### `get_indicators(symbol, interval, period=100)`
+
+获取技术指标。
+
+**参数**:
+- `symbol` (str): 交易对
+- `interval` (str): 时间间隔
+- `period` (int): 计算周期，默认 100
+
+**返回值**: 技术指标数据，失败返回 None
+
+##### `get_symbols()`
+
+获取支持的币种列表。
+
+**返回值**: 币种列表，包含 symbols 和 intervals
+
+##### `manual_collect(symbol, interval, minutes=5)`
+
+手动触发 K 线采集。
+
+**参数**:
+- `symbol` (str): 交易对
+- `interval` (str): 时间间隔
+- `minutes` (int): 采集最近 N 分钟，默认 5
+
+**返回值**: 采集结果
+
+##### `get_collector_stats()`
+
+获取采集器统计信息。
+
+**返回值**: 统计信息
+
+### 便捷函数
+
+#### `get_klines(symbol, interval, limit=100)`
+
+获取 K 线数据的便捷函数。
+
+**参数**:
+- `symbol` (str): 交易对
+- `interval` (str): 时间间隔
+- `limit` (int): 获取数量
+
+**返回值**: K 线数据列表
+
+#### `get_indicators(symbol, interval, period=100)`
+
+获取技术指标的便捷函数。
+
+**参数**:
+- `symbol` (str): 交易对
+- `interval` (str): 时间间隔
+- `period` (int): 计算周期
+
+**返回值**: 技术指标数据
+
+**示例**:
+```python
+from utils.kline_service import get_klines, get_indicators
+
+# 使用便捷函数
+klines = get_klines('BTCUSDT', '1h', limit=100)
+indicators = get_indicators('BTCUSDT', '1h', period=100)
+```
 
 ---
 
@@ -428,12 +729,24 @@ symbols = config.get_list('trading.symbols')
 
 1. 所有涉及金额的参数都使用 `Decimal` 类型，避免浮点数精度问题
 2. 方向参数：1表示多头，-1表示空头
-3. 信号等级：S（最高）、A（中等）、B（试仓）
+3. 信号等级：S（最高）、A（中等）、B（试仓）、C（最低）
 4. 所有模块都支持单例模式，可通过 `get_xxx()` 函数获取全局实例
 5. 日志输出统一使用中文
+6. **类型安全** (v1.1 更新): 信号处理和价格计算模块已全面添加 Decimal 类型安全转换，确保内部处理一致性
+7. **并发支持** (v1.1 更新): 数据获取模块支持并发获取，可配置线程池大小和超时时间
 
 ---
 
 ## 更新日志
 
-- **2026-04-27**: 创建API文档，覆盖核心模块
+- **2026-04-27**: 更新API文档，新增通用服务集成
+  - 新增 K 线服务客户端模块完整 API 文档
+  - 更新数据获取模块说明（使用通用 K 线服务）
+  - 补充 K 线数据格式说明
+  - 添加便捷函数使用示例
+- **2026-04-27**: 更新API文档，新增信号过滤器模块、数据获取模块文档
+  - 修正模块路径：`core.signal_detector` → `core.signal.detector`
+  - 补充信号返回值字段（score、score_detail、suggested_position_ratio 等）
+  - 新增信号过滤器完整API文档
+  - 新增数据获取模块并发支持说明
+  - 添加类型安全和并发支持注意事项

@@ -49,6 +49,11 @@ allowed_signal_grades:
   - S
   - A
 
+# ==================== 信号过滤器配置 ====================
+signal_filters:
+  min_atr_pct: 0.003  # 最小 ATR 百分比（0.3%）
+  max_atr_pct: 0.10  # 最大 ATR 百分比（10%）
+
 # ==================== 趋势过滤器参数 ====================
 trend_filter:
   ema21_period: 21  # EMA 周期

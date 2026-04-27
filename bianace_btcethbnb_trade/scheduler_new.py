@@ -167,7 +167,10 @@ class RuleEngineScheduler:
                 # 记录执行统计（无信号）
                 self._record_daily_stats(signals_count=0, executed_count=0)
                 
-                # 不发送通知（避免频率限制）
+                # 发送无信号通知（告知用户系统正常工作）
+                if self.lark_notifier:
+                    self._send_no_signal_notification(market_data)
+                
                 return result
             
             logger.info(f"检测到 {len(signals)} 个有效信号:")
@@ -310,7 +313,7 @@ class RuleEngineScheduler:
                 # 添加延迟：设置杠杆后等待 0.5 秒
                 time.sleep(0.5)
                 
-                # 步骤 2: 执行开仓（市价单）
+                # 步骤 2: 执行开仓
                 entry_order = orders.get('entry', {})
                 logger.info(f"  执行开仓：{entry_order}")
                 
@@ -318,10 +321,17 @@ class RuleEngineScheduler:
                 entry_params = {
                     'symbol': entry_order.get('symbol'),
                     'side': entry_order.get('side'),
-                    'position_side': entry_order.get('position_side'),
-                    'order_type': entry_order.get('type'),  # type -> order_type
+                    'position_side': entry_order.get('position_share'),  # 修正字段名
+                    'order_type': entry_order.get('type'),
                     'quantity': entry_order.get('quantity'),
                 }
+                
+                # 限价单必须提供 price 和 timeInForce 参数
+                if entry_order.get('type') == 'LIMIT':
+                    entry_params['price'] = entry_order.get('price')
+                    entry_params['time_in_force'] = entry_order.get('timeInForce', 'GTC')
+                    logger.info(f"  限价单参数：价格={entry_params['price']}, 有效期={entry_params['time_in_force']}")
+                
                 entry_result = self.trade_api.place_um_order(**entry_params)
                 logger.info(f"  开仓成功：订单 ID={entry_result.get('orderId')}")
                 
@@ -425,6 +435,60 @@ class RuleEngineScheduler:
                 content += f"等级:{signal['信号等级']} 推荐度:{signal['开仓推荐度']}\n"
         
         content += f"\n时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        self.lark_notifier.send_text_message(content)
+    
+    def _send_no_signal_notification(self, market_data: Dict[str, Any]):
+        """
+        发送无信号通知（告知用户系统正常工作）
+        
+        Args:
+            market_data: 市场数据字典
+        """
+        if not self.lark_notifier:
+            return
+        
+        # 构建通知消息
+        content = "📊 规则引擎分析完成\n\n"
+        content += f"⏰ 时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        # 检测的交易对
+        content += f"🔍 检测交易对：{', '.join(SUPPORTED_CURRENCIES)}\n\n"
+        
+        # 市场状态摘要
+        content += "📈 市场状态摘要：\n"
+        
+        for symbol, data in market_data.items():
+            last_price = data.get('last_price', Decimal('0'))
+            price_change_24h = data.get('price_change_24h', Decimal('0'))
+            
+            # 获取 ATR 数据
+            indicators = data.get('indicators', {})
+            hourly = indicators.get('1h', {})
+            atr14 = hourly.get('atr14', Decimal('0'))
+            
+            # 计算 ATR%
+            atr_pct = (atr14 / last_price * 100) if last_price > 0 else Decimal('0')
+            
+            # 判断过滤原因
+            filter_reason = ""
+            min_atr_pct = self.params.get('signal_filters.min_atr_pct', '0.003')
+            max_atr_pct = self.params.get('signal_filters.max_atr_pct', '0.10')
+            
+            if atr_pct < Decimal(str(min_atr_pct)) * 100:
+                filter_reason = "（ATR 过低）"
+            elif atr_pct > Decimal(str(max_atr_pct)) * 100:
+                filter_reason = "（ATR 过高）"
+            
+            # 价格变化方向
+            change_symbol = "📈" if price_change_24h > 0 else "📉" if price_change_24h < 0 else "➡️"
+            
+            content += f"├─ {symbol}: {last_price:.2f} USDT "
+            content += f"{change_symbol} {float(price_change_24h * 100):+.2f}% "
+            content += f"| ATR: {float(atr_pct):.2f}% {filter_reason}\n"
+        
+        content += "\n💡 未检测到符合规则的交易信号\n"
+        content += "系统运行正常，等待下次分析..."
         
         self.lark_notifier.send_text_message(content)
     
@@ -532,27 +596,27 @@ def run_scheduler():
     tz = pytz.timezone(TIMEZONE)
     scheduler = BlockingScheduler(timezone=tz)
     
-    # 每小时执行一次（在 00:00, 01:00, 02:00, ..., 23:00）
+    # 每小时执行一次（在每小时的25分执行）
     scheduler.add_job(
         run_analysis_wrapper,
-        CronTrigger(hour='*', minute=0),  # 每小时执行
+        CronTrigger(hour='*', minute=25),  # 每小时25分执行
         id='hourly_analysis',
         name='每小时行情分析和信号检测',
         kwargs={'enable_auto_trade': True}
     )
     
-    # 每天早上 9 点发送前一天的日报
+    # 每天早上 9:10 发送前一天的日报
     scheduler.add_job(
         send_daily_report_wrapper,
-        CronTrigger(hour=9, minute=0),  # 每天早上 9 点
+        CronTrigger(hour=9, minute=10),  # 每天早上 9:10
         id='daily_report',
         name='每日交易报告'
     )
     
     logger.info("调度器配置完成:")
-    logger.info("  - 每小时执行一次（00:00, 01:00, 02:00, ..., 23:00）")
+    logger.info("  - 每小时执行一次（00:25, 01:25, 02:25, ..., 23:25）")
     logger.info("  - 自动交易：已启用")
-    logger.info("  - 每天早上 9 点发送日报")
+    logger.info("  - 每天早上 9:10 发送日报")
     logger.info("  - 使用 Ctrl+C 停止调度器")
     
     try:

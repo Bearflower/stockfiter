@@ -145,3 +145,47 @@
 2026-04-27 13:11:02,778 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'open_time' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'symbol': 'BTCUSDT', 'operation': 'check_cooldown'}
 2026-04-27 13:11:02,946 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'open_time' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'symbol': 'BTCUSDT', 'operation': 'check_cooldown'}
 2026-04-27 13:11:02,946 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'total_pnl' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'operation': 'get_daily_pnl'}
+2026-04-27 22:23:12,534 - test_log_levels - ERROR - 这是一条 ERROR 日志
+2026-04-27 22:23:12,546 - utils.error_handler - ERROR - [OrderExecutionError] [TRADING_ERROR_BTCUSDT] 订单执行失败：BTCUSDT LIMIT - 测试订单执行失败 | 详情: {'order_type': 'LIMIT', 'reason': '测试订单执行失败'} | 上下文: {'test_scenario': 'integration'}
+2026-04-27 22:23:12,546 - integration_test - ERROR - 集成测试捕获异常: 订单执行失败：BTCUSDT LIMIT - 测试订单执行失败
+2026-04-27 22:23:12,736 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,758 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,776 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,793 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,809 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,824 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,840 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,855 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,870 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,895 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,896 - scheduler.notifier - ERROR - 交易通知发送失败: 网络错误
+2026-04-27 22:23:12,910 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,925 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,940 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:12,985 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:13,001 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:13,016 - utils.error_handler - ERROR - [OperationalError] [SYSTEM_ERROR] could not translate host name "postgres-db" to address: nodename nor servname provided, or not known
+ | 上下文: {'service': 'FrequencyController', 'state': 'error', 'phase': 'initialization'}
+2026-04-27 22:23:18,420 - utils.kline_service - ERROR - ❌ K 线服务 HTTP 错误：502
+2026-04-27 22:23:19,608 - utils.error_handler - ERROR - [ValueError] [SYSTEM_ERROR] 测试错误 | 上下文: {'service': 'TestService', 'state': 'ready', 'operation': '测试错误方法'}
+2026-04-27 22:23:19,653 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'open_time' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'symbol': 'BTCUSDT', 'operation': 'check_cooldown'}
+2026-04-27 22:23:19,653 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'total_pnl' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'operation': 'get_daily_pnl'}
+2026-04-27 22:23:19,705 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'open_time' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'symbol': 'BTCUSDT', 'operation': 'check_cooldown'}
+2026-04-27 22:23:19,718 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'open_time' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'symbol': 'BTCUSDT', 'operation': 'check_cooldown'}
+2026-04-27 22:23:19,883 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'open_time' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'symbol': 'BTCUSDT', 'operation': 'check_cooldown'}
+2026-04-27 22:23:19,883 - utils.error_handler - ERROR - [KeyError] [SYSTEM_ERROR] 'total_pnl' | 上下文: {'service': 'FrequencyController', 'state': 'ready', 'operation': 'get_daily_pnl'}

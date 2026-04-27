@@ -17,15 +17,17 @@
 """
 
 import logging
-import requests
+import traceback
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import pandas as pd
 
 from .cache import DataCache
 from .indicators import IndicatorCalculator
+from utils.kline_service import KlineServiceClient
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,9 @@ class MarketDataFetcher:
         )
         self.max_workers = max_workers
         self.enable_concurrent = enable_concurrent
+        
+        # 初始化 K 线服务客户端
+        self.kline_client = KlineServiceClient()
 
         # 性能统计
         self._fetch_count = 0
@@ -241,7 +246,7 @@ class MarketDataFetcher:
             for future in as_completed(future_to_symbol):
                 symbol = future_to_symbol[future]
                 try:
-                    symbol_key, data = future.result()
+                    symbol_key, data = future.result(timeout=30)
                     if data:
                         result[symbol_key] = data
                 except Exception as e:
@@ -262,27 +267,16 @@ class MarketDataFetcher:
             K线数据列表
         """
         try:
-            url = f"http://43.156.242.184:8765/api/v1/klines/latest"
-            params = {
-                "symbol": symbol,
-                "interval": interval,
-                "limit": limit
-            }
-
-            response = requests.get(url, params=params, timeout=10)
-
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('code') == 0:
-                    # 返回K线数据列表
-                    return result.get('data', [])
-                else:
-                    logger.error(f"K线服务返回错误：{result.get('message')}")
-                    return []
+            # 使用 KlineServiceClient 获取数据
+            klines = self.kline_client.get_latest_klines(symbol, interval, limit)
+            
+            if klines:
+                logger.info(f"成功获取 {symbol} {interval} K线数据 {len(klines)} 条")
+                return klines
             else:
-                logger.error(f"K线服务HTTP错误：{response.status_code}")
-                return None
-
+                logger.warning(f"未获取到 {symbol} {interval} K线数据")
+                return []
+                
         except Exception as e:
             logger.error(f"获取K线数据异常：{e}")
             return None
@@ -340,7 +334,6 @@ class MarketDataFetcher:
                                     indicators[timeframe]['bollinger'] = tf_data['bollinger']
                                 else:
                                     # 如果K线服务没有返回布林带，本地计算
-                                    import pandas as pd
                                     closes = pd.Series([float(p) for p in prices])
                                     if len(closes) >= 20:
                                         bb_middle = closes.rolling(window=20).mean()
@@ -433,7 +426,6 @@ class MarketDataFetcher:
                             logger.info(f"{symbol} {timeframe} 指标计算完成")
 
                         except Exception as e:
-                            import traceback
                             error_details = traceback.format_exc()
                             logger.error(f"{symbol} {timeframe} K线数据处理失败：{e}")
                             logger.error(f"详细错误：{error_details}")
@@ -485,9 +477,8 @@ class MarketDataFetcher:
                 logger.info(f"========== {symbol} 处理完成 ==========\n")
 
             except Exception as e:
-                import traceback
                 error_details = traceback.format_exc()
-                logger.error(f"❌❌❌ {symbol} 处理失败：{str(e)}")
+                logger.error(f"[处理失败] {symbol} 处理失败：{str(e)}")
                 logger.error(f"详细错误：{error_details}")
                 logger.error(f"data类型：{type(data)}")
                 logger.error(f"data内容：{data}")

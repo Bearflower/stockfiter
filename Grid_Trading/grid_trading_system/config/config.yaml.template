@@ -1,0 +1,126 @@
+# 网格交易系统 - 配置文件模板
+# 复制为 config.yaml 并修改配置值
+
+# ==================== 系统配置 ====================
+system:
+  # 运行模式: auto（全自动模式）或 signal（信号灯模式）
+  # 信号灯模式：仅分析市场+推送通知，不需要API密钥
+  # 全自动模式：需要API密钥进行自动交易
+  mode: signal
+  name: grid_trading_system
+  version: '1.0.0'
+  # 日志级别: DEBUG, INFO, WARNING, ERROR
+  log_level: INFO
+  # 日志文件路径（留空则只输出到控制台）
+  log_file: "logs/grid_trading.log"
+
+# ==================== 交易所配置 ====================
+# 信号灯模式：不需要API密钥（K线数据为公开接口）
+# 全自动模式：需要配置API密钥进行自动交易
+exchange:
+  # API Key（信号灯模式可留空，全自动模式必填）
+  api_key: ""
+  # API Secret（信号灯模式可留空，全自动模式必填）
+  api_secret: ""
+  # 是否使用测试网
+  testnet: true
+  # 交易对
+  symbol: ETHUSDT
+
+# ==================== 策略配置 ====================
+strategy:
+  indicators:
+    adx_period: 14
+    adx_weak_threshold: 20
+    adx_trend_threshold: 25
+    adx_strong_threshold: 40
+    ema_fast_period: 20
+    ema_slow_period: 50
+    atr_period: 14
+    atr_smoothing: 14
+  grid:
+    base_grid_count: 30
+    min_grid_count: 20
+    max_grid_count: 50
+    base_atr_window: 90
+    leverage: 10
+    total_investment: 500
+    min_profit_rate: 0.01
+  risk:
+    hard_stop_loss: -0.08
+    trailing_profit_start: 0.15
+    trailing_profit_retrace: 0.5
+    emergency_break_layers: 3
+    emergency_break_window: 300
+    position_coefficient: 0.5
+
+# ==================== 执行配置 ====================
+execution:
+  inspection_interval: 3600
+  atr_change_threshold: 0.2
+  parameter_adjustment:
+    enabled: true
+    min_interval: 14400
+    max_adjustments_per_day: 6
+  slippage_protection:
+    limit_order_timeout: 3
+    optimal_price_timeout: 2
+    market_order_fallback: true
+
+# ==================== 触发条件配置 ====================
+# 参数变化阈值，用于判断是否需要推送信号
+triggers:
+  grid_width_change: 0.05      # 网格宽度变化 > 5%
+  grid_count_change: 0.10      # 网格数量变化 > 10%
+  atr_change: 0.20             # ATR 变化 > 20%
+  profit_rate_warning: 0.012   # 每格利润率 < 1.2% 时警告
+
+# ==================== 信号灯模式配置 ====================
+signal:
+  # 每小时第几分钟运行
+  run_minute: 35
+  # 休息时间段（小时）
+  rest_hours: [0, 1, 2, 3, 4, 5]
+  # 信号过期时间（小时）
+  signal_expiry_hours: 24
+  # 信号置信度阈值
+  confidence_threshold: 0.7
+
+# ==================== 服务配置 ====================
+services:
+  # K线服务（通用模块）
+  kline:
+    url: http://43.156.242.184:8765/api/v1
+    timeout: 10
+  # 通知服务（通用模块）
+  notification:
+    url: http://43.156.242.184:8766/api/v1
+    project: grid
+    timeout: 10
+
+# ==================== 数据库配置 ====================
+database:
+  type: sqlite
+  path: data/grid_trading.db
+
+# ==================== 监控配置 ====================
+monitoring:
+  logging:
+    level: INFO
+    file: logs/grid_trading.log
+    max_size: 10485760
+    backup_count: 5
+    format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  alert:
+    enabled: true
+    feishu_webhook: ""
+    cooldown: 300
+    alert_on_parameter_adjustment: true
+    alert_on_emergency_pause: true
+    alert_on_signal_generation: true
+    alert_on_system_start: true
+    alert_on_system_stop: true
+    alert_on_error: true
+  metrics:
+    enabled: true
+    report_interval: 3600

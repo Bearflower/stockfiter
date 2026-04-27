@@ -230,7 +230,8 @@ class OrderManager:
             new_order = self.trade_api.place_um_order(
                 symbol=symbol,
                 side=side,
-                type='MARKET',
+                position_side='BOTH',  # PM 账户必须指定
+                order_type='MARKET',
                 quantity=str(quantity)
             )
             

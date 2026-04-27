@@ -11,7 +11,7 @@
 
 import logging
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, Optional
 from config.strategy_params import StrategyParams, get_params
 
 logger = logging.getLogger(__name__)
@@ -110,31 +110,39 @@ class SignalFilter:
         indicators = data.get('indicators', {})
         hourly = indicators.get('1h', {})
 
-        atr14 = hourly.get('atr14')
+        atr14_raw = hourly.get('atr14')
         current_price = data.get('last_price')
 
-        if atr14 is None or current_price is None:
+        if atr14_raw is None or current_price is None:
             logger.warning("ATR 或价格数据不足，跳过 ATR 过滤")
             return True
 
-        # 计算 ATR 百分比
-        atr_pct = atr14 / current_price
+        # 确保 atr14 是 Decimal 类型
+        atr14 = Decimal(str(atr14_raw)) if not isinstance(atr14_raw, Decimal) else atr14_raw
 
-        # ATR% 区间：2.0% ~ 4.5%
-        min_atr_pct = self.params.get('signal_filters.min_atr_pct', Decimal('0.02'))
-        max_atr_pct = self.params.get('signal_filters.max_atr_pct', Decimal('0.045'))
+        # 确保 current_price 是 Decimal 类型
+        current_price_decimal = Decimal(str(current_price)) if not isinstance(current_price, Decimal) else current_price
+
+        # 计算 ATR 百分比
+        atr_pct = atr14 / current_price_decimal
+
+        # ATR% 区间：0.3% ~ 10%（适应市场实际波动率）
+        min_atr_pct_raw = self.params.get('signal_filters.min_atr_pct', '0.003')
+        max_atr_pct_raw = self.params.get('signal_filters.max_atr_pct', '0.10')
+        min_atr_pct = Decimal(str(min_atr_pct_raw)) if not isinstance(min_atr_pct_raw, Decimal) else min_atr_pct_raw
+        max_atr_pct = Decimal(str(max_atr_pct_raw)) if not isinstance(max_atr_pct_raw, Decimal) else max_atr_pct_raw
 
         if atr_pct < min_atr_pct:
-            logger.info(f"ATR% {atr_pct:.2%} < {min_atr_pct:.2%}，波动率过低")
+            logger.info(f"ATR% {float(atr_pct):.2%} < {float(min_atr_pct):.2%}，波动率过低")
             return False
 
         if atr_pct > max_atr_pct:
-            logger.info(f"ATR% {atr_pct:.2%} > {max_atr_pct:.2%}，波动率过高")
+            logger.info(f"ATR% {float(atr_pct):.2%} > {float(max_atr_pct):.2%}，波动率过高")
             return False
 
         return True
 
-    def apply_all_filters(self, data: Dict[str, Any], direction: int, grade: str) -> tuple:
+    def apply_all_filters(self, data: Dict[str, Any], direction: int, grade: str) -> Tuple[bool, Optional[str]]:
         """
         应用所有过滤器
 

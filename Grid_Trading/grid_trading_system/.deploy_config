@@ -1,0 +1,15 @@
+# 服务器配置
+SERVER_IP="43.156.242.184"
+SERVER_USER="root"
+SERVER_PROJECT_PATH="/root/grid_trading_system"
+
+# Docker 配置
+DOCKER_CONTAINER_NAME="grid-trading-app"
+DOCKER_IMAGE_NAME="grid-trading-system:latest"
+
+# 项目配置
+PROJECT_NAME="grid_trading_system"
+DEPLOY_PACKAGE_NAME="deployment_package.tar.gz"
+
+# SSH 密钥配置（使用云平台密钥）
+SSH_KEY_PATH="/Users/yl/vscode/inspection_automation/docs/only.pem"

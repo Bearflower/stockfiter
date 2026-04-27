@@ -391,7 +391,7 @@ class RuleEngineScheduler:
                 entry_params = {
                     'symbol': entry_order.get('symbol'),
                     'side': entry_order.get('side'),
-                    'position_side': entry_order.get('position_side'),
+                    'position_side': entry_order.get('position_share'),  # 修正字段名
                     'order_type': entry_order.get('type'),  # type -> order_type
                     'quantity': entry_order.get('quantity'),  # 使用调整后的数量
                 }

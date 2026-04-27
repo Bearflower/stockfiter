@@ -15,8 +15,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List, Optional, Tuple
 from config.strategy_params import StrategyParams, get_params
-from core.data import MarketDataFetcher, get_data_fetcher
-from core.scoring import get_scoring_engine
+from ..data import MarketDataFetcher, get_data_fetcher
+from ..scoring import get_scoring_engine
 from .validator import SignalValidator
 from .filter import SignalFilter
 
@@ -252,8 +252,11 @@ class SignalDetector:
         if current_price is None:
             return None, None, []
 
-        # 简化实现：使用当前价作为入场价
-        entry_price = current_price
+        # 确保 entry_price 是 Decimal 类型
+        if isinstance(current_price, Decimal):
+            entry_price = current_price
+        else:
+            entry_price = Decimal(str(current_price))
 
         # 计算止损幅度（基于 ATR）- v6.13.3 优化
         atr = indicators.get('1h', {}).get('atr14')
@@ -263,8 +266,11 @@ class SignalDetector:
             atr_decimal = Decimal(str(atr)) if not isinstance(atr, Decimal) else atr
             stop_loss_pct = (atr_decimal * Decimal('1.5')) / entry_price
             # 限制止损幅度在合理范围内（v6.13.3: 2%-4%）
-            min_stop = self.params.get('position_sizing.min_stop_loss_pct', Decimal('0.02'))
-            max_stop = self.params.get('position_sizing.max_stop_loss_pct', Decimal('0.04'))
+            # 确保 min_stop 和 max_stop 是 Decimal 类型
+            min_stop_raw = self.params.get('position_sizing.min_stop_loss_pct', '0.02')
+            max_stop_raw = self.params.get('position_sizing.max_stop_loss_pct', '0.04')
+            min_stop = Decimal(str(min_stop_raw)) if not isinstance(min_stop_raw, Decimal) else min_stop_raw
+            max_stop = Decimal(str(max_stop_raw)) if not isinstance(max_stop_raw, Decimal) else max_stop_raw
             stop_loss_pct = max(min_stop, min(stop_loss_pct, max_stop))
         else:
             stop_loss_pct = Decimal('0.03')  # v6.13.3: 默认 3%
@@ -279,8 +285,11 @@ class SignalDetector:
         r_value = abs(entry_price - stop_loss)
 
         tp_config = self.params.get('risk_management.take_profit_levels', {})
-        tp1_mult = tp_config.get('tp1_multiplier', Decimal('1.5'))
-        tp2_mult = tp_config.get('tp2_multiplier', Decimal('2.5'))
+        # 确保所有值都是 Decimal 类型
+        tp1_mult_raw = tp_config.get('tp1_multiplier', '2.5')
+        tp2_mult_raw = tp_config.get('tp2_multiplier', '4.0')
+        tp1_mult = Decimal(str(tp1_mult_raw)) if not isinstance(tp1_mult_raw, Decimal) else tp1_mult_raw
+        tp2_mult = Decimal(str(tp2_mult_raw)) if not isinstance(tp2_mult_raw, Decimal) else tp2_mult_raw
 
         take_profits = []
 
@@ -291,10 +300,18 @@ class SignalDetector:
             tp1_price = entry_price - r_value * tp1_mult
             tp2_price = entry_price - r_value * tp2_mult
 
+        # 确保 ratio 值也是 Decimal 类型
+        tp1_ratio_raw = tp_config.get('tp1_ratio', '0.25')
+        tp2_ratio_raw = tp_config.get('tp2_ratio', '0.25')
+        tp3_ratio_raw = tp_config.get('tp3_ratio', '0.50')
+        tp1_ratio = Decimal(str(tp1_ratio_raw)) if not isinstance(tp1_ratio_raw, Decimal) else tp1_ratio_raw
+        tp2_ratio = Decimal(str(tp2_ratio_raw)) if not isinstance(tp2_ratio_raw, Decimal) else tp2_ratio_raw
+        tp3_ratio = Decimal(str(tp3_ratio_raw)) if not isinstance(tp3_ratio_raw, Decimal) else tp3_ratio_raw
+
         take_profits = [
-            {'level': 'TP1', 'price': tp1_price, 'ratio': tp_config.get('tp1_ratio', Decimal('0.3'))},
-            {'level': 'TP2', 'price': tp2_price, 'ratio': tp_config.get('tp2_ratio', Decimal('0.3'))},
-            {'level': 'TP3', 'price': None, 'ratio': tp_config.get('tp3_ratio', Decimal('0.4'))},  # TP3 使用移动止损
+            {'level': 'TP1', 'price': tp1_price, 'ratio': tp1_ratio},
+            {'level': 'TP2', 'price': tp2_price, 'ratio': tp2_ratio},
+            {'level': 'TP3', 'price': None, 'ratio': tp3_ratio},  # TP3 使用移动止损
         ]
 
         return entry_price, stop_loss, take_profits
@@ -318,29 +335,36 @@ class SignalDetector:
         stop_loss_pct = abs(entry_price - stop_loss) / entry_price
 
         # 名义价值 = 风险金额 / 止损百分比
-        risk_amount = self.params.get('position_sizing.risk_amount', Decimal('10'))
+        # 确保 risk_amount 是 Decimal 类型
+        risk_amount_raw = self.params.get('position_sizing.risk_amount', '10')
+        risk_amount = Decimal(str(risk_amount_raw)) if not isinstance(risk_amount_raw, Decimal) else risk_amount_raw
         notional_value = risk_amount / stop_loss_pct
 
         # 统一使用固定杠杆倍数（方案 4：保持分级仓位，统一杠杆）
         # 所有等级都使用 5 倍杠杆，通过仓位比例控制风险
-        fixed_leverage = 5
+        fixed_leverage = Decimal('5')
 
         # 保证金 = 名义价值 / 杠杆
         margin = notional_value / fixed_leverage
 
         # 限制保证金不超过单仓上限
-        max_margin = self.params.get('account.single_position_margin', Decimal('30'))
+        max_margin_raw = self.params.get('account.single_position_margin', '30')
+        max_margin = Decimal(str(max_margin_raw)) if not isinstance(max_margin_raw, Decimal) else max_margin_raw
         margin = min(margin, max_margin)
 
         # 合约数量 = 名义价值 / 入场价
         quantity = notional_value / entry_price
 
+        # 确保 total_capital 是 Decimal 类型
+        total_capital_raw = self.params.get('account.total_capital', '500')
+        total_capital = Decimal(str(total_capital_raw)) if not isinstance(total_capital_raw, Decimal) else total_capital_raw
+
         return {
             'notional_value': notional_value,
             'margin': margin,
-            'leverage': fixed_leverage,
+            'leverage': int(fixed_leverage),
             'quantity': quantity,
-            'risk_ratio': risk_amount / self.params.get('account.total_capital', Decimal('500')),
+            'risk_ratio': risk_amount / total_capital,
         }
 
     def _build_signal(self, symbol: str, direction: int, grade: str, score: int,
@@ -369,9 +393,15 @@ class SignalDetector:
         tp_settings = {}
         for tp in take_profits:
             tp_key = tp['level']
+            price_val = tp['price']
+            # 确保价格是 float
+            price_float = float(price_val) if price_val is not None else '移动止损'
+            # 确保 ratio 是 Decimal，然后转换为 float 用于格式化
+            ratio_val = tp['ratio']
+            ratio_float = float(ratio_val) if isinstance(ratio_val, Decimal) else ratio_val
             tp_settings[tp_key] = {
-                '价格': float(tp['price']) if tp['price'] else '移动止损',
-                '仓位比例': f"{tp['ratio'] * 100:.0f}%"
+                '价格': price_float,
+                '仓位比例': f"{ratio_float * 100:.0f}%"
             }
 
         # v5.5: 获取评分引擎的评分结果（如果可用）
@@ -385,6 +415,10 @@ class SignalDetector:
         except Exception as e:
             logger.warning(f"获取评分详情失败：{e}")
 
+        # 确保 risk_ratio 是 float 用于格式化
+        risk_ratio_val = position_params['risk_ratio']
+        risk_ratio_float = float(risk_ratio_val) if isinstance(risk_ratio_val, Decimal) else risk_ratio_val
+
         signal = {
             '币种': symbol,
             '开仓方向': direction_str,
@@ -396,7 +430,7 @@ class SignalDetector:
             '止盈设置': tp_settings,
             '保证金': float(position_params['margin']),
             '实际杠杆': position_params['leverage'],
-            '风险占比': f"{position_params['risk_ratio'] * 100:.1f}%",
+            '风险占比': f"{risk_ratio_float * 100:.1f}%",
             '通过检查清单': True,
             '备注': f"符合 500U 阶段一交易规则（{grade}级信号）",
             # v5.5 新增字段
