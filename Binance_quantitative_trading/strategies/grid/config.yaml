@@ -1,0 +1,301 @@
+# 网格交易策略配置
+
+# 策略基本信息
+strategy:
+  name: grid_trading
+  version: "2.4.0"
+  description: "网格交易策略 V2.4 - 三层预警架构，解决ADX滞后问题"
+
+# 交易对配置
+symbols:
+  - ETHUSDT
+
+# 市场状态检测配置（V2.3）
+market:
+  # ADX阈值
+  adx_extreme_strong: 40        # 极端强趋势阈值（1h，V2.2从35提高至40）
+  adx_extreme_strong_4h: 30     # 极端强趋势4h确认（V2.2新增双重确认）
+  adx_normal_strong: 30         # 普通强趋势（1h）
+  adx_normal_strong_4h: 25      # 普通强趋势（4h确认）
+  weak_trend_adx_lower: 25      # 弱趋势下限
+  weak_trend_adx_upper: 30      # 弱趋势上限
+
+  # V2.3 新增：紧急极端趋势和趋势急剧增强
+  emergency_adx_threshold: 55       # 紧急极端趋势1h ADX阈值（无条件，最高优先级，回测优化：50→55）
+  trend_acceleration_threshold: 8   # 趋势急剧增强ADX上升阈值（2h内上升点数，回测优化：20→12→8）
+  adx_history_size: 3               # ADX历史记录窗口大小（对应2-3小时检测窗口）
+
+  # V2.4 三层预警架构
+  adx_period: 10                      # ADX周期（从14缩短为10，提升反应速度）
+  price_emergency_1h: 0.03            # 第1层：1h价格变动紧急阈值（3%）
+  price_emergency_15m: 0.015          # 第1层：15m价格变动紧急阈值（1.5%）
+  adx_early_warning_15m: 50           # 第2层：15m ADX 早期预警阈值
+  price_early_warning_1h: 0.01        # 第2层：早期预警需1h价格变动>=1%
+
+  # 波动率异常检测（V2.2放宽）
+  volatility_ratio_threshold: 1.2   # ATR飙升阈值（V2.2:1.5→1.3→回测优化:1.2）
+  volatility_consecutive_count: 2   # 连续异常次数
+  volatility_recovery_ratio: 1.2    # 恢复阈值（V2.2从1.3降至1.2）
+
+  # 恢复条件（V2.3分状态恢复）
+  recovery_adx_strong_1h: 30   # 强趋势恢复1h ADX阈值
+  recovery_adx_strong_4h: 30   # 强趋势恢复4h ADX阈值
+  recovery_adx_weak_1h: 25     # 弱趋势恢复1h ADX阈值
+  recovery_adx_weak_4h: 25     # 弱趋势恢复4h ADX阈值
+
+  # 趋势强度归一化除数
+  trend_strength_divisor: 30
+
+  # ATR历史记录窗口大小（V2.2从3扩展至5，对应4小时检测窗口）
+  atr_history_size: 5
+
+  # EMA周期
+  ema_fast: 20
+  ema_slow: 50
+
+  # ATR周期
+  atr_period: 14
+
+  # 置信度参数（V2.3从配置读取，消除硬编码）
+  confidence:
+    emergency_extreme_trend: 0.99
+    trend_accelerating: 0.9
+    extreme_strong_trend: 0.95
+    volatility_abnormal: 0.85
+    normal_strong_trend: 0.8
+    weak_trend: 0.7
+    oscillation: 0.5
+    # V2.4 新增置信度
+    price_emergency: 1.0              # 价格行为触发置信度（最高）
+    early_warning_15m: 0.92           # 15m ADX 早期预警置信度
+    trend_confirmed_1h: 0.95          # 1h ADX 趋势确认置信度
+
+  # 基准ATR计算周期（天数）
+  atr_baseline_period: 30
+
+  # ATR倍数配置（V2.2：大幅增加区间宽度确保利润率 > 1%）
+  atr_multipliers:
+    oscillation: 6.0            # 震荡：P ± 6×ATR（区间宽度 12×ATR，回测优化：5.0→6.0）
+    weak_trend: 6.0             # 弱趋势：P ± 6×ATR（区间宽度 12×ATR）
+    stop_loss: 2.0              # 止损缓冲
+
+# 网格配置（V2.2）
+grid:
+  # 网格类型: arithmetic(等差), geometric(等比), dynamic(动态)
+  type: dynamic
+
+  # 默认网格数量
+  count: 8
+
+  # 震荡市场网格数量范围（V2.2：减少网格数确保利润率）
+  min_grid_count: 5        # 震荡最小网格数量
+  max_grid_count: 12       # 震荡最大网格数量
+  base_grid_count: 6       # 震荡基准网格数量（回测优化：8→6，提升利润率）
+
+  # 弱趋势网格参数（V2.2）
+  weak_trend_base_grid_count: 6    # 弱趋势基准网格数
+  weak_trend_min_grid_count: 4     # 弱趋势最小网格数
+  weak_trend_max_grid_count: 10    # 弱趋势最大网格数
+  weak_trend_grid_reduction_factor: 0.8  # 弱趋势网格数折扣系数（V2.3文档要求×0.8）
+  weak_trend_stop_loss_buffer: 2.4 # 弱趋势止损缓冲（V2.2：比震荡更宽）
+
+  # 网格间距倍数配置
+  grid_spacing_atr_multiplier: 2.5  # 网格间距为ATR的2.5倍
+
+  # 网格间距（等差网格使用，单位：USDT）
+  spacing: 100
+
+  # 网格比例（等比网格使用，例如1.01表示1%间距）
+  spacing_ratio: 1.01
+
+  # 基础交易数量
+  base_quantity: 0.001
+
+  # 价格区间（可选，不设置则根据当前价格动态计算）
+  price_range:
+    min: null  # 最低价格（null表示动态计算）
+    max: null  # 最高价格（null表示动态计算）
+
+  # 止损缓冲倍数（终止价格与网格边界的距离）
+  stop_loss_buffer: 2
+
+  # 震荡市场移动缓冲区除数（移动停止价 = 止盈止损价 / N，使三层防线有区分）
+  oscillation_move_buffer_divisor: 2
+
+  # 每格利润率下限（币安要求 > 1%）
+  min_profit_rate: 0.01
+
+  # 振幅阈值（决定等差/等比切换）
+  amplitude_threshold: 0.3
+
+# 交易配置
+trading:
+  # 杠杆倍数
+  leverage: 10
+
+  # 默认保证金（USDT）
+  margin: 500
+
+  # 最小交易张数
+  min_quantity: 1
+
+  # 最大持仓数量（同时持有的交易对数量）
+  max_positions: 2
+
+  # 单个网格的保证金（USDT）
+  single_position_margin: 100
+
+  # 订单有效期
+  time_in_force: GTC  # Good Till Cancel
+
+# 移动止盈配置
+trailing_stop:
+  # 是否启用移动止盈
+  enabled: true
+
+  # 盈利启动线（达到此盈利百分比后启动追踪止盈）
+  profit_trigger: 0.15  # 15%
+
+  # 追踪回撤比例（从最高价回撤此比例触发止盈）
+  trailing_percent: 0.05  # 5%
+
+  # 追踪对象：mark_price（标记价格）或 last_price（最新成交价）
+  price_type: mark_price
+
+# 风险控制配置
+risk:
+  # 最大回撤比例（触发后停止交易）
+  max_drawdown: 0.15  # 从0.1调整为0.15，提高回撤容忍度
+
+  # 最大仓位比例（占总资金）
+  max_position_ratio: 0.3  # 30%
+
+  # 日亏损限制（占总资金）
+  daily_loss_limit: 0.03  # 从0.05调整为0.03，降低单日亏损限制
+
+  # 止损比例（单个网格）
+  stop_loss_percent: 0.1  # 10%
+
+  # 网格重置阈值（价格偏离网格中心的比例）
+  grid_reset_threshold: 0.15  # 15%
+
+  # 硬止损比例（总资金亏损阈值）
+  hard_stop_loss: -0.15  # 从-0.08调整为-0.15，提高硬止损容忍度
+
+  # 仓位上限（占总资金）
+  position_limit: 0.8  # 新增：仓位上限80%，防止过度持仓
+
+# K线配置
+kline:
+  # K线周期（用于计算波动率）
+  interval: "1h"
+
+  # K线数量
+  limit: 100
+
+  # 多时间框架配置
+  timeframes:
+    - "15m"  # 边界突破检测
+    - "1h"   # 主判断周期
+    - "4h"   # 趋势过滤器
+
+# 监控配置
+monitor:
+  # 订单检查间隔（秒）
+  check_interval: 10
+
+  # 状态保存间隔（秒）
+  save_interval: 60
+
+  # 网格重置检查间隔（秒）
+  grid_check_interval: 3600
+
+  # 信号灯巡检间隔（秒）
+  signal_check_interval: 3600  # 1小时
+
+# 通知配置
+notification:
+  # 是否启用通知
+  enabled: true
+
+  # 项目名称
+  project: grid
+
+  # 通知级别
+  levels:
+    - info
+    - warning
+    - error
+
+  # 通知事件
+  events:
+    # 订单成交通知
+    order_filled: true
+    # 风险告警通知
+    risk_alert: true
+    # 网格重置通知
+    grid_reset: true
+    # 策略启动/停止通知
+    strategy_status: true
+    # 市场状态变化通知
+    market_state_change: true
+    # 网格参数变化通知
+    grid_params_change: true
+
+# 数据库配置
+database:
+  # 数据库schema
+  schema: trading
+
+  # 订单表名
+  orders_table: grid_orders
+
+  # 持仓表名
+  positions_table: grid_positions
+
+  # 状态表名
+  state_table: grid_state
+
+  # 信号记录表名
+  signals_table: grid_signals
+
+# 日志配置
+logging:
+  # 日志级别
+  level: INFO
+
+  # 日志文件路径
+  file: logs/grid_strategy.log
+
+  # 日志格式
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # 日志轮转大小（MB）
+  max_size: 10
+
+  # 日志保留数量
+  backup_count: 5
+
+# 半自动信号灯模式配置（V2.3）
+signal_bot:
+  # 是否启用信号灯模式
+  enabled: true
+
+  # 巡检间隔（分钟）
+  check_interval_minutes: 60
+
+  # 推送冷却时间（V2.3三档冷却）
+  push_cooldown_hours_alert: 1       # 紧急/趋势加速/极端强趋势（1小时，高频提醒）
+  push_cooldown_hours_normal: 6      # 普通强趋势/波动率异常（6小时，中频提醒）
+  push_cooldown_hours_tradable: 2    # 弱趋势/震荡（2小时，可开仓状态更频繁推送）
+
+  # 触发推送的条件阈值（V2.1简化）
+  trigger_thresholds:
+    profit_rate_low: 0.012  # 1.2%
+    
+  # 保守方案网格减少步长
+  conservative_grid_reduce: 10
+    
+  # 信号模式
+  mode: semi
+
