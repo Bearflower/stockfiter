@@ -1,0 +1,22 @@
+{
+  "dimensions": {
+    "by_fund": {
+      "groups": 59,
+      "records": 156
+    },
+    "by_action": {
+      "groups": 2,
+      "records": 156
+    },
+    "by_topic": {
+      "groups": 13,
+      "records": 876
+    },
+    "by_year": {
+      "groups": 12,
+      "records": 1032
+    }
+  },
+  "total_records": 2220,
+  "index_version": "1.0"
+}

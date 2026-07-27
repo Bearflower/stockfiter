@@ -1,0 +1,29 @@
+meta:
+  version: "1.0"
+  generated_by: "scripts/distill/main.py"
+  generated_at: "2026-06-24T16:19:14.846390+08:00"
+
+blog_stats:
+  total_files: 294
+  summarized_count: 294
+  pending_count: 0
+  new_since_last_update: 0
+  last_blog_file: "（详见 blog_dir 目录，日期: 2026-06）"
+  last_blog_date: "2026-06"
+
+distillation:
+  last_summarize_time: "N/A"
+  last_analyze_time: "N/A"
+  first_layer_elapsed_seconds: 0.0
+  second_layer_elapsed_seconds: 0.0
+
+products:
+  blog_index: "docs/distilled/blog-index.csv"
+  core_veins: "docs/distilled/核心观点矿脉.md"
+  golden_quotes: "docs/distilled/金句库.md"
+  state_file: "docs/distilled/.state.json"
+  readme: "docs/distilled/README.md"
+
+api_used:
+  model: "deepseek-chat"
+  deep_model: "deepseek-chat"

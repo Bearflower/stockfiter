@@ -1,0 +1,96 @@
+version: '3.8'
+
+# ============================================================
+# stockfilter_v3 - 3容器分离架构
+# ============================================================
+# 容器 1: kline-service    - K线数据更新 + 历史补全
+# 容器 2: strategy-obpc     - OBPC 超跌反弹策略（形态扫描 + 飞书推送）
+# 容器 3: strategy-eadvisor - E大估值策略（指数估值 + ETF推荐 + 飞书日报）
+#
+# 共享资源：PostgreSQL(外部) + 飞书 Webhook
+# ============================================================
+
+services:
+  # ==================== 容器 1: K线数据服务 ====================
+  kline-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.kline
+    container_name: stockfilter-kline
+    image: stockfilter-kline:latest
+    working_dir: /app
+    environment:
+      - TZ=Asia/Shanghai
+      - DB_HOST=${DB_HOST:-common_service_postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-stockfilter}
+      - DB_USER=${DB_USER:-stockfilter_user}
+      - DB_PASSWORD=${DB_PASSWORD:-Stock@2024}
+      - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
+      - PYTHONPATH=/app
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data:ro
+      - ./config/config.yaml:/app/config/config.yaml:ro
+    restart: unless-stopped
+    networks:
+      - common_service_common_network
+    command: python -u scripts/scheduler_kline.py
+
+  # ==================== 容器 2: OBPC 策略服务 ====================
+  strategy-obpc:
+    build:
+      context: .
+      dockerfile: Dockerfile.obpc
+    container_name: stockfilter-obpc
+    image: stockfilter-obpc:latest
+    working_dir: /app
+    environment:
+      - TZ=Asia/Shanghai
+      - FEISHU_WEBHOOK=${FEISHU_WEBHOOK}
+      - DB_HOST=${DB_HOST:-common_service_postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-stockfilter}
+      - DB_USER=${DB_USER:-stockfilter_user}
+      - DB_PASSWORD=${DB_PASSWORD:-Stock@2024}
+      - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
+      - PYTHONPATH=/app
+      - KLINE_WAIT_TIMEOUT=1800
+      - KLINE_WAIT_INTERVAL=60
+    volumes:
+      - ./logs:/app/logs
+      - ./output:/app/output
+      - ./data:/app/data:ro
+      - ./config/config.yaml:/app/config/config.yaml:ro
+    restart: unless-stopped
+    networks:
+      - common_service_common_network
+    depends_on:
+      - kline-service
+    command: python -u scripts/scheduler_obpc.py
+
+  # ==================== 容器 3: E大估值策略服务 ====================
+  strategy-eadvisor:
+    build:
+      context: .
+      dockerfile: Dockerfile.eadvisor
+    container_name: stockfilter-eadvisor
+    image: stockfilter-eadvisor:latest
+    working_dir: /app
+    environment:
+      - TZ=Asia/Shanghai
+      - FEISHU_WEBHOOK_EADVISOR=${FEISHU_WEBHOOK_EADVISOR}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - PYTHONPATH=/app:/app/distill_changying
+    volumes:
+      - ./logs:/app/logs
+      - ./distill_changying/docs/distilled/logs:/app/distill_changying/docs/distilled/logs
+      - ./config/config.yaml:/app/config/config.yaml:ro
+    restart: unless-stopped
+    networks:
+      - common_service_common_network
+    command: python -u distill_changying/scripts/advisor/scheduler.py
+
+networks:
+  common_service_common_network:
+    external: true

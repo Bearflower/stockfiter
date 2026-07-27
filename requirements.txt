@@ -1,0 +1,23 @@
+# 核心依赖
+baostock>=0.8.8       # 股票列表和K线数据获取
+pandas>=2.0.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+PyYAML>=6.0.0
+psycopg2-binary>=2.9.0  # PostgreSQL 数据库驱动
+
+# 通知推送
+requests>=2.28.0
+
+# 定时任务
+schedule>=1.1.0
+
+# 日志
+loguru>=0.6.0
+
+# LLM API 调用（distill_changying DeepSeek）
+openai>=1.0.0
+
+# 测试
+pytest>=7.0.0
+pytest-cov>=4.0.0

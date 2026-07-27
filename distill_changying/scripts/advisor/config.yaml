@@ -1,0 +1,208 @@
+# E大投资决策助手配置文件 —— 所有参数从本文件读取，禁止硬编码
+
+# DeepSeek API 配置（共享 distill 的 API）
+api:
+  provider: "deepseek"
+  api_key_env: "DEEPSEEK_API_KEY"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-v4-pro"          # 2026-07-24 旧模型废弃，改用 V4 Pro
+  temperature: 0.7                  # 思考模式下不生效，保留仅用于非思考模式降级
+  max_tokens: 2000
+  max_retries: 3
+  retry_base_delay: 5
+
+# LLM 分析配置 —— 仓位建议 + ETF 推荐 + 市场解读（通过大模型推理替代规则引擎）
+llm_analysis:
+  enabled: true                     # 总开关，关闭则回退到规则引擎
+  model: "deepseek-v4-pro"          # 分析专用模型
+  thinking_mode: true               # 启用思考模式
+  reasoning_effort: "high"          # 思考强度 high/max
+  temperature: null                 # 思考模式下不使用 temperature
+  max_tokens: 4000                  # 输出上限（含推理 + 内容）
+  timeout: 120                      # 单次 LLM 调用超时（秒）
+  fallback_to_rules: true           # LLM 失败时降级到规则引擎
+
+# 估值温度阈值 —— PE 历史分位 %
+valuation:
+  thresholds:
+    diamond_pit: 10        # 钻石坑：分位 < 10%
+    undervalued: 30        # 低估区：10% - 30%
+    normal: 70             # 正常区：30% - 70%
+    overvalued: 90         # 高估区：70% - 90%
+    bubble: 100            # 泡沫区：> 90%
+
+  # 置信度阈值 —— 有效指数占比
+  confidence_thresholds:
+    high: 0.8              # ratio >= 0.8 → 高置信度
+    medium: 0.5            # ratio >= 0.5 → 中置信度
+                            # ratio < 0.5 → 低置信度
+
+  # 仓位映射 —— 各温度区间 -> A股/债券/现金 比例
+  position_mapping:
+    diamond_pit:
+      stock: 80
+      bond: 10
+      cash: 10
+    undervalued:
+      stock: 60
+      bond: 25
+      cash: 15
+    normal:
+      stock: 40
+      bond: 40
+      cash: 20
+    overvalued:
+      stock: 20
+      bond: 50
+      cash: 30
+    bubble:
+      stock: 5
+      bond: 35
+      cash: 60
+
+# 指数列表
+indices:
+  - code: "000001"
+    name: "上证指数"
+  - code: "399001"
+    name: "深证成指"
+  - code: "000300"
+    name: "沪深300"
+  - code: "000905"
+    name: "中证500"
+  - code: "399006"
+    name: "创业板指"
+  - code: "000016"
+    name: "上证50"
+
+# 数据源配置
+data_source:
+  start_date: "2010-01-01"              # 历史数据查询起始日期（回退方案用）
+  constituent_sample_size: 20            # 成分股采样数量（按代码字典序取前N只，控制查询耗时）
+  percentile_lookback_years: 5           # 收盘价分位计算的历史回溯年数
+  pe_filter_min: 0                       # PE 有效值下限（过滤亏损股，PE<=0 的丢弃）
+  pe_filter_max: 1000                    # PE 有效值上限（过滤极端异常值）
+  pb_filter_min: 0                       # PB 有效值下限（过滤负资产个股）
+
+# 数据缓存
+cache:
+  ttl_hours: 6             # 缓存有效期（小时）
+  path: "docs/distilled/logs/valuation_cache.json"
+
+# 知识底座路径（相对于项目根目录）
+knowledge_base:
+  core_veins: "docs/distilled/核心观点矿脉.md"
+  golden_quotes: "docs/distilled/金句库.md"
+
+# 知识底座二次压缩配置
+compression:
+  max_chars_per_section: 300    # 每个章节最多保留字符数
+  max_total_tokens: 3000        # 目标 token 上限（约 8000 字符）
+
+# 交互式问答配置
+chat:
+  max_history_rounds: 10        # 保留最近 N 轮对话历史
+  summary_trigger_rounds: 8     # 超过此轮数后自动压缩历史
+
+# 免责声明（所有输出末尾追加）
+disclaimer: "以上分析仅供参考，不构成投资建议。投资有风险，决策须谨慎。"
+
+# 调度器配置
+schedule:
+  scan_time: "23:10"           # 每日扫描时间（北京时间）
+  feishu_timeout: 10           # 飞书推送超时（秒）
+  post_scan_sleep: 90          # 扫描后等待（秒），避免因重复执行
+  poll_interval: 30            # 主循环轮询间隔（秒）
+  scan_timeout: 1800           # 整体扫描超时（秒），baostock 成分股查询慢时需长超时
+
+# 市场语境匹配配置
+opinion_matching:
+  max_opinions_chars: 8000       # 发送给 LLM 的观点库最大字符数
+  temperature: 0.3               # 匹配 LLM 温度
+  max_tokens: 1000               # 匹配 LLM 最大 tokens
+  opinions_path: ""              # 观点库路径，为空时自动使用 distill 产物目录下的 观点库.jsonl
+  fallback_opinions:             # 观点库不存在或匹配失败时的备用观点
+    - opinion: "投资是概率游戏，而非预测游戏。放弃预测涨跌，专注于计算不同情况下的胜率和赔率。"
+      relevance_reason: "当前市场需要理性决策"
+    - opinion: "仓位管理是风险控制的核心。不空仓、不满仓，根据估值动态调整。"
+      relevance_reason: "当前估值水平需要调整仓位"
+
+# 150 份资产配置框架
+allocation:
+  total_shares: 150
+  nav_per_share: 10000
+
+# ETF 品种池 —— 用于生成具体买卖建议
+etf_pool:
+  - code: "510300"
+    name: "沪深300ETF"
+    index: "000300"
+    category: "A股-宽基"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 10
+  - code: "510500"
+    name: "中证500ETF"
+    index: "000905"
+    category: "A股-宽基"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 10
+  - code: "510050"
+    name: "上证50ETF"
+    index: "000016"
+    category: "A股-宽基"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 8
+  - code: "159915"
+    name: "创业板ETF"
+    index: "399006"
+    category: "A股-宽基"
+    buy_zone: { pe_percentile_max: 20 }
+    sell_zone: { pe_percentile_min: 80 }
+    shares_per_trade: 1
+    max_shares: 8
+  - code: "515080"
+    name: "中证红利ETF"
+    index: "000922"
+    category: "A股-策略"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 6
+  - code: "159920"
+    name: "恒生ETF"
+    index: "HSI"
+    category: "海外"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 8
+  - code: "513100"
+    name: "纳指ETF"
+    index: "IXIC"
+    category: "海外"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 8
+  - code: "518880"
+    name: "黄金ETF"
+    index: "AU9999"
+    category: "商品"
+    buy_zone: { pe_percentile_max: 30 }
+    sell_zone: { pe_percentile_min: 70 }
+    shares_per_trade: 1
+    max_shares: 5
+  - code: "511010"
+    name: "国债ETF"
+    index: "000012"
+    category: "债券"
+    buy_zone: { pe_percentile_max: 50 }
+    sell_zone: { pe_percentile_min: 90 }
+    shares_per_trade: 2
+    max_shares: 30

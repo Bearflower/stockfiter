@@ -1,0 +1,169 @@
+# 博客蒸馏工具配置文件
+# 所有业务逻辑参数均从此文件读取，禁止在代码中硬编码
+
+# API 配置
+api:
+  provider: "deepseek"            # 支持 openai / deepseek / claude / local
+  api_key_env: "DEEPSEEK_API_KEY" # 从环境变量读取的 key 名
+  base_url: "https://api.deepseek.com"  # DeepSeek API 端点
+  model: "deepseek-chat"          # 第一层蒸馏使用的模型
+  deep_model: "deepseek-chat"     # 第二层深度分析使用的模型
+  temperature: 0.3
+  max_tokens: 4000
+
+# 速率限制
+rate_limit:
+  delay_between_articles: 2       # 每篇文章间延迟（秒）
+  batch_size: 5                   # 每批次处理篇数
+  batch_pause: 10                 # 批次间暂停时间（秒）
+  max_retries: 3                  # API 调用最大重试次数
+  retry_base_delay: 5             # 指数退避的基础延迟（秒）
+
+# 输入输出路径
+paths:
+  blog_dir: "docs/blog"           # 博客源文件目录（相对于项目根目录）
+  output_dir: "docs/distilled"    # 蒸馏产物输出目录
+  state_file: "docs/distilled/.state.json"  # 处理状态记录文件
+  log_dir: "docs/distilled/logs"  # 日志目录
+
+# 内容截断
+truncation:
+  max_chars: 6000                 # 单篇发送给 API 的最大字符数
+
+# 跨文章分析
+deep_analysis:
+  max_articles_per_batch: 100     # 深度分析每批最多处理文章数（超上下文时分批）
+
+# 元数据文件
+meta:
+  meta_file: "docs/distilled/.meta.yaml"
+
+# Vision API 配置（用于图片 OCR 识别）
+vision:
+  api_key_env: "DEEPSEEK_API_KEY"     # 复用已有 Key
+  base_url: "https://open.bigmodel.cn/api/paas/v4"  # 智谱 AI 端点（必须用智谱网关才能调 GLM 视觉模型）
+  model: "glm-5v-turbo"              # GLM-5V-Turbo 视觉模型
+  temperature: 0.1                    # OCR 任务用低温度提高准确性
+  max_tokens: 3000
+  images_dir: "docs/distilled/images"
+  output_file: "docs/distilled/图片OCR识别结果.md"
+
+# 持仓还原配置
+position_extraction:
+  # 发车帖文件名关键词
+  fache_keywords:
+    - "ETF计划"
+    - "长赢指数投资计划"
+    - "长赢投资计划"
+    - "文字发车"
+  # 筛选模式：
+  #   "filename_only" - 仅通过文件名关键词匹配
+  #   "filename_and_content" - 文件名优先，未匹配时检查内容是否含买入/卖出+基金代码（回退策略）
+  filter_mode: "filename_and_content"
+  # 基金代码优先级：场外优先（场外 > 场内）
+  fund_code_priority: "场外"
+  # 输出文件路径（相对于项目根目录）
+  output_markdown: "docs/distilled/持仓还原表.md"
+  output_csv: "docs/distilled/持仓还原表.csv"
+
+# 内容分类配置
+content_classification:
+  # 发车帖文件名关键词（正则匹配）
+  transaction_keywords:
+    - "长赢.*投资计划"
+    - "ETF计划"
+    - "文字发车"
+  # 微博精选文件名关键词（正则匹配）
+  weibo_keywords:
+    - "微博精选"
+    - "微博"
+
+# 观点提取配置
+opinion_extraction:
+  max_source_chars: 8000        # 发给 LLM 的源文本最大字符数
+  temperature: 0.2              # 观点提取 LLM 温度
+  max_tokens: 4000              # 观点提取 LLM 最大 tokens
+  # 主题标签（用于 Prompt 中的选项列表）
+  topic_tags:
+    - "估值判断"
+    - "仓位管理"
+    - "逆向投资"
+    - "风险控制"
+    - "资产配置"
+    - "投资心法"
+    - "市场周期"
+    - "策略执行"
+  # 市场条件标签（用于 Prompt 中的选项列表）
+  market_condition_tags:
+    - "泡沫高估"
+    - "高估区"
+    - "正常区"
+    - "低估区"
+    - "钻石坑"
+    - "市场恐慌"
+    - "市场狂热"
+    - "通用"
+
+# 品种观点提取配置
+product_opinion:
+  enabled: true
+  # 关注的品种列表（用于 Prompt 引导和 LLM 提取参考）
+  target_products:
+    - "红利"
+    - "中证500"
+    - "医药"
+    - "消费"
+    - "恒生"
+    - "科创50"
+    - "创业板"
+    - "信息"
+    - "金融"
+    - "环保"
+    - "证券"
+    - "传媒"
+    - "黄金"
+    - "原油"
+    - "债券"
+    - "可转债"
+    - "中概"
+    - "恒科"
+  # 每篇微博精选最少提取品种观点数（仅用于记录，Prompt 中已包含此要求）
+  min_product_opinions: 3
+
+# 人物画像蒸馏配置
+persona:
+  max_observations_in_prompt: 15    # 知识底座中最多展示近期判断数
+  max_operations_in_prompt: 10      # 知识底座中最多展示近期操作数
+  recent_months: 3                  # "近期"的时间窗口（月）
+  opinion_output_merged: true       # 是否输出统一观点库（默认开启）
+
+# 人物画像构建配置
+persona_builder:
+  max_source_chars: 8000            # 发送给LLM的源文本最大字符数
+  temperature: 0.3                  # LLM 温度
+  max_tokens: 8192                  # 最大 tokens（人物画像需要较大输出）
+
+# 人物画像索引配置
+persona_index:
+  output_subdir: "persona_index"    # 索引子目录名（相对于 paths.output_dir）
+  dedup_field: "opinion"            # 去重字段名
+  structured_index: true            # 是否构建结构化索引
+  vector_index: true                # 是否构建向量索引
+  embedding_model: "paraphrase-multilingual-MiniLM-L12-v2"  # Embedding 模型名称
+  top_k: 20                        # 向量检索默认返回 Top-K 条数
+
+# 智慧查询接口配置
+persona_query:
+  temperature: 0.4                  # 查询 LLM 温度
+  max_tokens: 4096                  # 查询 LLM 最大 tokens
+
+# 知识索引统计配置
+stats:
+  fund_top_k: 10                    # 品种买卖排名取 Top K
+  yield_ranges:                     # 收益率区间划分
+    - "0-20%"
+    - "20-50%"
+    - "50-100%"
+    - ">100%"
+    - "亏损"
+    - "未知"

@@ -1,0 +1,44 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# 安装系统依赖和时区数据
+RUN apt-get update && apt-get install -y \
+    gcc \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置时区为 Asia/Shanghai（北京时间）
+ENV TZ=Asia/Shanghai
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata
+
+# 复制 OBPC 策略依赖（不含 openai/openai）
+COPY requirements-obpc.txt requirements.txt
+
+# 安装 Python 依赖
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制 OBPC 策略所需代码
+COPY engine/ engine/
+COPY strategy/ strategy/
+COPY data/ data/
+COPY notification/ notification/
+COPY utils/ utils/
+COPY scripts/daily_scan.py scripts/
+COPY scripts/feishu_push.py scripts/
+COPY scripts/scheduler_obpc.py scripts/
+COPY scripts/data/ scripts/data/
+COPY config/ config/
+
+# 创建目录
+RUN mkdir -p logs output && chmod -R 777 logs output
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
+
+CMD ["python", "-u", "-c", "import time; print('OBPC策略容器已启动，等待定时调度...'); [time.sleep(60) for _ in iter(int, 1)]"]

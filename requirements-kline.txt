@@ -1,0 +1,10 @@
+# K线数据服务依赖
+# 仅用于 K线每日更新 + 历史数据补全
+
+baostock>=0.8.8       # 沪深K线数据获取
+pandas>=2.0.0
+numpy>=1.24.0
+psycopg2-binary>=2.9.0  # PostgreSQL 数据库驱动
+PyYAML>=6.0.0
+python-dotenv>=1.0.0
+loguru>=0.7.0            # 日志（utils/logger.py 依赖）

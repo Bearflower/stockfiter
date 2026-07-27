@@ -1,0 +1,41 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# 安装系统依赖和时区数据
+RUN apt-get update && apt-get install -y \
+    gcc \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置时区为 Asia/Shanghai（北京时间）
+ENV TZ=Asia/Shanghai
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata
+
+# 复制 E大估值依赖（baostock + openai，不含 psycopg2-binary）
+COPY distill_changying/requirements-advisor.txt requirements.txt
+COPY requirements-eadvisor.txt requirements-extra.txt
+
+# 安装 Python 依赖
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-extra.txt
+
+# 复制 E大估值所需代码（不含 PostgreSQL 依赖）
+COPY distill_changying/scripts/ distill_changying/scripts/
+COPY distill_changying/docs/distilled/ distill_changying/docs/distilled/
+COPY distill_changying/docs/blog/ distill_changying/docs/blog/
+COPY config/config.yaml distill_changying/config/config.yaml
+
+# 创建日志目录
+RUN mkdir -p distill_changying/docs/distilled/logs logs && chmod -R 777 logs distill_changying/docs/distilled/logs
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app:/app/distill_changying
+ENV LOG_LEVEL=INFO
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
+
+CMD ["python", "-u", "distill_changying/scripts/advisor/scheduler.py"]

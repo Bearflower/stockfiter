@@ -1,0 +1,21 @@
+# E大投资决策助手（distill_changying）依赖
+# 安装: pip install -r requirements-advisor.txt
+
+# A股市场数据获取
+baostock>=0.8.8
+
+# DeepSeek LLM API 调用
+openai>=1.0.0
+
+# 数据处理
+pandas>=2.0.0
+pyyaml>=6.0.0
+
+# 中文分词
+jieba>=0.42.1
+
+# 向量检索（仅 sklearn TF-IDF，不装 PyTorch）
+scikit-learn>=1.0.0
+
+# 数值计算
+numpy>=1.24.0

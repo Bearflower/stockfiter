@@ -1,0 +1,328 @@
+# stockfilter_v3 统一配置文件
+# 版本: V3.0
+# 最后更新: 2026-05-15
+
+# ==================== 全局配置 ====================
+global:
+  # 数据库配置
+  database:
+    host: localhost
+    port: 5432
+    database: stockfilter
+    user: postgres
+    password: your_password
+
+  # 股票列表文件路径（优先从该文件读取股票列表，文件不存在时回退到数据库）
+  stock_list_file: "/app/main_board_stocks.csv"
+
+  # 股票池全局过滤配置
+  stock_pool:
+    exclude_st: true
+    exclude_delisting: true
+    exclude_beijing: true
+    exclude_star_market: true      # 剔除科创板（688/689 开头）
+    exclude_chi_next: true          # 剔除创业板（300/301 开头）
+    exclude_new_third_board: true   # 剔除新三板
+    exclude_index: true             # 剔除指数
+    exclude_new_stocks: true        # 剔除次新股
+    new_stock_cutoff_date: "2025-01-01"
+    main_board_only: true           # 只保留主板（深000/001/002 沪600/601/603/605）
+
+  # 通知配置
+  notification:
+    enabled: true
+    remote_url: "http://43.156.242.184:8766/api/v1"
+    feishu_webhook: "https://open.feishu.cn/open-apis/bot/v2/hook/42d0bed6-95e6-4af5-919e-3291d8c13c73"
+
+  # K线服务配置
+  kline_service:
+    remote_url: "http://43.156.242.184:8765/api/v1"
+
+  # 日志配置
+  logging:
+    level: INFO
+    file: logs/stockfilter_v3.log
+    max_bytes: 10485760
+    backup_count: 5
+
+# ==================== 策略配置 ====================
+strategies:
+  oversold_bounce:
+    enabled: true
+    version: "v25"
+    description: "超跌反弹回踩确认策略 V2.0"
+    params:
+      # K线数据获取参数
+      kline_history_days: 120          # 获取历史K线的天数
+      min_kline_length: 60             # 最小有效K线数量（不足则跳过）
+
+      # 大跌检测
+      drop_threshold: 0.15
+      drop_window: 20
+
+      # 缩量检测（放量日前10天内）
+      volume_shrink_ratio: 0.5
+      shrink_to_surge_days: 10
+
+      # 放量检测
+      min_volume_ratio: 2.0
+      max_volume_ratio: 12.0
+      surge_price_ratio: 0.06
+      surge_lookback: 15
+
+      # 方案A参数（flat_days=1 启用方案A：缩量走平1天）
+      flat_days: 1
+      flat_volume_threshold: 0.85
+      flat_price_range: 0.08
+      post_surge_check_days: 5
+      post_surge_max_drop: 0.97
+
+      # 回踩确认
+      retrace_max_days: 10
+      support_ratio: 0.985
+
+      # 流动性
+      min_avg_amount: 30000000
+      volume_check_period: 20
+
+      # 交易参数（供回测使用）
+      trailing_stop_ratio: 0.08
+      hard_stop_loss: 0.10
+      stop_loss_ratio: 0.97
+      min_hold_days: 5
+      max_hold_days: 30
+      commission: 0.00025
+      stamp_tax: 0.001
+      slippage: 0.001
+
+      # 大盘环境过滤（增强）
+      index_filter:
+        enabled: true                    # 大盘过滤总开关
+        index_code: "000300.SH"          # 指数代码
+        index_ma_period: 20              # 短周期均线天数
+        index_ma_period_long: 60         # 长周期均线天数（新增：60日均线）
+        long_ma_filter_enabled: true     # 60日均线过滤开关（新增）
+
+        # ===== V2.1 新增：MACD 动量过滤 =====
+        method: 'macd'                   # 过滤方法：'ma_position'（V2.0 均线位置）或 'macd'（V2.1 动量）
+        macd_fast: 12                    # MACD 快线周期（method='macd' 时生效）
+        macd_slow: 26                    # MACD 慢线周期（method='macd' 时生效）
+        macd_signal: 9                   # MACD 信号线周期（method='macd' 时生效）
+        condition: 'dif > 0'             # MACD 过滤条件（method='macd' 时生效）
+
+        # ===== V2.1 新增：均线斜率过滤 =====
+        slope_filter_enabled: true       # 斜率过滤开关（V2.1 已启用：均线向下拐头时禁止开仓）
+        slope_ma_period: 60              # 斜率计算的均线周期（20 或 60）
+        slope_lookback: 5                # 斜率回看天数（当前均线 vs N 天前均线）
+        slope_threshold: 0.002           # 斜率阈值（0.2%），大于该值才视为均线向上
+        min_index_data_days: 30          # 最小指数数据获取天数（确保数据量足够计算指标）
+
+      # 信号间隔控制
+      signal_cooldown_days: 60           # 信号冷却期（交易日）
+      max_signals_per_year: 2            # 单股票年度限制
+      max_signals_per_month: 30          # 单月信号数上限
+
+      # 评分阈值过滤（新增整段）
+      score_filter:
+        enabled: true                        # 评分过滤总开关
+        score_threshold: 65                  # 默认评分阈值（低于此分不推送）
+        score_threshold_weak: 75             # 弱势市场评分阈值
+        weak_market_condition: "below_ma60"  # 弱势市场判定条件
+
+      # ===== V2.1 新增：评分市场状态调整 =====
+      # 在个股形态评分基础上加入大盘相对强度调整系数
+      # 强势市场评分放大、弱势市场评分缩小、极弱市场评分归零
+      score_adjustment:
+        enabled: true                          # 评分调整开关（V2.1 已启用：根据市场状态调整评分）
+        score_multiplier_strong: 1.2           # 强势市场评分放大系数
+        score_multiplier_weak: 0.8             # 弱势市场评分缩小系数
+        score_multiplier_extreme_weak: 0.0     # 极弱市场评分系数（0.0=评分归零）
+        score_max_limit: 100.0                 # 评分上限（调整后评分不超过此值）
+        score_min_limit: 0.0                   # 评分下限（调整后评分不低于此值）
+
+      # 每日信号数上限（Top N 稀缺性控制）
+      # 每日最多推送 N 个评分最高的信号，其余丢弃
+      max_daily_signals: 5
+
+    # V2.0 预期指标（用于回测结果对比，便于评估策略表现偏离度）
+    expected_metrics:
+      total_trades: 28                  # 预期总信号数
+      signals_per_year: 5.6             # 预期年均信号数
+      avg_return: 3.28                  # 预期平均收益（%）
+      win_rate: 67.9                    # 预期胜率（%）
+      max_return: 20.24                 # 预期最高收益（%）
+      min_return: -6.40                 # 预期最低收益（%）
+
+    # 通知模板
+    notification:
+      template: "oversold_bounce_card"
+
+  distill_changying:
+    enabled: true
+    version: "v1"
+    description: "基于E大估值框架的A股温度评估策略"
+    notify: true
+
+    # 估值温度阈值 —— PE 历史分位 %
+    params:
+      diamond_pit: 10
+      undervalued: 30
+      normal: 70
+      overvalued: 90
+      confidence_high: 0.8
+      confidence_medium: 0.5
+
+      # 仓位映射
+      position_mapping:
+        diamond_pit:
+          stock: 80
+          bond: 10
+          cash: 10
+        undervalued:
+          stock: 60
+          bond: 25
+          cash: 15
+        normal:
+          stock: 40
+          bond: 40
+          cash: 20
+        overvalued:
+          stock: 20
+          bond: 50
+          cash: 30
+        bubble:
+          stock: 5
+          bond: 35
+          cash: 60
+
+      # 指数列表
+      indices:
+        - { code: "000001", name: "上证指数" }
+        - { code: "399001", name: "深证成指" }
+        - { code: "000300", name: "沪深300" }
+        - { code: "000905", name: "中证500" }
+        - { code: "399006", name: "创业板指" }
+        - { code: "000016", name: "上证50" }
+
+      # 缓存 TTL（小时）
+      cache_ttl_hours: 6
+
+      # LLM 参数
+      llm_temperature: 0.7
+      llm_max_tokens: 2000
+      llm_max_retries: 3
+      llm_retry_base_delay: 5
+
+      # 知识底座压缩参数
+      max_chars_per_section: 300
+      max_total_tokens: 3000
+
+      # baostock 数据源配置
+      data_source:
+        start_date: "2010-01-01"
+        constituent_sample_size: 50
+        percentile_lookback_years: 5
+        pe_filter_min: 0
+        pe_filter_max: 1000
+        pb_filter_min: 0
+
+      # 150 份资产配置
+      allocation:
+        total_shares: 150
+        nav_per_share: 10000
+
+      # ETF 品种池 —— 用于生成具体买卖建议
+      etf_pool:
+        - code: "510300"
+          name: "沪深300ETF"
+          index: "000300"
+          category: "A股-宽基"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 10
+        - code: "510500"
+          name: "中证500ETF"
+          index: "000905"
+          category: "A股-宽基"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 10
+        - code: "510050"
+          name: "上证50ETF"
+          index: "000016"
+          category: "A股-宽基"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 8
+        - code: "159915"
+          name: "创业板ETF"
+          index: "399006"
+          category: "A股-宽基"
+          buy_zone: { pe_percentile_max: 20 }
+          sell_zone: { pe_percentile_min: 80 }
+          shares_per_trade: 1
+          max_shares: 8
+        - code: "515080"
+          name: "中证红利ETF"
+          index: "000922"
+          category: "A股-策略"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 6
+        - code: "159920"
+          name: "恒生ETF"
+          index: "HSI"
+          category: "海外"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 8
+        - code: "513100"
+          name: "纳指ETF"
+          index: "IXIC"
+          category: "海外"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 8
+        - code: "518880"
+          name: "黄金ETF"
+          index: "AU9999"
+          category: "商品"
+          buy_zone: { pe_percentile_max: 30 }
+          sell_zone: { pe_percentile_min: 70 }
+          shares_per_trade: 1
+          max_shares: 5
+        - code: "511010"
+          name: "国债ETF"
+          index: "000012"
+          category: "债券"
+          buy_zone: { pe_percentile_max: 50 }
+          sell_zone: { pe_percentile_min: 90 }
+          shares_per_trade: 2
+          max_shares: 30
+
+    # 通知模板
+    notification:
+      template: "distill_changying_card"
+
+# ==================== 定时任务调度 ====================
+schedule:
+  kline_update: "14:00"     # K线数据更新（UTC 14:00 = 北京 22:00）
+  daily_scan: "14:10"       # 每日形态扫描（UTC 14:10 = 北京 22:10）
+  feishu_push: "00:10"      # 飞书推送（UTC 00:10 = 北京 08:10）
+  backfill: "02:00"         # 历史数据补全（UTC 02:00 = 北京 10:00）
+
+# ==================== E大蒸馏策略调度 ====================
+distill_changying:
+  advisor:
+    schedule:
+      scan_time: "23:10"         # 每日扫描时间（北京时间）
+      feishu_timeout: 10         # 飞书推送超时（秒）
+      post_scan_sleep: 90        # 扫描后等待时间（秒）
+      poll_interval: 30          # 轮询间隔（秒）
+      scan_timeout: 1200         # 整体扫描超时（秒），防止卡死阻塞定时任务（baostock 数据获取较慢，需1200秒）

@@ -1,0 +1,13 @@
+# 服务器配置
+SERVER_IP="43.156.242.184"
+SERVER_USER="root"
+SSH_KEY="/Users/yl/vscode/inspection_automation/docs/only.pem"
+SERVER_PROJECT_PATH="/root/stockfilter_v3"
+
+# Docker 配置
+DOCKER_CONTAINER_NAME="stockfilter-obpc"
+DOCKER_IMAGE_NAME="stockfilter-obpc:latest"
+
+# 项目配置
+PROJECT_NAME="stockfilter_v3"
+DEPLOY_PACKAGE_NAME="stockfilter_v3_deploy.tar.gz"

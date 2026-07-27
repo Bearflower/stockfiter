@@ -1,0 +1,6266 @@
+[
+  {
+    "opinion": "投资应依靠策略而非情绪，买或卖由策略决定，修正后继续执行，才能实现心态与收益双赢。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-12-01"
+  },
+  {
+    "opinion": "配置不同品种（如纳指生科、恒生医疗、黄金）是为了降低波动，避免单一市场暴涨暴跌影响组合。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-12-01"
+  },
+  {
+    "opinion": "资本市场资金最终流向理智、坚毅、智慧的人，从情绪化、墙头草的人手中流出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-12-01"
+  },
+  {
+    "opinion": "普通人应避免炒股和加杠杆，选择不会死的品种均衡配置，熊市少亏、牛市跟上即为成功。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-12-01"
+  },
+  {
+    "opinion": "以估值为依据的高抛低吸极其有效，动态再平衡组合长期跑赢纯股或纯债。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-12-01"
+  },
+  {
+    "opinion": "贵了就不买、不追涨，放弃能力圈外的利润，坚持原则比短期收益更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-12-01"
+  },
+  {
+    "opinion": "左侧买入部分仓位，右侧追涨会损失底部收益但规避大跌风险，追求次优结果更实际。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-11-01"
+  },
+  {
+    "opinion": "破除心魔的关键是接受下跌中买入的价位在上涨中同样合理，结合网格条件单机械操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-11-01"
+  },
+  {
+    "opinion": "从跟车人数、论坛氛围、基金销售等情绪指标可指导交易，人气顶点时持仓风险高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-11-01"
+  },
+  {
+    "opinion": "注册制下A股难全面牛市，全市场估值上限降至30多倍，需调整策略适应新生态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-11-01"
+  },
+  {
+    "opinion": "不懂房地产行业就不投资，坚持能力圈原则，避免复杂和高杠杆领域。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-11-01"
+  },
+  {
+    "opinion": "严格执行卖出标准，复盘发现策略纪律比追求完美更重要，波段仓位在牛市中功不可没。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-11-01"
+  },
+  {
+    "opinion": "2800点左右是上证指数的重要支撑，3000点只是心理关口，无实际意义。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-10-01"
+  },
+  {
+    "opinion": "权益投资关键：闲钱、买不死品种、压力测试、执行计划、保持正向现金流、活着第一。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-10-01"
+  },
+  {
+    "opinion": "全市场估值未跌破4月低点，但50和300已破前低，中小股票尚未同步。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-10-01"
+  },
+  {
+    "opinion": "恒生指数估值接近2008年金融危机水平，历史类似位置在2011年和2016年。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-10-01"
+  },
+  {
+    "opinion": "高位卖出是投资中最难的一步，需相信数据和系统，避免主观干扰。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-10-01"
+  },
+  {
+    "opinion": "技术分析有效，本质是价格围绕价值波动，可辅助识别极端区域，但不必追求精准。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-10-01"
+  },
+  {
+    "opinion": "恒生跌破最后一根支撑18500后，操作体系停止买入，等待翻身，即使永远不翻身也接受。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-09-01"
+  },
+  {
+    "opinion": "致敬买入系统在长期下跌最低价当日操作，若连续有效则证明交易决策系统可靠。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-09-01"
+  },
+  {
+    "opinion": "没有技术支撑的品种不再观察，腾出精力寻找仍有支撑的品种买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-09-01"
+  },
+  {
+    "opinion": "左侧价值与右侧趋势结合，考虑分部分买入美股。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-09-01"
+  },
+  {
+    "opinion": "今年A股IPO融资额全球领先，市场融资功能未受行情影响。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-09-01"
+  },
+  {
+    "opinion": "8月因事基本未发微博，但大多工作日会在公众号发布日记。",
+    "topic": "其他",
+    "source_type": "observation",
+    "time": "2022-08-01"
+  },
+  {
+    "opinion": "上证指数本月收盘3202.14点，月跌幅1.57%，市场波动较小。",
+    "topic": "其他",
+    "source_type": "observation",
+    "time": "2022-08-01"
+  },
+  {
+    "opinion": "投资者可关注公众号《E篇日记》获取日常市场观点。",
+    "topic": "其他",
+    "source_type": "observation",
+    "time": "2022-08-01"
+  },
+  {
+    "opinion": "所有买入的不死品种一定要做盈利，没有止损这个概念，坚信不死的品种最终能盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-06-01"
+  },
+  {
+    "opinion": "每一次下跌都是市场的馈赠，下跌时轻仓、上涨时满仓的右侧建仓策略能优化持仓体验。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-06-01"
+  },
+  {
+    "opinion": "左侧越跌越买，右侧有转折迹象才买，真正的右侧只有2-3次买入机会，买错也不追涨。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-06-01"
+  },
+  {
+    "opinion": "承诺保本无风险收益率最好不超过定期存款一倍，金融市场收益率难以每年平滑增长。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-06-01"
+  },
+  {
+    "opinion": "医药仓位令人开心，后续再跌会加仓；美股今年极大概率会买，但要等价值和技术双重买点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-06-01"
+  },
+  {
+    "opinion": "新能源不符合买入条件，无论怎么涨都不买；观察高PE品种如比亚迪的后续走势以积累经验。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-06-01"
+  },
+  {
+    "opinion": "杠杆必须控制好，爆仓会永久失去希望，而自有资金投资指数基金即使浮亏也能等待回归。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-05-01"
+  },
+  {
+    "opinion": "逆向投资：在基金经理挨骂时买入，在所有人吹捧时卖出，避免追涨杀跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-05-01"
+  },
+  {
+    "opinion": "持续低吸不死品种并在高位卖出，是多数人投资的不二法门，追涨风险远大于收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-05-01"
+  },
+  {
+    "opinion": "美股小盘股估值已跌回2020年水平，但标普和纳指仍偏高，需警惕地缘风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-05-01"
+  },
+  {
+    "opinion": "明显超出同类产品的收益率需谨慎对待，理解超额收益来源后再投资。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-05-01"
+  },
+  {
+    "opinion": "技术分析在投资中有辅助作用，但不应作为唯一交易理由，需结合基本面。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-05-01"
+  },
+  {
+    "opinion": "今年上半年大跌，年末反而可能赚钱，关键在于坚持低位布局和策略执行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-04-01"
+  },
+  {
+    "opinion": "波段策略升级解决了持续下跌中网格间隔过大的顽疾，源于多维度学习与开放心态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-04-01"
+  },
+  {
+    "opinion": "回购注销能提升每股价值，是美股牛市主因；A股需更多公司效仿以保护股东权益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-04-01"
+  },
+  {
+    "opinion": "低位只买不卖，高位只卖不买；不要在新低时追买，也不要在新高时急于卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-04-01"
+  },
+  {
+    "opinion": "科创50估值仍高，买入高估值指数需做好随时跑路或被深套的准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-04-01"
+  },
+  {
+    "opinion": "新朋友可在当前低位参考投资计划，但需做好买入即跌的心理准备，避免高位入场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-04-01"
+  },
+  {
+    "opinion": "恒生指数18500点是5-15年一遇的买入机会，即使可能继续下跌，但指数不会死，终将回归。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2022-03-01"
+  },
+  {
+    "opinion": "大多数指数长期上涨，执着于低买高卖容易卖飞，坐电梯好过踏空，尤其重仓品种。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2022-03-01"
+  },
+  {
+    "opinion": "投资首要问‘最多跌多少’，做好最坏准备（仓位、心态），才能应对极端行情。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2022-03-01"
+  },
+  {
+    "opinion": "单个品种仓位不超过金融资产20%，留足2-3年生活费，确保任何错误都不致命。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2022-03-01"
+  },
+  {
+    "opinion": "当前A股整体未到钻石坑，但医药进入伏击区，恒生和中概是波段加仓最后底线。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2022-03-01"
+  },
+  {
+    "opinion": "赌底部会心态崩溃，应把握空间时间节奏慢慢买，而非孤注一掷。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2022-03-01"
+  },
+  {
+    "opinion": "医药9500-10000是极佳长线建仓点位，利空越猛越应买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-02-01"
+  },
+  {
+    "opinion": "A股波动极大，应去东非大裂谷等猎物，在珠穆朗玛峰卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-02-01"
+  },
+  {
+    "opinion": "今年大概率困难，但已通过红利、债券、现金做好准备，一切在掌控中。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-02-01"
+  },
+  {
+    "opinion": "无意义反弹只会增加筑底时间，下跌加仓、波动提款、上涨赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-02-01"
+  },
+  {
+    "opinion": "医药最低点可能在2022年3-7月出现，历史进入该区域后回本需1-1.5年。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-02-01"
+  },
+  {
+    "opinion": "高位大比例分红并暂停申购的基金经理值得信任，体现水平与节操。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-02-01"
+  },
+  {
+    "opinion": "2022年大多数指数将收阴，行情复杂难做，但下跌或波动不代表没有赚钱机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-01-01"
+  },
+  {
+    "opinion": "中概等弱势品种要么赚钱，要么为未来赚大钱打基础，是几年一遇的大机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-01-01"
+  },
+  {
+    "opinion": "投资像种地，不能要求今天投入明天就有收益，需耐心等待周期。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-01-01"
+  },
+  {
+    "opinion": "机械执行既定交易计划，不要动感情，避免被反复收割。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-01-01"
+  },
+  {
+    "opinion": "永远不要分析去年的冠军基金经理，冠军通常带来价值毁灭。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-01-01"
+  },
+  {
+    "opinion": "投资者成熟三部曲：不接盘、买辣鸡、让别人接盘自己的辣鸡。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2022-01-01"
+  },
+  {
+    "opinion": "品种到底部区域的特征包括大V谩骂、投资者压力大、频繁提及支撑位，应思考如何从中赚钱而非发泄情绪。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-12-01"
+  },
+  {
+    "opinion": "恒生和中概虽短期下跌，但占比不高且资金长期不动，浮亏只是账面数字，关键在于降低成本积累筹码。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-12-01"
+  },
+  {
+    "opinion": "金融市场波动是常态，收益来源于智慧与愚蠢的较量，暴跌是长期账户高收益品种的来源。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-12-01"
+  },
+  {
+    "opinion": "永远不要加杠杆在熊市中逆势抄底，否则容易倾家荡产，保命是第一重要的原则。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-12-01"
+  },
+  {
+    "opinion": "不死品种的底部人性特征包括抄底资金被套、投资者迷茫、高手嘲笑、基本面预判崩塌，需保持冷静。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-12-01"
+  },
+  {
+    "opinion": "A股全市场估值上触五年均值，注册制改善高估现象，明年行情将非常刺激，需控制节奏保命攒便宜货。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-12-01"
+  },
+  {
+    "opinion": "破发是市场回归正常的信号，新股暴涨说明老股太贵，长牛基础在于合理定价。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-11-01"
+  },
+  {
+    "opinion": "投资最危险的时刻是赚大钱后洋洋得意时，需警惕策略失效，保持‘度’的平衡。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-11-01"
+  },
+  {
+    "opinion": "投资三步走：不赔钱、挣钱、保住盈利，所有策略应围绕此展开。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-11-01"
+  },
+  {
+    "opinion": "痛苦经历可转化为财富，如研究债券躲过08年暴跌，机会在于发现和思考。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-11-01"
+  },
+  {
+    "opinion": "不做波段易在震荡中崩溃，即使成本低也需策略应对波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-11-01"
+  },
+  {
+    "opinion": "危机是买便宜货的机会，但需谨慎求取，富贵险中求。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-11-01"
+  },
+  {
+    "opinion": "投资最重要的是信仰和智慧，信仰是坚持的动力，智慧是选择正确路径的能力。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-10-01"
+  },
+  {
+    "opinion": "左侧买入应遵循空间或时间原则，避免筹码密集堆积，以应对趋势不确定性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-10-01"
+  },
+  {
+    "opinion": "市场波动中，应关注资产是否增长，而非情绪波动，策略比人性更可靠。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-10-01"
+  },
+  {
+    "opinion": "中概互联已走出历史最低区域，但未来仍有多种可能，需做好预案。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-10-01"
+  },
+  {
+    "opinion": "环保指数从低点上涨211%，体现了长期坚持和‘三年不开张，开张吃三年’的规律。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-10-01"
+  },
+  {
+    "opinion": "当前A股整体不贵，除个别板块外，不打算减仓，会继续慢慢加仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-10-01"
+  },
+  {
+    "opinion": "涨得好不代表好，我会慢慢卖；跌得多不代表差，我会慢慢买。投资就是低买高卖。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-09-01"
+  },
+  {
+    "opinion": "机会是跌出来的，风险是涨出来的。今天赚赔不重要，要为未来着想。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-09-01"
+  },
+  {
+    "opinion": "投资方式要适合自己，逻辑自洽最重要，不必固步自封或否定他人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-09-01"
+  },
+  {
+    "opinion": "一个挣大钱的仓位可能需要2-3年甚至更久来买入持有，但不同阶段会有交替收获。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-09-01"
+  },
+  {
+    "opinion": "我能判断什么价格开始买或重仓，但永远不知道何时涨。做好配置，等风来。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-09-01"
+  },
+  {
+    "opinion": "下阶段布局目标：医药12000点、信息5000-5400点，希望它们继续下跌以提供好价。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-09-01"
+  },
+  {
+    "opinion": "瞄准的猎物正在一步步走进射程，不急，稳住，继续锁定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "跌破所有支撑后无法预知底部，需等市场自己走出形态反转。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "某些品种大跌时真的有点开心，这样就能更低价格买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "喜欢总是被打压的好公司，利润增速高加估值低才是长期收益来源。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "很多人含泪从旧赛道切到新赛道后遭重击，追涨杀跌风险大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "中概下跌不必害怕，一天提款反而很舒服，逆向思维是关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "利空未必是坏事，取决于出现在哪个区域，看见利空就哆嗦仍处于小韭阶段。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "投资不需要靠喝酒换取资源，只要有独立思考的头脑就能赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "挣钱了不用太高兴，赔钱了也没必要太苦恼，少了很多情绪波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "钻石坑里补车的朋友已有500品种收益率超过75%，验证了逆向布局的价值。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "普通投资者能在A股取得好收益，关键在于用正确理念应对极端波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "涨跌都行，但无法忍受没有波动，波动是市场常态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "医药和消费有目标价，别急，等待合适加仓点位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "历史重复，提前观察动向并准备，避免最后一刻仓促应对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "乱交易会赔钱，遵守策略才能管住自己。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "市场化的高利润行业需留神，政策导向可能变化。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "红利和500指数创新高，但一分钱未卖，体现长期持有策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "大跌时恐慌、大涨时乐观是典型错误心态，需保持理性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "红利指数如低调好学生，持续进步，适合稳健配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "持仓超20%违背配置原则，但通过加仓其他品种平衡，而非减仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "赛道股崩塌前已有预警，提醒投资者早做布局。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "便宜最终会赢，跌幅巨大后的利空常砸出钻石坑，经验主义支持用筹码赌便宜更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "买少了源于低迷时缺乏信念和配置，需坚信胜利并平衡持仓以保持心态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "涨得好不代表好，跌得多也不代表差，投资就是低买高卖，轮动是常态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "机会是跌出来的，风险是涨出来的，今天赚赔不重要，要为未来着想。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "绝不推荐已涨起来的品种，原则是让信任者的成本比自己低，共同赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-08-01"
+  },
+  {
+    "opinion": "左侧买入要不多给空间，要不多给时间，避免短期重仓扛不住下跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "执行已制订的交易计划，满足抄底欲望又避免乱交易，保持仓位可控。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "持有指数基金面对大跌更从容，股票则容易慌张。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "股市永远有机会，缺的是机会来临时手里的钱，不要害怕失去机会而冲动买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "客观优先于主观，科学先行于艺术，反思错误并改进策略是成长关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "涨跌都开心：跌了可买回波段，涨了已加仓长线，无论涨跌都能赢。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "暴涨品种要有减持预案，避免满仓坐电梯，但不必苛求卖在最高点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "坚持持有如500等品种，不抛弃不放弃，终会有回报，做人要有信仰。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "市场风格轮动是常态，从‘烂臭’到‘赛道’再到‘三傻’，本质是炒作轮动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "金融投资低买高卖，动动手指就能提款，是精神愉悦的事。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "80%的暴涨都是炒作，心里清楚跟炒一把没事，但别把炒作当成真相。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "现在7000点的中证500与2013年3000点估值相当，踏踏实实不卖。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "市场非普涨时，卖涨买跌，削峰填谷，做好配置永远新高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "不死的品种在我这里永远不可能止损割肉，必须用交易反败为胜。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "新跟投者浮亏抱怨是因为没经历完整周期，建议取关或耐心持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "公募基金仓位历史高位，增持创业板科创板，主板仓位跌至低位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "只要品种不会死、成本不高、仓位合适且对最差情况有准备，赚钱只是早晚的事。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "左侧买入需时间或空间至少其一，不要无节制抄底。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "坚持策略是关键，否则情绪主导操作会导致失败。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "强支撑不等于铁底，技术面分析需理解其概率性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "清理信息流，避免被他人情绪传染，保持独立思考。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "勿忘初心，波段仓位和长线仓位应有明确区分，避免混淆。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-07-01"
+  },
+  {
+    "opinion": "方法对了，在A股赔钱几乎不可能，所有品种盈利证明策略有效性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "资产积累是非线性、脉冲式增长，前期缓慢后期加速，需耐心等待复利效应。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "投资不能太悲观或太乐观，悲观赚不到大钱，乐观易忽视风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "房子涨幅若不变现或改善生活，仅是账面资产，实际受益有限。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "金融市场问题应由自身规律解决，过度干预可能适得其反。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "抄底需逆向思维，等所有情况变好时已错过最佳时机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "在A股玩，一将功成万骨枯，先确保不成为枯骨，不赔钱对方就赢不了。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "长线仓位盼涨，波段仓位盼跌，改变持仓结构可带来全天候利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "A股整体不贵不便宜，大幅加仓未必明智，已有仓位不贵可持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "金融投资本质是割来割去，赚大钱体系应重点研究何时割、怎么割。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "红利下跌可通过调整网格买入再吃波段利润，让涨跌都变成好事。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "市场怎么走改变不了，但能改变投资策略，让自己永远在新高的路上。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "传统白马股除白酒外已大幅下跌，抱团现象需重新审视。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "投资应平衡收益率与赚钱人数，适当提高风险偏好以提升整体收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "最大跌幅计算用于压力测试，帮助投资者根据风险承受能力配置仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "低买策略在牛市无法大量买入，适合熊市积累，不适合追涨者。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "市场情绪多变，集采从利空变利好，投资者需警惕非理性解读。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "优质品种跌70%以上时，负面解读多为韭菜行为，应坚持持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "基金经理抱团行为被双标评价，反映市场情绪化。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "投资应享受过程而非只盯结果，长期痛苦换短暂快乐不值。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "追高买入无论蓝筹还是赛道最终都会惨，买的便宜是关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "改变不了涨跌就让涨跌成为获利源泉，类似适应天气。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "对比信息与半导体涨幅，提醒不要因短期波动后悔选择。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-06-01"
+  },
+  {
+    "opinion": "投资中频繁切换策略容易成为小丑，坚持长期计划比追逐短期表现更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "股市游戏的核心是‘不死’，只要本金不大幅回撤，就永远有机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "计算概率时，底线是‘怎么才能不死’，而非一开始就想着赚大钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "当前现金多于持仓，若市场下跌至钻石坑，将是更好的抄底机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "中概互联正接近理想买入价格，但应避免买一份就恐慌自闭。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "A股缺乏回购文化，若大量公司回购并注销，才是真正利好。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "市场是复杂系统，单一消息不能决定涨跌，需积累经验提高判断。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "网格波段与长期仓位相辅相成，体系化策略可克服人性弱点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "红利指数短期表现好，但无全天候品种，需理解各品种特点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "股东人数暴涨后股价常腰斩，追高回调是散户常见误区。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "未到钻石坑应慢慢买入，空间或时间至少给一个，避免梭哈。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "长期横盘品种虽短期收益不佳，但波动中可通过网格提款，实现‘三年不开张，开张吃三年’。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "长线仓位用3-5年不用的钱，波段仓位用1-2年不用的钱，网格资金按回款时间分层配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "高风险品种如军工，用5%资金配置即使跌50%也不影响整体正收益，关键在于配比而非品种本身。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "投资计划越跌仓位越大，越涨仓位越小，目的是保持风险不变而提升预期收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "比特币等极端品种可配置1%，赔光仅损失1%，涨十倍则收益10%，体现小仓位试错逻辑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "用价值眼光选品种，用交易策略规范交易，投资有迹可循，能让人快乐且不再患得患失。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "波段提款中低买高卖必然有人反向操作，反思市场中的对手方行为。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "门票股经历腰斩后涨近200%，证明‘三年不开张，开张吃三年’，关键在于仓位控制。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "买入低迷品种时，别人看法无关紧要，最终飞起的品种会证明谁才是真正的辣鸡。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "成功的投资目的是增加筹码和利润，如券商下跌中通过网格操作降低成本，将回撤转为好事。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "躺平需想清楚，别中途看别人，否则更焦虑；当年鼓吹不买房的人自己却买了。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "医药和消费还能再玩30年，行业成长性毋庸置疑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "医药投资中，被动+主动行业基金结合是有效策略，主动基金限行业可降低出错概率。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "坚守信仰与接受新事物需平衡，抽丝剥茧融入体系是进步关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "曾经浮亏最多的不死品种，最终会赚大钱，耐心持有终有回报。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-05-01"
+  },
+  {
+    "opinion": "有钱时至少存20%收入，未雨绸缪，避免乱花钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "不懂不做，只投国家背书的标准品种，防财富损失。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "低买高卖是投资核心，做个善良的人，帮惨卖热。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "市场近期无聊，恒生表现不足，需耐心等待。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "基金看复权净值，尤其对分红型基金更准确。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "历史人性不变，投资和生活需从历史中学习经验。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "当前市场鸡肋无聊，不如专注研究和生活，等市场有趣再谈。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "全指医药指数点位与2015年持平，但估值下降59%，揭示好指数长期盈利的秘密。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "2018年底开始的慢牛观点未变，慢牛特点为慢、有波动，但总体向上。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "150计划A股仓位60%出头，配置合理，高位品种已减仓，无需担心过山车。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "表现不佳的品种如传媒，未来会在低位增加，越不好越有机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "投资是性格和世界认知的体现，找准自己在市场生态中的定位才能生存。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "投资乐趣在于按规划运行的成就感，而非单纯赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "中概真正好买点在目前价格下跌20%以上，之前只是试水。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "买的那一刻就应知道会赚会赔，低价买入不会死的品种则无惧波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "限购或关门不是问题，不便宜时不必着急，等便宜时再行动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "不要涨停，要不停涨，追求持续稳健的上涨。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "注册制改变了A股生态，只要不是全市场高估，行情就不会结束，长牛可期。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "A股过去暴涨暴跌源于钱多股少、恒时高估，2018年底钻石坑后整体仍在黄金坑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "大多数指数仓位踏踏实实拿着，小部分仓位等机会或做波段，别瞎操心。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "想要不翻船就永远不要买太贵的东西，一次两次没事，但总有一次会让你十年白干。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "全指信息估值低于2013年至今大部分时间，敢跌就敢接，心里清楚没高位接盘。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-04-01"
+  },
+  {
+    "opinion": "市场非常混沌，能力不足以看清下一步，只设计策略等待条件触发，不看多也不看空。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "危机中扛跌品种：有水时国债最稳，黄金最后也会崩；通胀起来时黄金和大宗表现更好。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "高位买入被套者常以价值投资自慰，但多数会在持续低迷时割肉或回本时卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "医药已回到一年多来最便宜状态，继续下跌意味着更好的机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "热门品种涨多后会有无数声音说永远好，但若相信，最终小丑是自己。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "未来投资版图涵盖全球多品种，只要合法合规且是指数基金，都会尝试并公布操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "A股整体不贵，大多数股票没有继续暴跌的基础，但部分疯狂板块仍需警惕。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "这波下跌不是行情结束，而是空中加油站，后半段新明星将取代旧明星。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "权益类投资不适合所有人，认清自身风险承受能力和性格比追求收益更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "降低资产波动是多数投资者应重视的问题，满仓暴跌会让人做出不理智行动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "价值投资者常进场太早、离场太早，趋势投资者则相反，不妨结合两者策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "研究历史、判断现在、指导未来，看得准靠的是历史知识和冷静。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "投资前先想最差能赔多少，能接受再投，涨跌都应在买入前设计好。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "轻仓下跌是好事，低位买入才能拉低成本，未来赚大钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "市场涨跌中，仓位合适就能涨跌都舒服，关键是有应对策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "基金净值大涨不等于基民赚钱，重要的是多少人盈利及盈利多少。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "投资如赏花，不同季节有不同品种，耐心等待属于你的花期，不必强求短期表现。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "不要用已拥有的财富去赌并不真正需要的东西，人生只需富一次，避免杠杆豪赌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "失败是常态，关键是从中学习并调整策略，持续自怨自艾才会导致真正的失败。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "指数基金投资中，指数未动但份额和资金增长，而追涨杀跌的基民多数亏损。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "交易体系分两部分：永久持仓与大周期波段吃国运，网格交易吃波动市收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "下跌对年轻或仓位轻的投资者是福报，可低成本积累份额。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "不要加入搞钱群，避免被骗子干扰，投资应独立踏实学习，主动吸收营养。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "长期仓位增加需谨慎，短期波段仓位可快进快出，灵活应对市场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "资本本质贪婪，会不断扩张寻找投资机会，这是理解市场动态的基础。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "分析股市数据能带来巨大幸福感，这种内在动力可支撑长期坚持投资研究。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "市场重回3500点，但投资者资金应比上次同点位时更多，体现复利效果。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-03-01"
+  },
+  {
+    "opinion": "牛市中基金大涨但多数基民收益微薄，60%的人赚不到10%，小幅下跌即可能大面积亏损。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "一轮牛熊后，60%-70%散户亏损，仅5%成为超级大赢家，底部重仓或策略优秀是关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "投资如打猎，需耐心等待猎物进入射程，乱开枪只会吓跑机会，空手而归。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "新朋友不应跟车，因为个人能力无法解决牛市中上车收益率差的问题，熊市才是入场良机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "浮亏品种出现时，应有序补仓而非盲目重仓，最终能通过策略盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "上证3501点时有41%股票比2440点还低，多数股民在结构性牛市中实际亏损。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "投资前需预设品种最大仓位和交易策略，避免乱买乱补导致混乱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "农历牛年将出现巨大投资机会，应关注被忽视的便宜小公司。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "泡沫破灭前会涨到无人敢看空，此时应警惕而非追高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "建立长期可持续、不大幅回撤的投资体系，比短期收益率更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "投资是一种信仰，在别人放弃时坚持才能获得长期回报。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "财富积累初期应重点增加本金，而非追求高收益率。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "原油30美元抄底没错，但期货品种有损耗，需小仓位参与并防范极端规则变化。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "持有品种短期表现差没关系，只要质地好，早晚会涨，不要嫌贫爱富。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "享受泡沫时要留一分清醒，慢慢向门口挪，清楚风险并逐步撤退。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "技术分析有用，2019年确认的关键点位21000点在2020年暴跌中仅差139点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "熊市越跌越买能积累大量筹码，牛市追涨难复制成功，低买高卖可循环盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "网格资金利用率高，未成交资金自动理财，成交后年化收益率可达7%以上。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "不盼涨跌，只设计应对策略，无论涨跌都能赚钱或舒服应对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "低位不买、涨高后悔是常见错误，应雪中送炭而非趋炎附势。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "热门品种是绞肉机，追热门的基民赎回会导致抱团股连锁下跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "投资操作应在买入前计划好，而非买后着急问该买还是卖。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "目标是熊市不赔钱、牛市大致跟上，一轮一轮枯燥地数钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-02-01"
+  },
+  {
+    "opinion": "持仓品种大涨时，应踏踏实实持有，享受价值回归和泡沫，但保持理智分批退出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "不因短期表现贬低品种，应像培养孩子一样耐心，均衡配置以应对不同市场季节。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "股市赚钱不难，关键在于把握价值和人性，避免新手在行情中后期盲目乐观。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "交易应基于体系和策略，而非新闻报道或他人观点，避免成为韭菜。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "两融余额创2015年7月以来新高，历史数据显示高位后可能迎来市场调整。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "更喜欢不涨的品种，因为它们提供低价买入机会，未来可能赚更多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "波段仓位不断提款保留利润，长线仓位低位入场，实现牛市有仓位、熊市成本低的防御性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "A股市场对散户是修罗场，多数人因牛市追高、熊市割肉而赔钱，节奏不对是根本原因。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "目前A股整体不贵，贵的只是部分板块，无需大幅减仓，甚至准备加仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "盈利后的卖出极难，没有完美体系，只能相信策略并坚决执行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "全市场估值已跌回黄金坑边缘，小股票估值极低，未来涨幅潜力大但需精选。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "监控市场情绪可通过旅鼠们给板块起的恶俗绰号，如“大烂臭”或“三傻”，暗示转折将至。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "不要过早禁锢于某个投资流派，应开放尝试不同品种，找到适合自己的方法。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "短期盈亏不重要，关键是从经历中学到东西，提升未来投资能力。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "当所有人拥抱核心资产时，市场风格可能正在切换，应警惕过热。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "港股被热炒时需谨慎，风水轮流转，关注表现极差但逻辑不变的品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "明明白白经历一轮牛熊，才能真正爱上熊市，理解周期价值。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "熊市买入、越跌越买，牛市涨幅巨大后不要追涨，这是未来投资的核心建议。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "基民平均持仓基金时间仅7个月，短期频繁交易是收益率低的主要原因。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "市场冰火两重天，局部过热但未全面疯狂，计划持仓品种需等待右侧信号操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "低位收集种子、高位收割，耐心坚持才能获得市场奖励，投资如此，人生亦然。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "全市场估值与2018年6月相似，但超过半数股票下跌，基民中已有20%-30%亏损。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2021-01-01"
+  },
+  {
+    "opinion": "150计划已8个月未买入A股，避免成为接盘侠，体现耐心等待机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "波动对长线和波动仓位影响不同，合理配置才能让市场波动成为中性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "今年约45%炒股者未赚钱，多数盈利不足10%，说明散户追涨杀跌难赢。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "投资应做大概率赢的选择，通过统计输家行为设计高抛低吸策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "普通投资者需认识自己，用适合普通人的方法做出不普通成绩。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "买入未成交是运气问题，不必生气，应平静接受并等待下次机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "卖出比买入难，因为不死的品种跌有底而涨无限，建议参考右侧交易，等跌再卖。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "权益类投资不是固定斜率上升，三年不开张、开张吃三年，横有多长竖有多高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "分级基金是天才产品，会玩者低风险赚大钱，不会玩者因不了解而赔光，即将消失。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "环保指数修改编制规则变成新能源指数，未卖出者受益，低位骂环保的大V应反思。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "思维模式决定投资成败，积极思维者应鼓励消极者，减少竞争。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "大涨时不要随意下车，但需观察信号，及时获利了结。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "持仓中踏实品种比高收益品种更珍贵，组合需低相关性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "买便宜货需在无人问津时，而非追涨热门品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "成本低、拿得住、卖在高点，是投资最难的三重境界。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "短期市场由散户情绪主导，长期回归价值，需区分投票机与称重机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "中小股票今年惨烈，涨跌家数比1000:3000，市场分化严重。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "大跌是买入便宜货的机会，没有大跌就没有超额利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "暴涨后适当减仓能起到再平衡作用，并增强持有信心。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "交易应基于客观策略而非主观判断，科学占75%，艺术占25%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "2021年部分板块会在最后疯狂后放烟花，跌幅可能达30%-50%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "2020年市场走势精准符合年初判断，长牛继续但部分板块将现万人坑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-12-01"
+  },
+  {
+    "opinion": "恒生ETF涨幅滞后因人民币升值，汇率波动属正常，长期无需担忧。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "医疗利空可能重现前两年机会，低仓位高收益下风险可控，可考虑加仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "公募基金持仓高度集中于食品饮料、医药、消费，需警惕踩踏风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "只要成本低，就没人能打败你，强调持仓成本控制的重要性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "投资中要对自己好，每天哄自己开心，保持良好心态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "策略是用来执行的，不执行随心所欲则失去策略意义。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "有些品种适合长相厮守，有些只适合短期玩玩，需分清类型。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "研究各国股市历史能帮助应对未来各种情况，确保赚钱基本确定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "投资是价值观的折射，嫌贫爱富、无信仰者难赚大钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "理想收益率展示应包含持仓收益、持仓收益率和累计收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "投资品种如人生，有起有落，应在别人落魄时帮助，富贵时悄悄撤退。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "新高不卖，卖点不是猜出来的，坚持策略而非预测。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "成功靠运气和努力，努力包括方法策略，抱怨无益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "怀疑机构投资者开始切换风格，欢迎接盘和砸盘。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "没卖的品种不停新高，卖了一部分的不停新低，持仓舒适。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "每个品种都有表现周期，落后不必急，领先别嘚瑟，花开有时。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "失败越早成本越低，关键要反思并修正策略，变得更强大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "新高不卖原则防止赚点钱就慌卖，连续上涨时能多赚。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "买入后上涨卧倒不动，下跌则用策略动到盈利，不赚钱不走。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "机构抱团易引发踩踏，跑得快损失少，但初期不抱团难获收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "用无风险收益覆盖股票最大跌幅，可构建绝对无本金损失组合。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "成本低于我才能保证安全边际，新朋友成本高则无法把握风险，建议别跟。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "拿住股票需满足三个条件：不会死、成本低或占比低，否则普通人无法长期持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "涨跌都高兴，因为能按策略执行并提款，这是理性投资者的常态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "医药做好跌幅25%-35%甚至50%的心理准备，投资前需评估最大风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "贫富差距源于个人选择：坚持储蓄和谨慎投资，而非月光或借贷消费。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-11-01"
+  },
+  {
+    "opinion": "投资前需对买入品种的涨、横、跌分别制定预案，按预案操作才能游刃有余。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "最怕买入时不知为何买，涨跌后不知如何应对，最终沦为被收割的‘海草’。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "投资策略与生活规则类似，关键是找到适合自己的规则并坚定执行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "设置条件单并坚决执行，比根据心情随意操作更有效，能避免情绪干扰。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "长期坚持规则能形成习惯，让投资和生活都变得简单高效。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "体系建立和路径正确是持续成功的基础，否则即使一时赚钱最终也会亏损。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "靠牛市、中新股或消息赚的钱易产生错觉，长期看会连本带利交回去。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "人生和交易生涯很长，必须依靠体系保证大多数时间盈利，而非撞大运。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "做事方法和体系不变，结果大概率也不会变，应从改变体系入手解决问题。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "债券反弹时，投资者若只爱股票，反而会多买债券以平衡配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "长线医药和医药网格的接回时机正在考虑中，暗示后续可能有操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "月入2300元应先存钱提升收入，而非急于投资。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "医疗板块三季度业绩表现突出，值得关注。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "已很久未买入A股，但买入时机可能临近。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "高位未卖出的板块，当前已无必要再卖。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "A股估值已接近国债收益率，具备性价比。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2020-10-01"
+  },
+  {
+    "opinion": "市场永远不缺机会，缺的是发现机会的眼睛和手里的钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "公募基金经理半数以上未经历熊市，抱团追高易引发风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "高估值板块如PE近100倍的爆发股，疯狂终将买单，追高需谨慎。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "本轮上涨是慢牛，2018年11月至今仅走了一半，趋势未变。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "放开涨跌幅有助于缩短熊市周期，提升市场效率。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "投资者应关注组合操作而非点位预测，避免因误解而盲目操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "投资本质是赌博，但可通过计算概率控制胜率，与纯运气赌博不同。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "不因新品种或他人跟风而买，只在品种值得投资时下注。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "当前仓位不宜过低，保守至激进应在40%-70%之间。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "短期涨跌不应评判操作，长期才能验证决策对错。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "新股上市后高估接盘风险大，前面所有人赚钱时买单者易亏损。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "识势是投资第一课，顺势而为，逆势则易败。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "新高不卖是指不要因上涨而惊慌清仓，但应坚定执行再平衡或网格等策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "科创50估值偏高，相比之下医疗和食品饮料的利润增速更显合理。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "现金不会烧手，资本市场机会无穷，不要急于挥棒，等待最佳区域。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "高位追涨者已被套牢，而长线仓位通过高位减仓和网格提款保持盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "市场下跌时网格开始新一轮提款，长线也会买入，带来愉悦的投资体验。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "公募基金利益与客户不一致，导致高位发行产品套牢投资者，是行业长期发展障碍。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "入市时机至关重要，钻石坑买入环保品种收益率已超70%，低位建仓是盈利关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "长线仓位低位持续买入并长期持有，波动仓位设条件单反复提款，可稳定获利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "权益类资产比例因现金流流入而下降，应每月用部分自由现金流强制买入以维持配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-09-01"
+  },
+  {
+    "opinion": "证券市场涨跌不是线性问题，没有一个数据能决定市场，应收集多方面信息融入投资体系做出综合判断。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "长线仓位低位建好后，踏踏实实持有比频繁操作更强。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "对金融投资毫无研究或长期赔钱者的操作建议是噪音，其行为属于乌合之众行为。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "繁花似锦时围上来的笑脸未必是朋友，穷困潦倒时支持你的才是真兄弟，投资中需警惕表面热情。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "股民嫌基金太慢，但实际可能是赔得太慢，提醒投资者反思自身收益预期与风险匹配。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "做人要‘正’，人品比能力更重要，远离人品差的人，否则越近越倒霉。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "做事业要动脑筋，因循守旧无法改变结果，需深入思考解决问题。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "对大多数人而言，踏实工作、做副业、靠谱金融投资是最佳财富路径，创业成功率极低。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "军工整体估值85倍，超八成成分股估值超50倍，三分之一市盈率超100倍，风险极高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "投资方式无绝对优劣，关键要清楚自己适合什么，没有慧根就别勉强。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "稀里糊涂赚的钱会踏踏实实赔回去，必须明白盈利来源是价值还是炒作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "科技股需不断技术革新维持领先，与消费股本质不同，巴菲特不投科技股是因产品替代快。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "投资要明白钱流向谁的口袋（机构、大股东等），多数盈利靠互摸口袋而非分红。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "散户优势有限，一轮牛熊能赚钱已算优秀，关键在于认清自身与市场参与者的差距。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "十年年化10%不难，2010-2020年市场涨幅足够，但需在熊市保住本金。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "熊市不赔钱或极少赔钱，牛市大致跟上，是长期跑赢市场的核心策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "高估值板块筹码被接走时，需警惕散户追涨杀跌的典型亏损模式。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "科创50成分股市盈率过高，盲目追高科技股需警惕风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "未来普通人财富分三层：理性投资者、仅靠工资者、乱投资者。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "社会新增财富主要流向理性投资者，工资收入者财富占比将缩小。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "炒作高波动品种必须承担被干掉的风险，即‘食得咸鱼抵得渴’。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "拿闲钱低位买入不会死的资产，耐心持有，等涨后卖出再找低位品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "纳斯达克上涨过快，平稳着陆可能很小，美股看不懂所以拿不住。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "承认错误是变强的第一步，做错比说错更重要，要避免重复犯错。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "纯债仓位未来可给到20%-30%，当前仅1.5%，暗示加仓空间。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "养老指数即将突破新高，前两年表现差时被大V看空，但坚持持有获利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "市场你涨我不涨、你跌我跟跌，希望跌深点以便发车加仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-08-01"
+  },
+  {
+    "opinion": "群众情绪刚激动时不要逆行，容易被踩死，但站高看全局才能看清战场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "两融余额突破12000亿，类似2015年3月上升趋势，需警惕杠杆风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "值博率是核心指标，目前涨跌概率各半，一动不如一静。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "牛市教育你每次卖出都是错的，但大部分人形成共识后变化就发生。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "高位看空、低位看多才是成熟投资者，最怕高位看多、低位看空。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "不要融资炒股，自己的钱亏了还能剩，借钱会倒欠，影响多年生活。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "涨时看好、跌时看空的人水平可能不如你，应坚持自己的判断。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "本金少时应盼熊市或震荡市，通过赚/攒本金为未来布局。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "牛市关键是不上蹿下跳，绝大多数仓位拿住，小仓位随意操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "90%时间无需交易，5%时间买、5%时间卖，其余时间等待。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "牛市见顶标志：有人嘲笑低位卖出者，骂声越多见顶概率越大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "高位买入被套别抱怨，应提前减仓并准备低位买入机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "上升市场是财富再分配，多数人最终赔钱；下跌市场收集筹码，看似赔实则赚。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "指数不涨是蓄势，越便宜越安心；持有现金等待低估品种爆发才是真机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "资金安排需留安全边际，避免急用钱时低位割肉；留现金有时反而赚更多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "投资经验不能简单套用，需融入体系反思，避免左右打脸。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "DAX深V加仓后创新高，证明下跌是好事，关键在于逆向操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "追涨杀跌是低级投资行为，主动基金持仓市盈率高达67倍，需警惕。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "投资者分三个等级：不知价值、知价值但过早离场、知价值并享受泡沫。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "高估板块中第三类投资者明知贵但愿意喝泡沫啤酒，赚取超额利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "不必天天提示风险，尤其手中无仓时易被嘲笑为红眼病。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "乐观理性者笑对市场，悲观空仓者踏空，疯狂追涨者易被套。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-07-01"
+  },
+  {
+    "opinion": "A股长线仓位不再加仓，当前合适，加仓需自行参考。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "国债等品种下跌是好事，有钱可等补仓机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "贫富差距源于有资产者在危机中抄底，无资产者失业。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "指数品种跌多时不要被情绪左右，风水轮流转。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "医药、消费、信息产业长期看好，回调可买，高位越涨越卖。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "德国DAX反弹超预期，继续观察，不急于操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "美股再回历史危险区域，长期买入收益率不佳。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "油气做波段需警惕暂停申购导致的溢价问题。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "医药在2018年利空暴跌后迎来两年上涨，低位利空往往是机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "价格与利好利空并不一一对应，分析需深入第二层价格和第三层反馈。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "贵了不代表马上跌，不买也不代表立即清仓，持有是时间最长的动作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "别为没赚到的30%难受，留部分利润给别人是投资中的善意。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "不要因为卖了20%医药后继续上涨而难过，大部分仓位仍在持有，且卖出能让你更踏实。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "别想从头赚到尾，打了胜仗要且打且退，控制节奏，拿着战利品回家最重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "全指医药点位与2015年5月相同但估值下降44%，与2007年1月估值相同但指数上涨575%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "再好的东西买贵了也可能十年不挣钱，永远不要买贵。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "有些品种贵了但贵了就跑赚不了几个钱，什么时候跑市场会告诉你。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "大牛市中不断上涨会给人思想钢印，认为永远涨，导致在下跌中不断买入被套死。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "强势品种上涨是因为专业和业余投资者都在追涨，但高估不代表立刻卖，要等市场信号。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "投资不必追求完美，接受小错误，大方向不错就能有好结果。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "创业板指PE70+、PB7+已进入‘必死’区域，必然崩溃，不应继续持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "底部买入不要怕，上涨中坚定持有，顶部坚定卖出，不惧踏空。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "钻石坑持仓后通过高抛低吸，2-3轮可实现10倍收益，但非一轮完成。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "投资中应特立独行，别人看跌时敢于买入，不被嘲笑动摇信心。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "不要用近期表现定义投资品种，如红利曾率先回到股灾前高点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "空仓意味着认为100%会跌，即使有1%上涨可能也应配置少量仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "牛市关键信号是散户开始吹嘘赚钱并加码入市，此时应准备减仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "配置仓位应代入涨跌情景，调整到让自己最舒服的状态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-06-01"
+  },
+  {
+    "opinion": "不买高估值品种如5G或科技，建议投资者自己操作，计划只做底部资产。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "炒作存在但需自知，用少量资金测试是否适合追热点，否则踏实投资。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "权益类投资需耐心，三年不涨是常态，横盘越长未来涨幅越大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "组合中不同周期品种需动态平衡，涨时卖出支援未涨品种，反人性操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "不要害怕波动，没有波动就没有利润，波动是收益来源。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "指数半死不活、不上不下时，不发帖是正常的，反映市场缺乏方向。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "门票股涨129%还差10%回本，说明长期持有和耐心等待的重要性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "2800多点资产创新高，强调在低位区间通过配置实现收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "‘守正出奇’是核心：没有‘正’会失败，但只有‘正’不够灵活，需结合‘奇’。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "A股并非印象中那么烂，只是波动大，通过历史走势对比可看到否极泰来和乐极生悲。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "黄金最大功能是避险，而非利息，适合在价格下跌后买入实物金条做长周期配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "贵金属周期长达20年以上，上涨和下跌都需耐心，黄金ETF可换实物金。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "品种只要不死，不必着急不涨，它可能用一两周把几年收益还给你。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "标普500两个月涨22%，说明市场短期爆发力强，长期持有可获回报。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "波段操作吃完本金后，150计划持续减仓增加现金，下跌时应笑而非哭。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "网格账户持续创新高，说明当前震荡市适合网格策略。",
+    "topic": "交易操作",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "12000点是第一减持位，接近时需注意风险。",
+    "topic": "交易操作",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "未来几个月难有大行情，以波段和网格操作为主。",
+    "topic": "交易操作",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "若投资者经验和承受能力提升，可考虑增加交易品种。",
+    "topic": "交易操作",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "日经指数已到反弹压力位，需警惕回调风险。",
+    "topic": "交易操作",
+    "source_type": "observation",
+    "time": "2020-05-01"
+  },
+  {
+    "opinion": "做波段不仅为吃区间利润，还能在下跌中通过反弹加厚安全垫，降低持仓成本。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "市场绝望时再坚持一下，希望可能就在下一秒，不要轻易割肉。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "全指医药已不再便宜，持仓者应拿住但避免再买，保持舒服状态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "设置反弹出货价后要果断执行，别因贪婪或感觉犹豫，计划比感觉可靠。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "对多数人而言，不沾黄赌毒、不乱投资，45岁有2000万理财收入即可稳度余生。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "发车决策需综合仓位、现金流、估值和宏观环境，确保极端情况下心态不崩且有钱买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "暴跌中买入美、德、日、港已盈利，高位追芯片和5G则被套，应喜欢暴跌而非暴涨。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "医药突破前高，但已进入高估区间，考虑的不是加仓而是动态平衡，上限约15500点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "一般人需经历三轮牛熊（约十年）才能悟透投资，天赋异禀者一轮即可，多数人终生未明。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "南方原油场内溢价近50%，建议场外份额转入场内卖出套利，而非直接赎回。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "继续积累现金，确保家庭安全垫，为更低资产价格做准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "中行原油宝事件暴露衍生品风控问题，暂停白银网格交易。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "医药板块升温，持仓等待狂热或趋势变化。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "中概股当前不买，因价格贵且有监管风险，未来会考虑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "不迷信任何资产，贵了卖便宜了买，保持灵活。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "对于品种有三种状态：买入、持有、卖出，说‘不买’不代表要卖出，说‘不卖’也不代表可以买。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "大钱是在坚定持有中赚到的，波段交易虽提供利润，但核心是帮助坚定持有未来赚大钱的仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "大多数你听到的、说法一致的东西，都是噪音，交易中要警惕共识。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "80%的焦虑是无意义的，如曾担忧原油储量不足，结果几年后油多到没地方放。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "外围大跌不必慌，若已减仓波段、提升现金仓位，说明已做好准备应对波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-04-01"
+  },
+  {
+    "opinion": "仓位是一种概率，应根据估值、情绪和资金状况分析得出，而非主观猜测。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "没有信仰的投资者容易唯利是图，引发暴涨暴跌；有信仰则能踏实持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "股市是合理利用他人恐惧和贪婪赚钱的少数场所之一。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "应有仓位需结合趋势调整，市场强势时可等待趋势变弱再调仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "越高越贵仓位越低，越低越便宜仓位越高，这是不变的原则。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "危机中买入，即使没买在最低点，几年后也赚很多，但别上杠杆并注意买入节奏。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "A股全市场估值与2008年6月相当，最极端跌幅约39%，但并非预测会跌那么多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "美股现价是十年强支撑，未来几年预计是波动市，低位买入仍有收益保障。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "欧洲最大仓位给5%-10%，目前仅3%多，等待历史性钻石坑机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "150计划卖出创业板等品种，是为了回收现金买入更喜欢的资产，资源有限需优化配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "投资前需确认：不加杠杆、资金至少一两年不用、对极限跌幅有清醒认识、买的是指数。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "投资要有独立判断力，否则会随波逐流；先评估自身风险承受能力，再决定仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "大幅波动年度的特征是长上下影线，最终收盘与年初相差不大，需耐心等待。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "投资指数关键在于不能买贵和高抛低吸，这是长期盈利的核心策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "仓位管理至关重要，现金在极端情况下能保命，应重视其在组合中的比重。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "只用3-5年闲钱投资，确保未来消费资金不进入股市，避免恐慌操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "耐心等待投资时机，如恒生指数等了四年才再次加仓，时间与空间需至少拉开其一。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "在危机后半段开始买入，历史上都不会错，做好压力测试以能承受的节奏买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "成本在2600点附近无需烦恼，A股、美股、港股等已接近钻石边缘，除非世界崩溃。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "波段交易不仅带来收益，更重要的是改变心态，让你对下跌乐观甚至期盼。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "困扰投资人的三大痛点：入场出场时机、长线持仓坐电梯、波段后怕踏空，需系统解决。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "永远不要相信‘踏空’，只要有钱，资本市场机会无穷，怕的是机会来了你没钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "手里始终应保留部分现金类资产，其中最好有美元形式，以备不时之需。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "用机械化程序规范交易，克服恐惧和贪婪，低买高卖是赚钱的本质。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "调整仓位至下跌30%或上涨50%都不难受的程度，每周审视最适合自己的仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "面对浮亏不能慌乱，要遵守体系规则，利用套利等方法将品种玩盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "大幅下跌后的利空可能是黎明前最黑暗的黑暗，不应轻易放弃。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "不要人云亦云，对重要消息要独立研究其真实性，避免被错误言论误导。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "中概股若被打压，反而可能提供低价买入机会或加速回归国内上市。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-03-01"
+  },
+  {
+    "opinion": "当前市场估值处于历史低位，踏空风险远大于套牢风险，是概率问题。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "市场波动不是风险，别人的恐慌可能恰好是你的利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "不要预测涨跌，安排好交易策略并坚定执行，比人更可靠。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "不要给他人做投资建议，只展示自己的操作，避免责任与人性复杂。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "经常一键满仓或清仓说明钱少且不懂投资，应避免这种操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "长线仓位盼涨，短期波动仓位盼跌，心态平衡源于策略而非情绪。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "创业板指技术指标良好，但卖出时机需耐心等待，大约在春季。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "市场非黑即白，多数时间呈灰色，投资需理性看待复杂性和不确定性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "便宜估值买入的指数，即使涨幅不大，长期持有也能获得安全边际。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "油气品种长线仓位极低，网格交易需做好压力测试，心态平和执行策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "投资者亏损时不应归咎他人，需反思是否遵循既定仓位和压力测试原则。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "机会都是跌出来的，风险都是涨出来的，这句话永远不能忘。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "目前A股整体不贵，但创业板已过热，其他区域平稳可控，无需急于卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "低位接盘、高位卖出是在提供流动性，反而帮助控制价格，并非破坏他人幸福。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "凭主观交易常因自认聪明而失败，承认自己不够聪明长期胜率更大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "买入看估值，卖出看趋势，新高当天不卖，因为涨起来难测天花板。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "大熊市敢买、上涨中持有、火热时离场，能做到这三点就是人中龙凤。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "A股赚钱难的核心是进场和出场时机错误，而非市场本身不行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "投资不只是分析财务数据，风格切换和周期规律同样重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "低买高卖是交易策略的核心目标，能解决绝大多数交易问题。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "不贵的品种中长期赚钱概率大，不必因短期波动而清仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "仓位调整应让自己涨跌都舒服，成年人做事不后悔。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "未来美股赚大幅区间波动的钱，而非一路上涨的钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-02-01"
+  },
+  {
+    "opinion": "投资时要清楚上涨是源于价值还是炒作，保持内心明白。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "赔了能踏实拿10年，赚了却烫手拿不了3天，这是典型投资者心理。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "金融投资只要理性，赚钱不难；市场充满疯子和傻子，理性者必然获利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "身边人赚钱后跟风买入，往往在高点接盘，最终在回本后清仓错过上涨。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "账户满堂红时，要反思收益来源，避免因短期盈利而失去警惕。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "网格交易中先锋部队的牺牲是为了主力部队的大胜，不要抱怨短期卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "真正经历过各种市场状态的人，才能体会到从容淡定带来的长期利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "攒钱投资前，先保证收入的20%-30%用于储蓄，再考虑对他人大方。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "遇到新观点应先研究再判断，保持开放包容的心态才能不断进步。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "判断是否真心喜欢一个人，看是否希望他赚钱且过得好，无关自身利益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "两个重要素质：低调，以及从别人的错误中吸取经验。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "炒股不适合绝大多数人，过去二十多年股民赚钱比例不超过30%，而指数投资长期盈利概率更高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "持仓成本低或留有足够资金加仓，波动就不会让人难受，反而提供买便宜货的机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "利用波动赚钱，低位捡筹码高位获利，避免高位接盘低位割肉。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "恐慌的尽头是光明，但当前估值比2018年2500点高20%，需理性看待。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "做投资时专心致志但看淡结果，心态放松反而效果更好。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2020-01-01"
+  },
+  {
+    "opinion": "听到事情先别急着下结论，应认真搜集资料、理性分析，独立思考非常重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "赚钱不必着急，世界守恒，得到一些东西必然失去一些，比如烦恼。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "将趋势（动量）与价值量化结合，计算合适仓位，有助于平滑波动提高收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "不擅长牛市最后阶段，但擅长提前离场，并在暴跌中用特殊工具安全获利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "投资体系特点是难回撤、资产一路向上，但多数时间涨得慢，只在少数时间疯狂增长。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "市场波动无法规避，应思考如何为我所用，而非患得患失。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "财务自由后仍需找到喜欢的工作，可先从兼职尝试。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "网格策略在震荡市有效，但大牛市会变差，需注意留利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "悲观时信息过多有害，不如捂耳闭眼，按计划买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "左侧投资需判断价值并扛住下跌，右侧需避免踏空和打脸，融合二者更佳。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "趋势形成影响数年，转折时变化快，不能纯做右侧交易。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "涨跌不是问题，关键是投资者心态，卖与不卖都愁，需理性应对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "传媒品种从被攻击到大涨，体现了均值回归规律，避免被短期情绪误导。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "普通人最好的投资方式是用完整指数交易体系做基石，辅以消费品股票长期持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "指数涨跌有时不客观，需结合涨跌家数等指标综合判断市场真实情况。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "目前不再买入上证50、创业板指、深100等指数，暗示估值或趋势已高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "开始做波段后，面对波动不再焦虑，反而开心，心态改变让世界焕然一新。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "指数点位不重要，重要的是怎么做；即使十年3000点，计划也能赚大钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "投资指数需在牛市高点卖出，如2015年4、5月清仓，才能实现长期盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "涨跌不必过度悲喜，保持平和心态是投资的关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "不相信无风险高收益，避免被骗；不掏钱是保护自己的底线。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-12-01"
+  },
+  {
+    "opinion": "投资中舒服很重要，涨跌都能从容应对，才能避免做出错误决定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "人生最大的成功是有趣，自己活得有趣并让身边人更有意思。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "医药板块增速快，虽涨得多但不算太贵，长期持有是更优选择。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "学会独立思考，不轻易被他人影响，但也要客观论证，避免全盘接受。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "现在应攥紧长线筹码，用短线做波段，继续攒钱等待下次机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "承认不能预测未来，学习概率知识，根据概率布置仓位可避免大错。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "波动产生利润，市场震荡是波段操作和提款的机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "长线仓位已足够，牛市能否到来无法决定，不必焦虑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "全市场PB处于历史极低位，仅低于1995、2005、2008及去年底。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "恒生若崩至21000以下是极好买入机会，极限点位17000可一把配满。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "价值观和信念是坚持投资、避免在光明前放弃的关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "仓位可以舒服，但人生不能太舒服，要跳出舒适区思考新策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "做好投资需要‘等得起’的品质，在低估时买入，等待多年后收割利润，再等待下一次机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "权益类投资必须使用长期资金，即使金额小也要坚持长期，避免因短期需求被迫卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "钱少时理性投资的意义在于积累经验，避免未来大资金操作时犯错。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "今年指数涨20%但个股涨幅中位数仅5%，多数股民在年初行情后入场，操作困难。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "对资本市场不应过于乐观，需做好长期波动甚至短期向下的心理准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "医药品种在8500-10450为相对低估区域，10450-15000为牛市运行区域，数字会随时间上移。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "仓位很够，不用急，目前几乎所有指数趋势不好，又到了广积粮的阶段。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "现金不是辣鸡，在低位时保持现金储备才能抓住机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "晚对总比不对好，思路会根据现实状况发展变化。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "外资对A股最有信心，这是市场的重要信号。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "趋势下行第三周，没有转好迹象，需耐心等待。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-11-01"
+  },
+  {
+    "opinion": "仓位已非常足，留好现金是关键，谨慎做出大额投资决定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "资本市场机会多，错过一波没关系，关键是保住本金，等待几年一次的大机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "运气有均值回归，好运时不得瑟，坏运时保持希望，积极气场吸引好运。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "利空未必真利空，需用第二层思维判断价位是否已反映风险，跌深不卖。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "当前仓位建议保守到激进60-80%，最激进不超过90%，以自己舒服为准。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "A股第四大仓位50创出新高，但不会是组合未来最猛的品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "投资关键是在几个时点不做错，其他时间大多是等待。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "手痒就做短期波段或买点股票，有忙就持长仓，简单舒服。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "一个多月不买是因为当前阶段没有好的买入机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "钻石坑已爬出，长期仓位建好，网格吃波动，群众情绪稳定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "承认未来不确定，是投资体系的基础。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "通过赋予未来各种不确定以概率，设计投资策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "在不确定的未来中，利用策略实现相对确定的赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "中证500在支撑位表现坚实，值得关注。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "守正是安身立命的根本，出奇是变富的捷径，只有正没有奇是老实人，只有奇赚多少都会吐回去。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "别盼着某些板块跌，越盼它涨得越好；手里有筹码别轻易下车，疯狂程度可能远超想象。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "现金是好东西，但不要随意满仓或上杠杆，要为所有可能的未来做好准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "目前全市场PB处于历史非常低的水平，大致在钻石坑外一点，十年后即使估值不变也会有不错收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "A股历史上两次超级大牛市前都经历了四年半到五年的大熊市，本轮熊市已四年半，下一波牛市不会太远。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-10-01"
+  },
+  {
+    "opinion": "投资至高境界是揣着明白装糊涂，泡沫中起舞，买单前悄然离去。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "高位追涨低位割肉的人，本质上是为市场送钱的提款机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "做悲观的乐观主义者，对市场波折保持清醒但不过度悲观。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "大周期投资核心：熊市不赔或微亏，牛市大致跟上，3-4轮后收益惊人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "别问涨跌原因，不重要；重要的是设计体系保证心态和长期收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "仓位不够者可等待回踩确认加仓，避免追涨牛市幻觉。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "浮亏别难受，浮盈别得瑟，都是平常事，踏踏实实的。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "成功不在于单次盈亏，而在于是否有完整的投资逻辑和体系。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "野百合也有春天，杀富济贫雪中送炭，时间会验证底部布局的价值。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "若有人因某个品种骂我，那品种极大概率已是底部区域，成功率约86%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "从当前数据看，建议不再买入创业板指数基金，已持有者可继续持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "有效和成功的经验越多，投资时就越能保持淡定和坚定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "无效和失败的经验只会带来抱怨和苦闷，无法指导正确应对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "在波动中清晰理解原因并知道如何应对，才能实现投资水平的提升。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "回踩现象可能会迟到，但从未缺席，是市场常态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "不猜市场方向，顺势而为，支撑位能否守住需观察。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "市场短期波动剧烈，容易诱多后杀跌，投资者需警惕。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "投资体系应把握两点：指数长期向上，中短期有波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "A股波动尤其大，理解波动才能牛市跟上、波动提款、熊市不赔。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-09-01"
+  },
+  {
+    "opinion": "买QDII可对冲人民币贬值风险，但汇率到7.1后不再继续买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "新低品种只要不会死，低点有限；新高品种顶部难测，需根据特性制定策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "不淡定源于毫无准备，提前做好准备才能应对市场重击并反击。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "韩国股市从2018年高点跌回12年前，说明指数投资长期持仓不动不行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "中证500点位回到2007年，但估值已降65%，未来若持平则PE降至7-8倍。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "趋势形成后不要猜测改变点，最佳进入点是形态改变或回踩确认，绝不追高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "真正的独立是不被他人影响，从内心判断好坏，并接受未来可能自我否定。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "右侧交易最稳妥的买点是突破和回踩，再涨也不追，安全比赚钱更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "指数投资有模糊的顶和底，可基于价格或价值区间设计策略，提前列出所有可能。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "心情是投资中最不可靠的东西，应设计策略并执行，效果不好就改进。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "我们是中文网络唯一涨跌都舒服的群体，强调无论市场涨跌都能保持良好心态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "医药板块有走好的迹象，提示关注该品种的潜在机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "下一个压力位在10400，给出短期市场技术分析的关键参考点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "投资是上上下下的享受，别人头晕眼花时你的账户却在增长。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "恒生从33000跌到25000，计划持仓仍有45%收益率，证明买的低有多重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "成本低则市价波动不慌，若成本附近则易心浮气躁。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "趋势有时不得不服，市场走势难以抗拒。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "成功是一种习惯，失败也是，需调整行为模式或换人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "赚钱需心情愉悦、找到好的交易体系，戒贪嗔痴慢疑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-08-01"
+  },
+  {
+    "opinion": "散户非理性导致A股暴涨暴跌，这对理性投资者是机会而非灾难。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "长线仓位至少65%以上应坚定持有，用少量资金做短线满足交易欲望。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "剩余10份资金大概率有机会买入，关键是接受最差情况并执行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "黄金突破1442压力位后走好概率增大，买黄金的质疑声是正确信号。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "个股风险难以预测，指数投资是更优选择。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "市场暴涨时不追高接盘，耐心等待回调再买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "钻石坑很难重现，除非流动性减少，但概率不大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "大牛市需要流动性和宏观经济拐点同时出现。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "半年报披露是判断宏观走好的关键观察点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "成功离不开极度自律和持续努力，投资亦如此。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "市场低迷时，投资者情绪往往成为亮点，反映真实心态。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "即使微博内容少，网友互动也能揭示市场心理。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "投资中，保持冷静比追逐短期波动更重要。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "长期视角下，市场短期波动无需过度反应。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "A股特点是上蹿下跳波动极大，长期收益与海外相近，关键在于利用波动率提高收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "白银近期涨幅大于黄金，但年度涨幅仍落后，适合通过纸白银参与，需关注周期趋势。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "多看少动，分散精力，避免频繁操作，等待市场明朗。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "二季度上市公司盈利情况可能好转，需继续观察一个月左右的数据。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "转债指数涨幅领先，考虑是否加仓，体现对品种轮动的关注。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "绝大多数资产大类趋势向下，需慢慢熬，控制节奏，不要买太多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "投资核心是估值、趋势、情绪、周期、流动性，具体事件只是催化剂。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "恒生指数下一个世纪最佳加仓点在21000，若有危机才能到达。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "无论收入多少，到手后立即拿出10%-30%存起来，就当丢了，除非救命不取出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "转债防守性能强于指数，是当前市场下的较好选择。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "大底以来只少量买入A股指数，更多配置德国、黄金、海外互联和转债。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-07-01"
+  },
+  {
+    "opinion": "在第一条好消息出来之前，控制节奏，不乱动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "市场混沌时，设置基础仓位，设计适合震荡市的策略并坚决执行。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "投资金融市场的钱必须是闲钱，否则无法拥有好心态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "A股整体不贵，甚至以历史角度看相当便宜，这种机会一生只有几次。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "波动越大，利润越大，只要波幅在预期内并找到获利方法。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "选择搏一把，赌问题最终会解决，人生可能因此不同；否则谨小慎微，人生不会有改变。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "你的价值来自于能为别人做些什么，而不是能忽悠多少人掏钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "提升自身水平和素质才是最重要的，纯靠抄袭无法成功。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "市场没那么好也没那么坏，跌几天别恐慌，涨几天别冲动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "基础仓位踏踏实实拿住，波段仓位吃完利润转成长期仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "大跌时别让人骗走筹码，大涨时别让人骗走钱，保持踏实的投资心态。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "用概率思维指导布局，避免重注押错一次悔十年，考虑判断错误的后果。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "在2900点，长赢计划多数品种盈利，浮亏品种亏损幅度极小，说明理智投资不易赔钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "起起伏伏是金融市场常态，A股散户交易量大导致波动大，明白后就不会为低位持仓担忧。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "仓位合适时涨跌都开心，不必为极限情况没钱加仓而焦虑，经历越多心理素质越好。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "不文明现象的根源在于是否考虑他人，投资中也要有同理心，避免盲目行为影响他人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "粉丝在黎明前卖出虽可惜，但盈利离场好于钻石坑割肉，终点也是新起点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "投资不仅是赚钱，更是学习为人处世，积累力量为下一个目标做准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "市场波动中保持理性，避免在低谷恐慌卖出，耐心等待机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-06-01"
+  },
+  {
+    "opinion": "当前A股比债券更值得买，优质指数和行业的值博率远高于债券。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "暴跌后唱空或建议割肉的人，反着做就能赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "目前位置及更低位置，值得坚定持有绝大多数指数基金，不要在意中短期波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "观察投资者水平，要看其在品种暴涨后和暴跌后的态度。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "A股情绪波动剧烈，投资者应像正常人一样观察情绪和政策，而非被精神病患者影响。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "坚持是做成事的关键，但需反复审视方向是否正确，若没错就继续走下去。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "当前市场存在三个利空：中长期压制、指数趋势变差、看多情绪过浓，需继续暗中观察。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "美股一季度利润下降，长期唱空美股是为了等待便宜货，调整幅度通常20%-30%。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "不确定是市场最不喜欢的，最佳买点应在好苗头出现时，而非感情用事。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "近四个月未增仓位，仅进行高卖低换操作，如500换传媒、消费换300，体现谨慎态度。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "目前仓位合适，注意节奏，加仓方向为黄金、油气、Dax等低仓位品种。",
+    "topic": "市场分析",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "手里有钱不是投资的理由，好机会才是。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "面对连续坏消息，要控制节奏，避免被恐慌情绪踩踏。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "历史数据显示，当前中证500的估值位置买入，未来一年收益率可观。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "投资前要问自己：最差情况再跌30%能否扛住，能扛则买。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "没有信仰或铁律，很难在艰难时刻坚持投资策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "当前市场技术面和消息面混沌，无明显趋势，非专业投资者应转移注意力。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "投资如打仗，要抓住对方软肋，做好受伤准备，躲不过去就果断应对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "A股仓位建议保守到激进为60%-80%，最激进不超过90%，避免杠杆。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "在出现第一条好消息前，都要严格控制买入节奏，不宜冒进。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "全球市场齐跌，仅黄金表现强势，可等黄金突破后再继续买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-05-01"
+  },
+  {
+    "opinion": "投资本质是计算胜率的理性赌博，应选择指数基金等可量化概率的品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "牛市赚大钱非必然，频繁交易错过关键涨幅，三个月换手150%者收益有限。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "投资不能用上次经验推导下次，顶部卖、底部买需独立判断，否则代价惨重。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "消费和医药是A股历史最强板块，医药在利润下降期仍保持10%+增长。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "完整经历顶部卖、底部买、上涨不卖的周期，可节省数轮试错成本。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "国债趋势改变，最好不要拿太多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "长期看指数基金不会有问题，短期暴涨不可能持续。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "投资的世界没那么简单，小心收益率太高的均值回归。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "客观预估投资收益率，从目标反推本金，设定乐观、中性、悲观条件。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "坚持做正确的事，投资不是投票，大部分声音是噪音。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "不追涨是美德，现金可贵，跌了又后悔是心魔。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "市场可能调整，但估值、趋势和先行指标不支持下车，有调整可加仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "投资品种分长期价值和短期交易价值，应灵活把握两者机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "A股收益率再次低于国债收益率，估值修复周期与历史大底相似。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "A股整体市盈率18倍，但受权重股影响，实际估值分布不均。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "中证500成分股利润增长优于全市场，1月称其越跌越贵的观点错误。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "当前市场处于估值修复阶段，后续还有正常增长和泡沫阶段。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "涨时嫌买少、跌时怕亏损，是典型散户心态，需警惕情绪化操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "熊转牛初期调整并非必然，需权衡减仓的得失，而非盲目行动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "优质股权可超长期持有，除非极贵，尽量少打扰其成长。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "债券、黄金、原油等品种更适合交易赚利润，不宜超长期持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "两个月不买是因为市场未到合适时机，投资者应避免急于入场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "不追涨是一种美德，有钱才能把握机会，金融市场最不缺机会，缺的是钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "波段策略与长期持有无绝对优劣，关键在于是否适合自己，需小马过河般实践。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "全市场利润一季度恢复正增长，但增幅仅个位数，需等季报公布后进一步确认。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "巴菲特投资精髓可浓缩于三本书和历年股东信，股东大会问答环节未必有新收获。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-04-01"
+  },
+  {
+    "opinion": "资本市场成功需理性与信心结合，缺一不可，否则随波逐流或无法享受收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "年轻投资者应理性消费投资，提高工作技能积累本金，经历牛熊后财富会远超同龄人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "赚大钱的关键：历史顶部撤退、底部进场、上涨趋势中坚定持有大仓位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "牛市结束标志是大盘蓝筹股开始暴涨，资金没得炒时需警惕。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "人类无预测能力，只能依靠体系和策略约束自己，设计执行并改进。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "熊市中消费、医药、公用事业表现好，牛市中科技板块表现好，债券在牛市第三阶段会走弱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "投资需从全局高度看待，不能只关注一城一池的涨跌，否则会畏首畏尾。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "长期看小盘股表现更好，表现差的宽基指数未来有机会超越表现好的。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "控制回撤至关重要，熊市不赔钱才能让牛市中的每个上涨都成为新高利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "仓位管理需理性，只剩10%现金还觉得低的人应反思如何保住财富。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "坚持不买贵的东西，守住投资原则比短期赚钱更重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "70%仓位组合跑赢频繁短线操作者，关键在于回撤小和长期持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "除了生死，都是小事。不要为少赚8%难受，多赚8%也改变不了人生。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "从钻石坑到见顶至少一年，估值和趋势均未到顶部，踏踏实实拿着即可。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "投资心理和原则比具体策略更重要，适合所有人的是正确投资观而非特定方法。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "赚的钱70%是情绪的钱，30%是企业利润和通胀的钱，本质是赚别人兜里的。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "不要追热门基金，因为均值回归、规模大难做、市场热时建仓难有好结果。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "珍惜越涨越高反而告诉你不能买的资产管理人，因为他们真正为你考虑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "不追涨是一种美德，有钱才能把握市场机会，谁有钱谁才是话事人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "永远冷静客观，不在低位恐慌也不在高位疯狂，弯腰捡钱才是正道。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "只买交易所标准化指数基金，除非所有公司崩盘或交易所关门，否则死不了。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "等经济走好再投资的人，股市已涨三五十，提前布局才能赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "波段操作成功后将加大仓位，以应对未来波动大涨幅小的市场局面。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-03-01"
+  },
+  {
+    "opinion": "底部区域配置好指数基金后，应踏踏实实持有，不要因短期波动而轻易卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "投资是概率游戏，需综合估值、情绪、趋势等多因子判断底部与顶部区域。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "短期择时难以预测，大仓位操作风险极高，应放弃幻想。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "牛市中大多数人跑不赢指数，因为选错股、拿不住、频繁交易。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "市场上涨初期会清理不坚定投机者，应像恶狼一样死死咬住，不轻易逃跑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "A股70%的人亏钱，核心策略是熊市不亏钱加建仓，牛市跟上70%以上指数涨幅。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "长期收益率受买入价影响，利用牛熊低买高卖是超额收益的关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "不要等所有条件变好再抄底，别人恐慌时才是最佳投资机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "组合视角比单个品种更重要，暴跌50%的熊市实现整体不亏才是成功。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "熊市不亏简单，但平衡建仓与保本节奏，避免过激或过保守，才能抓住牛市。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "指数投资优于个股，避免慌乱，长期持有等待大牛，不为小波段放弃大利润。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "市场充满非理性行为，投资者应坚持理性，低买高卖，避免追涨杀跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "底部区域坚持持有者占90%以上，这是赚钱的关键，而非短期操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "不要删除历史错误，接受不完美，从现实中学到让自己更强大的东西。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "低位不敢投入，涨起来加仓会失去优势，整体亏损时才应加钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "牛市、熊市或波动市都有机会，关键在于策略适应而非预测市场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "表现好时更应反思并调整策略，让组合变得平庸以应对未来风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-02-01"
+  },
+  {
+    "opinion": "建仓筹码不能聚集在一个区域，否则毫无意义，应分散在多个低位区间。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "资本市场长期以一定斜率向上，便宜时买入持有即可，无需频繁操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "跌了50%后不敢再买的人不适合股市，应远离市场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "全市场估值接近历史大底，距离2005年和2008年低点仅差17%和11%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "波动不是风险而是机会，A股波动大，善于利用可获超额收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "涨跌轮回是常态，跌了买、涨了卖，简单操作即可。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "市场最低点时疯狂看空的言论往往是噪音，被其吓倒可能卖在最低位。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "网上慷慨激昂的言论多来自从众的羊群，未必比普通投资者懂得多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "投资者应尽快掌握识别低质量信息的能力，因为时间是最贵的成本。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "对投资有兴趣的人应尝试多种方法，发掘自己的天赋或运气。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "对投资无兴趣或无天赋的普通人，应选择难度小、确定性大的投资模式。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "为躲避14%的跌幅而放弃十年两次的牛市机会，代价远大于下跌本身。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "大钱靠死死拿住赚到，牛市不来不赚大钱就不走，震荡中频繁交易只配喝汤。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "牛市是大多数股票上涨，仅靠少数白马股上涨不是真牛市，白马也有周期和套人风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "低位清仓会陷入追涨或不追的两难，破坏投资自信，应避免这种豪赌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "买有分红能力的指数基金等于余额宝加牛市期权，长期持有无需担心。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "站高看远，大周期买入、持有、卖出，眼前波动未来只是笑谈。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "便宜时不敢买，涨起来着急追，真正的牛市没有回调，最终容易接盘。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "大熊市不赔钱，跌幅仅1/3而上涨跟上，投资目标已全部实现。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "未来牛市中很多股民会看着指数涨却赚不到钱，个股分化严重。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "组合中至少配置指数仓位，个股表现不好时有保底，也能检验自己能力。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "金融投资要把握正规、了解资金流向、拒绝过高收益承诺、规避卷款风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "事物发展非线性，不要线性外推，应了解趋势并提前准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "真正的熊市会消磨耐心和信心，此时应买好并留钱应对下跌，然后远离市场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "买东西看最近表现是短视的，应逆向投资：在落难时帮助，富贵时离开。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "新闻只报道不寻常事，爆雷公司可能不足10%，应冷静理智独立思考。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "中证500目前PE18倍、PB1.5倍，分布均匀，记住这些数字和看衰者的情绪。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "投资不是为了争对错，而是赚钱；思维开放程度决定能走多远。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "在底部跌了很久后，往往会有个大雷让人交出筹码，那天可能是世纪大底。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2019-01-01"
+  },
+  {
+    "opinion": "熊市中已建好仓位，现金不足15%，强调历史循环和耐心持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "十年期国债收益率跌向3%，认为3以下买入是‘万人坑’，需警惕。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "美股理想跌幅为8%-15%，欧洲5%-10%，当前英国德国不贵，可关注。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "中证500调出亏损股、调入低估值股，指数长期向上，应吃基础收益加波动收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "不要急，控制节奏，避免在低位盲目操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "股市是先行指标，等经济变好时牛市已走70%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "不贵的时候买，等着涨，是最靠谱的投资方式。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "投资最怕看得太近，不应因短期表现而否定品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "选择油气品种，70%相关性足够，避免期货长期损耗。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "纠结细微问题会忽略真正重要的核心逻辑。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "策略回测再美，若无法在熊市持续加仓，对你也无用，资产配置需结合自身资金实力。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "50和红利估值约十倍，股息率可观，除非大问题，否则A股是当前最值的投资。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "投资就是在惨的时候帮它，荣华富贵时离开，现在跌得惨正是买入时机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "熊市中大多数人以为自己坚强，实际扛不住；以为股市无望，实际希望萌芽，多数人的以为都是错的。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "控制节奏，即使所有人都要死，你也要最后一个倒下；空仓者要么钱太少，要么未入门。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "若之前觉得跌30%涨50%都舒服，现在却难受，说明你并不了解自己，需认真审视策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "深度熊市中不赔钱且牛市大赚的幻想无法实现，关键在于控制回撤并逐步增加攻击性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "熊市见底标志之一是极度看多者开始害怕看空，此时应坚持低位吸筹而非卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "对最差情况有预期（如估值或点位），就能忽略短期涨跌，专注长期布局。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "2018年跌幅虽大但组合回撤可控，应像超级主力一样底部慢慢吸筹，避免未来后悔。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "预测点位和时间是未入门的标志，投资核心是应对未来而非精准预测。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-12-01"
+  },
+  {
+    "opinion": "在A股，熊市不赔钱并积累筹码，牛市跟上指数，两三轮即可实现财富跃升。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "股市中短期受估值、情绪、资金和政策影响，不一定反映经济状况，需认清这一点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "股市是先行指标，先于经济变差下跌，先于经济变好上涨，债市更敏感。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "投资应保持快乐，若感到不适则方法有误，应暂停调整，避免情绪化操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "用概率思维布局，将经验、主观判断、估值等纳入系统，而非绝对化预测。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "追求长期保持前20%-30%的收益，两轮牛熊后可跑赢99.6%的人，极端表现不可持续。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "投资要看未来，当前浮亏不是终点，站高望远才能把握机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "债券疯狂上涨后风险加大，股票收益率更高，更具投资价值。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "越低迷越是好时机，利空越多越能捡便宜货，前提是品种不会死。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "大小均衡配置是合格组合的基本素养，能应对不同市场风格。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "趋势投资只在突破或回踩时买入，价值投资才是王道。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "有波动的品种就能获利，关键是低位买、高位卖，做反则歇菜。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "任何暴涨后的品种都毫无兴趣，财富积累后一次大幅回撤可能让二三十年白干。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "投资最难的是何时收手，收早赚少，收晚归零，主观判断难善终，需用机械策略应对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "当前阶段除了股市（A/港/美/欧），没有更好的投资领域，债券、比特币、P2P等均不如股市。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "债券中期收益率一定比不上现在的股市，比特币等品种不能作为主要配置。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "中国最优秀的几百家公司以接近净资产的价格出售，比自己做实体更值得投资。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-11-01"
+  },
+  {
+    "opinion": "在市场凛冬时，活着最重要，只要活下去就有希望。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "有500万也不应辞职炒股，做喜欢的工作能提高长期收益率。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "今天A股正式进入钻石坑，是历史性买入机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "A股波动大，但牛市卖出、熊市买入，长期收益远超美股。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "中证500连跌13个月只涨1个月，物极必反，未来可期。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "当前全市场PB处于1995年以来第十四低位，类似2008年1664点，是钻石坑区域。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "价值与价格短期无关，便宜后可能继续跌，需避免孤注一掷加杠杆。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "体系核心是容错性高，即使判断错误也能通过应对策略存活并增强。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "个人投资者应珍惜带血筹码，在杠杆爆仓和恐慌抛售中逆势买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "医药指数估值创2004年以来新低，支撑和估值失效，只剩情绪主导。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "熊市底部区域要控制节奏，八成仓位与满仓差别不大，但需为极值留余地。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "在极度便宜或贵的区域，政策事件可能成为行情改变的催化剂，A股并非纯粹政策市。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "熊市只要做到不亏或少亏，同时拿够筹码，未来牛市两周内就能转盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "停止预测市场，按策略和模型机械执行，是投资生存下去的唯一方式。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "目前市场最大利润来自熊市估值极低到牛市估值极高之间的价格波动。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "长阴跌破平台创新低的品种别着急重仓买，应少量分批买入以控制风险。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "在钻石坑里买指数基金是确定性赚钱的事，但能明白这一点的人很少。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "投资是投未来，看的远一点，2008年四季度因利润增速下降离场是错误。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "好公司也要好价格，高位接盘大概率悲剧，拒绝忽悠才能不赔钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "仓位调整应让自己舒服，跌20%或涨50%时能平静面对。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "反转不是猜出来的，是走出来的，建立策略而非预测涨跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "钻石坑里别随便跳车，低估值时买入后应佛系持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-10-01"
+  },
+  {
+    "opinion": "投资是投概率，根据概率布置仓位，无人能预测绝对底部或顶部。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "熬过熊市的诀窍是少动，控制节奏，不乱操作，避免左右打脸。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "市场缺的不是资金，而是信心；低位买入长期持有大概率获得好收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "基金发行越冷越是投资好时机，抢热门永远没好处。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "全市场PB不会破1.5，做好极端准备，但大方向不犯大错即可。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "从别人失败中学习经验，远离满仓满融加杠杆豪赌的人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "五年一遇的大底部是积攒廉价筹码的黄金坑，应心怀感激并积极买入。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "大指数仓位已接近完美配置，包括50、300、红利、金融，踏踏实实持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "A股几乎没有无脑长期持有的品种，高位不卖出是暴殄天物。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "根据预测投资很难长期赚钱，人类没有预测天分，应放弃预测思维。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "未来A股可能迎来十年以上慢牛，但涨幅未必超过06-07年，需关注指数基金普及。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "小盘股永远不应被看不起，垃圾股和小盘股不是同一概念，需独立思考。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-09-01"
+  },
+  {
+    "opinion": "7月财新PMI创八个月新低，经济放缓信号明显，市场承压。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-08-01"
+  },
+  {
+    "opinion": "市场下跌时，保持定投节奏是摊低成本、积累筹码的关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-08-01"
+  },
+  {
+    "opinion": "当前估值已进入历史低位区域，逆向布局比恐慌卖出更理性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-08-01"
+  },
+  {
+    "opinion": "投资者应关注长期价值，而非短期波动，耐心等待市场修复。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-08-01"
+  },
+  {
+    "opinion": "经济数据走弱可能进一步压制市场情绪，但也是布局优质资产的机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-08-01"
+  },
+  {
+    "opinion": "估值可告知大致顶部底部区间，但无法精确判断大底；需结合趋势和仓位控制应对市场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-07-01"
+  },
+  {
+    "opinion": "熊市中反弹常是诱多，下降趋势未改前不宜盲目猜底或操作，应顺势而为。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-07-01"
+  },
+  {
+    "opinion": "低位买入问题不大，高位接盘者需做好3-5年准备；避免被短期暴涨的股票忽悠。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-07-01"
+  },
+  {
+    "opinion": "保守操作与乐观预期结合：防守确保不致命，战略上相信长期向好。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-07-01"
+  },
+  {
+    "opinion": "A股波动大是超额利润来源，未来十年沪深300和中证500涨幅可能超过标普500。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-07-01"
+  },
+  {
+    "opinion": "持有现金在熊市中如同空气，可趁恐慌时低价收购被迫卖出的优质资产。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-07-01"
+  },
+  {
+    "opinion": "下跌33%后涨回去会赚50%，应欢迎想买的东西下跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-06-01"
+  },
+  {
+    "opinion": "股市涨跌长期看估值，中短期看资金和情绪，而非宏观经济数据。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-06-01"
+  },
+  {
+    "opinion": "熊市阴跌时间越长，未来爆发越震撼，需极度便宜和催化剂。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-06-01"
+  },
+  {
+    "opinion": "指数不会死，危机中有危才有机，系统应包含应对所有可能性的方案。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-06-01"
+  },
+  {
+    "opinion": "超长期（10-30年）看好医药和消费，低位买入可获年化15%+收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-06-01"
+  },
+  {
+    "opinion": "未来会后悔当时没多买，但别因这几句话满仓，需控制节奏。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-06-01"
+  },
+  {
+    "opinion": "市场进入阴跌阶段，需做好心理准备，逢低布局收集筹码，等待底部区域到来。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-05-01"
+  },
+  {
+    "opinion": "长期持有优质品种（如指数基金）是基础，但若能做好大波段操作，收益率将大幅提升。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-05-01"
+  },
+  {
+    "opinion": "逆向思维至关重要：买冷门、被低估的品种，在人气低迷时买入，等待价值回归。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-05-01"
+  },
+  {
+    "opinion": "控制持仓成本是关键，将成本控制在最低价格10%-15%内，牛市来临时快速盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-05-01"
+  },
+  {
+    "opinion": "不要在意短期波动，浮亏时加仓可降低成本，未来盈利空间更大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-05-01"
+  },
+  {
+    "opinion": "时间换空间：估值下降比点位下跌更重要，耐心等待市场爆发。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-05-01"
+  },
+  {
+    "opinion": "场内场外交易本质无大区别，适合自己即可，不必纠结形式。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-04-01"
+  },
+  {
+    "opinion": "一个不会死的品种，横盘时间越久或跌得越深，未来涨幅越高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-04-01"
+  },
+  {
+    "opinion": "只要不亏损卖出，通过降低成本或死拿等风来，就能翻盘。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-04-01"
+  },
+  {
+    "opinion": "趋势一旦形成有惯性，转折时不要着急接飞刀，小心手。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-04-01"
+  },
+  {
+    "opinion": "指数不会死，牛市一定会来，低位买入后等待收割即可。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-04-01"
+  },
+  {
+    "opinion": "均值回归是重要原则，避免死追短期表现太好的品种。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-04-01"
+  },
+  {
+    "opinion": "红利是价值策略，长期有效但短期可能低迷，需配置多品种适应不同阶段。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-03-01"
+  },
+  {
+    "opinion": "长线仓位不要乱动，做波段用短线资金，避免因小失大错过主升浪。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-03-01"
+  },
+  {
+    "opinion": "品种买得够低就不怕不涨，越低越买，等待一飞冲天，时间可能一两个月到几年。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-03-01"
+  },
+  {
+    "opinion": "金融市场机会永远存在，按自己体系操作，赚钱是设计好的结果。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-03-01"
+  },
+  {
+    "opinion": "指数基金不会死，长期一定走高，低位买入后即使再跌成本也会更低。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-03-01"
+  },
+  {
+    "opinion": "真正的牛市能跑赢ETF组合的股民很少，指数基金最大作用在牛市发挥。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-03-01"
+  },
+  {
+    "opinion": "当前区域是四年后再次出现的建仓机会，但需做好长期持有的心理准备。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-02-01"
+  },
+  {
+    "opinion": "指数投资不会死，只要买得不贵，控制成本，长期大概率赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-02-01"
+  },
+  {
+    "opinion": "下跌趋势中控制节奏买入会越买越亏，但趋势反转后能享受收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-02-01"
+  },
+  {
+    "opinion": "投资中运气和努力同样重要，但需有策略才能抓住机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-02-01"
+  },
+  {
+    "opinion": "任何不会死的品种，从最高点跌20%-32%通常是极限大底。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-02-01"
+  },
+  {
+    "opinion": "投资者应提前穷举可能情景并设定决策原则，避免情绪干扰。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-02-01"
+  },
+  {
+    "opinion": "指数投资适合绝大多数人，个股黑天鹅风险大，长期看指数确定性更高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-01-01"
+  },
+  {
+    "opinion": "不预测市场，而是为所有可能情况做好准备，根据概率和体系操作。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-01-01"
+  },
+  {
+    "opinion": "任何品种都有周期，不涨不代表不行，只是季节未到，耐心等待价值回归。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-01-01"
+  },
+  {
+    "opinion": "控制好成本，浮亏无需理会，牛市来临时1-2周即可开始赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-01-01"
+  },
+  {
+    "opinion": "成熟投资者需具备成熟体系与心理，情绪不受市场波动影响才能稳定盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-01-01"
+  },
+  {
+    "opinion": "极端下跌（如跌至最高点20%-25%）是改变命运的机会，应果断买入并持有至高点。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2018-01-01"
+  },
+  {
+    "opinion": "不需要股市涨，只需要波动；即使上证长期在3000点，也能通过波动赚钱，且资产会越滚越多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-12-01"
+  },
+  {
+    "opinion": "做好极度深寒的准备，冬天不可怕，但要有准备；别人瑟瑟发抖时，你已备好柴火和热可可。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-12-01"
+  },
+  {
+    "opinion": "中小股票未来有巨大潜力，现在便宜时反弹猛；总有人用几个月表现判断未来，看得太短。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-12-01"
+  },
+  {
+    "opinion": "投资核心是概率与配置：不预测涨跌，而是计算涨跌概率和盈亏比，控制风险，实现长期稳健收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-12-01"
+  },
+  {
+    "opinion": "券商等弹性品种需左侧右侧结合，控制成本后耐心持有，五年不涨没事，一年150%年化超巴菲特。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-12-01"
+  },
+  {
+    "opinion": "好的指数成分股每天都在为你挣钱，价格不涨时别急，趁低多买筹码，未来才能多赚。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-12-01"
+  },
+  {
+    "opinion": "买贵是长期亏损的根源，即使定投25年，年化收益也不到4%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-11-01"
+  },
+  {
+    "opinion": "若高位买入，必须在便宜时持续加仓，才有解套和盈利的可能。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-11-01"
+  },
+  {
+    "opinion": "日经指数1992年买入者直到2017年才解套，历时25年。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-11-01"
+  },
+  {
+    "opinion": "定投虽能平滑成本，但若起始估值过高，长期收益依然平庸。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-11-01"
+  },
+  {
+    "opinion": "2011年时，定投日经近20年仍亏损35%，说明择时至关重要。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-11-01"
+  },
+  {
+    "opinion": "证券投资财富是跳跃式积累的，不要因短期不涨而放弃，低位筹码要耐心持有。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-10-01"
+  },
+  {
+    "opinion": "识别泡沫并享受泡沫，在泡沫破灭前悄悄撤退，不要过早离场。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-10-01"
+  },
+  {
+    "opinion": "债券收益率升至4%以上时逐步配置，未来净价上涨加利息可获超额收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-10-01"
+  },
+  {
+    "opinion": "买入前需计划好策略、概率和仓位，最佳心理状态是不盼涨也不盼跌。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-10-01"
+  },
+  {
+    "opinion": "医药和泛消费板块长期看好，重仓买入后轻易别卖，未来30年仍有大牛股。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-10-01"
+  },
+  {
+    "opinion": "补仓节奏很重要，过快补仓是赔钱利器，需耐心等待时机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-10-01"
+  },
+  {
+    "opinion": "长线持仓中，场内品种的主要吸引力在于可作为两融担保品。",
+    "topic": "品种分析",
+    "source_type": "observation",
+    "time": "2017-09-01"
+  },
+  {
+    "opinion": "若品种无法作为担保品，优先选择场外ETF以规避流动性风险。",
+    "topic": "品种分析",
+    "source_type": "observation",
+    "time": "2017-09-01"
+  },
+  {
+    "opinion": "部分场内品种流动性存在问题，未来卖出时可能面临不确定性。",
+    "topic": "品种分析",
+    "source_type": "observation",
+    "time": "2017-09-01"
+  },
+  {
+    "opinion": "场外ETF更省心，能减少因市场波动导致的频繁操作冲动。",
+    "topic": "品种分析",
+    "source_type": "observation",
+    "time": "2017-09-01"
+  },
+  {
+    "opinion": "投资最重要的是确定性，通过品种、组合和策略消除不确定性，保本即战胜70%的人。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-08-01"
+  },
+  {
+    "opinion": "永远把成本控制在最低价的10%-15%之内，谁也杀不死你，财富会滚滚而来。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-08-01"
+  },
+  {
+    "opinion": "资本市场是三年不开张，开张吃三年的游戏，几个月可给十年二十年的银行利息。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-08-01"
+  },
+  {
+    "opinion": "创业板跌得多了就不是垃圾，再跌就是金子，低买高卖永远是投资奥义。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-08-01"
+  },
+  {
+    "opinion": "不追涨只买跌，弱势品种低价筹码慢慢积累，组合不亏损且筹码增多。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-08-01"
+  },
+  {
+    "opinion": "全球资产价格高估，警惕表现特别好的品种或投资人，保持中上水平稳步前进。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-08-01"
+  },
+  {
+    "opinion": "没有不好的品种，只有不好的价格；价格低就是最大的利好，下跌时才是买入便宜货的机会。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-07-01"
+  },
+  {
+    "opinion": "投资是博弈，别人认为好才重要；白马股从无人问津到万人追捧，本质是市场认知变化。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-07-01"
+  },
+  {
+    "opinion": "让利润奔跑很难，但正确卖出只有一次；拿住低位筹码，才能获得100%以上的收益。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-07-01"
+  },
+  {
+    "opinion": "大多数股票跌才是熊市，只看少数指数上涨不能算牛市；中证500代表真正的A股。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-07-01"
+  },
+  {
+    "opinion": "底部到来时，通过补仓将单品种浮亏控制在10%-15%，才能在资本市场生存并赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-07-01"
+  },
+  {
+    "opinion": "趋势一旦形成，轻易不判断拐点；面对强敌要腾挪保存实力，面对纸老虎则耐心等待其盛极而衰。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-07-01"
+  },
+  {
+    "opinion": "资本市场是复杂系统，不能线性思维；减少IPO未必转牛，平衡由多种因素交织。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-06-01"
+  },
+  {
+    "opinion": "投资体系无‘割肉’环节，所有投资必须盈利；买入前需压力测试并预设对策。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-06-01"
+  },
+  {
+    "opinion": "熊市反弹和牛市调整强化趋势，非空耗时间；仓位舒适是成功习惯的关键。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-06-01"
+  },
+  {
+    "opinion": "小股票非不行，只是市场偏好暂时转移；下跌品种是未来金矿，应逆向布局。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-06-01"
+  },
+  {
+    "opinion": "利率是影响资产价格最重要因素之一；无坏品种，只有坏价格和策略。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-06-01"
+  },
+  {
+    "opinion": "投资成绩保持在前20%-30%即可，闷声发大财；避免大起大落，长期制胜。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-06-01"
+  },
+  {
+    "opinion": "A股牛市急快，用一两年涨几倍，再用七八年跌一半，需抓住牛市那两年才能赚钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-05-01"
+  },
+  {
+    "opinion": "投资要以科学为基础，但更是艺术，需坚持正道并随市场变化灵活调整。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-05-01"
+  },
+  {
+    "opinion": "熊市不要频繁补仓，避免大幅亏损，重点在低位收集筹码，牛市来后一周即可盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-05-01"
+  },
+  {
+    "opinion": "全市场等权PE已回历史均值，未来最大风险不是亏损，而是仓位不够。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-05-01"
+  },
+  {
+    "opinion": "指数投资可越跌越买，个股风险不可测，退市或价值回归可能导致永久损失。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-05-01"
+  },
+  {
+    "opinion": "黑天鹅是想不到的风险，所有人都在说的风险不是黑天鹅，一旦出现就是疯狂屠杀。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-04-01"
+  },
+  {
+    "opinion": "下跌永远是机会，但只有少数人能抓住，因为底部害怕或没钱，需要能力、勇气和视野。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-04-01"
+  },
+  {
+    "opinion": "市场75%的人连余额宝都战胜不了，不必焦虑踏空，真正赚大钱的人只有5%。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-04-01"
+  },
+  {
+    "opinion": "熊市某个阶段会局部炒作，如价值股上涨只是抱团取暖，长期价值才是王道。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-04-01"
+  },
+  {
+    "opinion": "人弃我取，人取我予：追高未来机会不大，跌跌不休的品种才是金矿。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-04-01"
+  },
+  {
+    "opinion": "补仓要拉开差距，跌一点就补扛不过熊市，指数基金按模型操作，门票股可设30%以上跌幅补仓。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-04-01"
+  },
+  {
+    "opinion": "未来几年，很多人可能会在满地黄金钻石时没钱买，强调低位布局的重要性。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-01-01"
+  },
+  {
+    "opinion": "投资不能预测，只能靠概率下注；估值越低，加仓力度越大。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-01-01"
+  },
+  {
+    "opinion": "动态平衡是终极制胜法宝，能降低波动并提升长期收益率。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-01-01"
+  },
+  {
+    "opinion": "定期定额投资在A股效果不佳，需低位多投、高位不投或卖出。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-01-01"
+  },
+  {
+    "opinion": "港股估值虽横向便宜但纵向已不低，当前是持有阶段而非买入时机。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-01-01"
+  },
+  {
+    "opinion": "未来A股个股可能十年不涨，指数投资是大多数人最优选择。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2017-01-01"
+  },
+  {
+    "opinion": "对投资来说，最大的利好就是便宜，最大的利空就是贵。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2016-01-01"
+  },
+  {
+    "opinion": "普通人赚不到钱的根本原因是追涨杀跌，关键是要拿得住，训练享受盈利。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2016-01-01"
+  },
+  {
+    "opinion": "养老金入市不是来解放散户的，要理性思考谁最不能亏钱。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2016-01-01"
+  },
+  {
+    "opinion": "机会是跌出来的，下跌才能买到便宜货，长期收益才会高。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2016-01-01"
+  },
+  {
+    "opinion": "投资要有自信和体系，基于科学的历史数据和成功大师的逻辑建立理念。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2016-01-01"
+  },
+  {
+    "opinion": "观察市场中短期最好的角度是资金和人性，尤其是人性背后的心理。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2016-01-01"
+  },
+  {
+    "opinion": "持币者才是真正的多头，在高估值时卖出筹码等待价值回归，是市场底部的基石。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2015-09-01"
+  },
+  {
+    "opinion": "投资指数基金是个人最佳选择，省心省力、风险低、估值易判断，长期收益优于多数主动基金。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2015-09-01"
+  },
+  {
+    "opinion": "在估值不贵时，控制仓位慢慢买入比死等深度价值更理智。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2015-09-01"
+  },
+  {
+    "opinion": "中小板和创业板估值逆天，提示风险虽不讨好但必须做。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2015-09-01"
+  },
+  {
+    "opinion": "市场不会一路暴跌，大概率是温水煮青蛙，让投资者在不知不觉中账户缩水。",
+    "topic": "投资理念",
+    "source_type": "observation",
+    "time": "2015-09-01"
+  },
+  {
+    "opinion": "投资本质是认知与心性的变现，核心是反人性操作和情绪管理。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "通过构建包含股票、债券、商品、现金的全球组合，利用低相关性降低波动。",
+    "topic": "资产配置",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "以估值百分位为核心决策依据，在极度低估时敢于重仓买入，高估时逐步卖出。",
+    "topic": "估值判断",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "建立可重复、可验证的投资体系，用机械化规则对抗人性的贪婪与恐惧。",
+    "topic": "策略执行",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "风险控制是投资第一要务，核心目标是熊市不赔钱，牛市大致跟上。",
+    "topic": "风险控制",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "用10年不用的闲钱投资，建立超长期心理账户，避免短期资金需求打断复利。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "便宜是王道，买贵是原罪，一切投资决策的起点是估值。",
+    "topic": "估值判断",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "不预测市场，只准备应对方案，构建能适应各种环境的投资体系。",
+    "topic": "策略执行",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "将仓位调整到让自己舒服的水平，是长期持有的前提。",
+    "topic": "仓位管理",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "逆向投资是超额收益的核心来源，在众人悲观时买入，狂热时卖出。",
+    "topic": "逆向投资",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "资产配置是唯一的免费午餐，分散投资于不同相关性资产降低风险。",
+    "topic": "资产配置",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "耐心是投资者最重要的品质，等待低估机会和持有筹码都需要耐心。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "投资体系需要不断进化，通过复盘、承认错误和吸收新知识来迭代。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "在钻石坑里要捡钻石，而不是跟着一起哭，需要勇气逆向买入。",
+    "topic": "逆向投资",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "仓位管理不是预测涨跌，而是为所有可能性留好退路。",
+    "topic": "仓位管理",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "永远不要满仓，因为你不知道市场还能跌多少；永远不要空仓，因为你不知道市场何时起飞。",
+    "topic": "仓位管理",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "控制节奏比选对品种更重要，好牌打烂往往是因为出牌太快。",
+    "topic": "策略执行",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "现金不是垃圾，是极端行情下的子弹和底气。",
+    "topic": "风险控制",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "投资中90%的时间都在等待，只有10%的时间在收获。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "市场先生是个躁郁症患者，你不需要陪他一起疯。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "好机会是等出来的，不是追出来的。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "单一品种的涨跌不重要，重要的是整个组合的稳健增长。",
+    "topic": "资产配置",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "守正出奇：大部分仓位守正，小部分仓位出奇，守正让你不亏，出奇让你超额。",
+    "topic": "资产配置",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "好的投资体系，应该让你在任何市场环境下都能睡得着觉。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "长期持有不是死扛，是在低估时买入，在高估时卖出，中间等待价值回归。",
+    "topic": "市场周期",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "复利是世界第八大奇迹，但前提是你得活得够久，且别在中途下车。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "投资不是百米冲刺，是马拉松，跑得快不重要，跑得久才重要。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "投资的第一原则是活下去，第二原则是记住第一原则。",
+    "topic": "风险控制",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "不要为了赚100%的收益，冒亏100%的风险，那不是投资，是赌博。",
+    "topic": "风险控制",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "回撤50%需要涨100%才能回本，控制回撤比追求收益更重要。",
+    "topic": "风险控制",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "指数基金是普通投资者对抗市场最好的武器，你不需要战胜市场，只需要跟上市场。",
+    "topic": "资产配置",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "买指数就是买国运，如果你不相信国家会变好，那就不该买任何股票。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "牛市在绝望中诞生，在怀疑中成长，在乐观中成熟，在疯狂中毁灭。",
+    "topic": "市场周期",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "熊市是财富再分配的过程，把筹码从恐慌者手里转移到耐心者手里。",
+    "topic": "市场周期",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "每一次熊市都是上帝送给投资者的礼物，但大多数人选择了拒收。",
+    "topic": "逆向投资",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "不要在冬天砍树，你以为它死了，其实它只是在积蓄力量。",
+    "topic": "市场周期",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "投资到最后，比的不是技术，是心态，谁更淡定，谁就赢了。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "承认自己会犯错，是投资成熟的第一步。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "最好的投资状态，是忘记账户密码，让时间帮你工作，你去享受生活。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "估值不是预测工具，而是导航仪，它告诉你现在在哪里，而不是明天会怎样。",
+    "topic": "估值判断",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "便宜不是买入的理由，便宜到变态才是。",
+    "topic": "估值判断",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "概率思维是投资的第一性原理，不追求100%的确定，只做大概率正确的事。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "市场最贵的时候，往往是大家觉得这次不一样的时候；最便宜的时候，是大家觉得这次完蛋了的时候。",
+    "topic": "市场周期",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "别人恐惧时我贪婪，不是一句口号，是写在交易系统里的纪律。",
+    "topic": "逆向投资",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "恐慌时卖出的，和狂热时买入的，往往是同一批人。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "市场底部不是用眼睛看出来的，是用仓位买出来的。",
+    "topic": "逆向投资",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "分批买入不是为了抄到最低点，而是为了让自己在任何位置都舒服。",
+    "topic": "仓位管理",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "左侧买入靠勇气，右侧买入靠纪律，中间那段靠耐心。",
+    "topic": "策略执行",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "仓位管理就是风险管理，风险管理就是生存管理。",
+    "topic": "风险控制",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  },
+  {
+    "opinion": "等待不是消极，是主动选择不出手，因为不出手也是一种策略。",
+    "topic": "投资心法",
+    "source_type": "principle",
+    "time": "2026-06-23T09:24:16.076254+00:00"
+  }
+]

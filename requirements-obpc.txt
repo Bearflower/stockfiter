@@ -1,0 +1,12 @@
+# OBPC 超跌反弹策略依赖
+# 形态扫描 + 飞书推送
+
+baostock>=0.8.8       # K线数据获取（fetcher 回退用）
+pandas>=2.0.0
+numpy>=1.24.0
+psycopg2-binary>=2.9.0  # PostgreSQL 数据库驱动
+PyYAML>=6.0.0
+requests>=2.28.0         # 飞书推送 + 通知服务
+schedule>=1.1.0          # 定时任务
+python-dotenv>=1.0.0
+loguru>=0.7.0            # 日志（utils/logger.py 依赖）
