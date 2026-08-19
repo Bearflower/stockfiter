@@ -248,10 +248,10 @@ done
 
 ```bash
 echo "=== 5. 功能验证 ==="
-ERROR_COUNT=$(ssh root@SERVER_IP "docker logs --tail 200 CONTAINER_NAME 2>&1 | grep -ci 'error\|exception\|fatal'")
+ERROR_COUNT=$(ssh root@SERVER_IP "docker logs --tail 200 CONTAINER_NAME 2>&1 | grep -cE "(ERROR|Exception|FATAL|CRITICAL|Traceback)"")
 if [ "$ERROR_COUNT" -gt 0 ]; then
     echo "⚠️  发现 $ERROR_COUNT 个错误日志，请检查："
-    ssh root@SERVER_IP "docker logs --tail 50 CONTAINER_NAME 2>&1 | grep -i 'error\|exception\|fatal'"
+    ssh root@SERVER_IP "docker logs --tail 50 CONTAINER_NAME 2>&1 | grep -E '(ERROR|Exception|FATAL|CRITICAL|Traceback)'"
 fi
 ```
 
@@ -343,13 +343,13 @@ echo "报告已保存到: $REPORT_FILE"
 部署完成后，必须逐项检查：
 
 ```
-□ 1. 容器状态确认: docker ps 显示容器运行中
+□ 1. 容器状态确认: docker ps 显示所有容器运行中（包括 kline-monitor）
 □ 2. 镜像 ID 对比: 容器镜像 ID == 最新构建镜像 ID
 □ 3. VERSION 文件: 容器内 DEPLOY_ID == 本地 DEPLOY_ID
 □ 4. 关键文件 MD5: 容器内文件 MD5 == 本地文件 MD5
 □ 5. 日志无错误: 容器日志中无 error/exception/fatal
 □ 6. 部署确认报告: 已生成并保存
-```
+□ 7. 无遗漏服务: docker ps | grep 确认所有服务（含 kline-monitor）都在运行
 
 **任一检查项失败，视为部署失败，必须修复后重新部署。**
 
@@ -425,6 +425,32 @@ EOF
 2. 手动上传遗漏的文件
 3. 重启容器
 
+### 问题5：【Binance quantitative trading】PostgreSQL 容器命名冲突导致部署中断
+
+**根因：** `.deploy_config` 中的 `POSTGRES_CONTAINER_NAME` 与 docker-compose.yml 中实际的容器名不一致（如 `postgres-db` vs `trading_system-postgres`），导致部署脚本每次都认为 postgres 未运行，尝试 `docker-compose up -d postgres` 时触发命名冲突。
+
+**另一点：** docker-compose 项目名变更时，会产生带前缀的残留容器（如 `b62539d01e8b_trading_system-postgres`），与现有容器名冲突。
+
+**影响：** 部署脚本使用 `set -e`，postgres 启动失败后整个 SSH 脚本退出，**后续所有服务（btc_eth、kline-monitor 等）都不会被启动**，但这些服务的状态不会被报告为"部署失败"。
+
+**解决方案：**
+1. 确保 `.deploy_config` 中的 `POSTGRES_CONTAINER_NAME` 与 docker-compose.yml 一致
+2. 启动 postgres 前清理所有残留的旧 pg 容器：`docker rm -f $(docker ps -aq -f name=postgres)`
+3. 使用 `||` 降级方案：`docker-compose up -d postgres || docker run -d ...` 直接创建
+
+### 问题6：【Binance quantitative trading】部署后缺少容器（如 kline-monitor）
+
+**症状：** 部署完成后，部分容器（如 `trading_system-kline-monitor`）未运行，甚至不存在。
+
+**根因：** 部署脚本中 postgres 启动失败（见问题5），导致 `set -e` 退出 SSH 脚本，排在 postgres 后面的服务全部被跳过。
+
+**注意：** 即使 postgres 启动成功，`docker-compose up -d <service>` 也可能因为 `depends_on` 条件不满足而跳过。例如 `kline_monitor` 依赖 `postgres`，如果 postgres 健康检查未通过，`kline_monitor` 不会被启动。
+
+**解决方案：**
+1. 部署完成后，必须执行 `docker ps | grep kline-monitor` 确认所有服务都在运行
+2. 如果缺少某个服务，单独启动：`docker-compose up -d kline-monitor`
+3. 长期方案：将部署脚本中的 `set -e` 改为对非关键服务不阻断，或使用 `|| true` 降级
+
 ---
 
 ## 十、部署命令速查
@@ -450,8 +476,14 @@ EOF
 # 生成部署确认报告
 ./generate_deploy_report.sh
 
-# 查看容器状态
-ssh root@SERVER_IP "docker ps -f name=CONTAINER_NAME"
+# 查看所有容器状态（确认无遗漏）
+ssh root@SERVER_IP "docker ps --format 'table {{.Names}}\t{{.Status}}'"
+
+# 单独检查 kline-monitor 是否存在
+ssh root@SERVER_IP "docker ps -f name=kline-monitor --format '{{.Names}} {{.Status}}' || echo '❌ kline-monitor 未运行'"
+
+# 启动缺失的服务（kline-monitor 等）
+ssh root@SERVER_IP "cd /root/trading_system && docker-compose up -d kline-monitor"
 
 # 查看容器日志
 ssh root@SERVER_IP "docker logs --tail 50 CONTAINER_NAME"

@@ -29,7 +29,9 @@ class BaostockSession:
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.logout()
+        # 不调用 bs.logout()：当 Baostock 服务端宕机/间歇性故障时，
+        # logout() 会阻塞等待响应，导致进程无法退出（os._exit 永远无法执行）。
+        # 进程退出时 OS 会自动清理网络连接，无需显式 logout。
         return False
     
     def login(self) -> bool:

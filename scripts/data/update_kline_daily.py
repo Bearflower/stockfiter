@@ -102,11 +102,17 @@ class DailyKlineUpdater:
         )
         logger.info("=" * 80)
 
+        from collections import deque
+
         success = 0
         error = 0
         skip = 0
-        consecutive_failures = 0  # 连续失败计数
-        MAX_CONSECUTIVE_FAILURES = 50  # 连续失败阈值，超过则停止（Baostock 可能已宕机）
+        # 收集失败股票，用于后续重试
+        failed_stocks = []  # (code, symbol) 列表
+        # 滑动窗口失败率检测：最近100次请求中失败超过70%则终止
+        recent_results = deque(maxlen=100)  # 1=失败, 0=成功
+        MAX_FAILURE_RATE = 0.7  # 70%失败率阈值
+        TOTAL_TIMEOUT_LIMIT = 500  # 总超时次数上限（原300，8月17日 Baostock 故障时300次失败即终止，导致980只股票数据缺失）
 
         with BaostockSession() as session:
             logger.info("Baostock 会话已建立，开始批量获取...")
@@ -144,7 +150,7 @@ class DailyKlineUpdater:
                         continue
 
                 try:
-                    kline_df = self._fetch_with_timeout(session, symbol, days=120, timeout=30)
+                    kline_df = self._fetch_with_timeout(session, symbol, days=120, timeout=15)
 
                     if kline_df is not None and len(kline_df) > 0:
                         if latest_data:
@@ -190,34 +196,52 @@ class DailyKlineUpdater:
                         if len(kline_df) > 0:
                             self.db.save_kline_history(code, kline_df)
                             success += 1
-                            consecutive_failures = 0  # 成功，重置连续失败计数
+                            recent_results.append(0)  # 成功
                             logger.debug(
                                 f"{code} 更新成功：{len(kline_df)} 条新数据"
                             )
                         else:
                             skip += 1
+                            recent_results.append(0)  # 无新数据不算失败
                             logger.debug(f"{code} 无新数据")
                     else:
                         error += 1
-                        consecutive_failures += 1
+                        recent_results.append(1)  # 失败
+                        failed_stocks.append((code, symbol))
                         logger.warning(f"{code} 更新失败：返回空数据")
 
                 except Exception as e:
                     error += 1
-                    consecutive_failures += 1
+                    recent_results.append(1)  # 异常=失败
+                    failed_stocks.append((code, symbol))
                     logger.error(f"{code} 更新失败：{e}")
 
-                # 连续失败过多，提前终止（Baostock 可能已宕机）
-                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                # 滑动窗口失败率检测
+                if len(recent_results) >= 50:
+                    failure_rate = sum(recent_results) / len(recent_results)
+                    if failure_rate > MAX_FAILURE_RATE:
+                        logger.warning(
+                            f"最近 {len(recent_results)} 次请求失败率 {failure_rate:.0%}，"
+                            f"Baostock 间歇性故障，提前终止"
+                        )
+                        break
+
+                # 总超时次数硬上限
+                if error >= TOTAL_TIMEOUT_LIMIT:
                     logger.warning(
-                        f"连续 {consecutive_failures} 只股票获取失败，Baostock 可能已宕机，提前终止"
+                        f"累计失败 {error} 次，达到上限 {TOTAL_TIMEOUT_LIMIT}，提前终止"
                     )
                     break
 
                 if (idx + 1) % 200 == 0:
+                    failure_rate_str = ""
+                    if len(recent_results) > 0:
+                        fr = sum(recent_results) / len(recent_results)
+                        failure_rate_str = f" | 窗口失败率：{fr:.0%}"
                     logger.info(
                         f"进度：{idx + 1}/{total} | "
                         f"成功：{success} | 失败：{error} | 跳过：{skip}"
+                        f"{failure_rate_str}"
                     )
 
                 # 每次请求后短暂休眠，避免触发 Baostock API 限流
@@ -225,11 +249,52 @@ class DailyKlineUpdater:
 
         logger.info("=" * 80)
         logger.info("每日 K 线数据更新完成")
-        logger.info(f"总计：{total} 只股票")
         logger.info(f"成功更新：{success} 只")
         logger.info(f"失败：{error} 只")
         logger.info(f"跳过（已有最新数据）：{skip} 只")
         logger.info("=" * 80)
+
+        # 对失败的股票进行重试（Baostock 间歇性故障，重试一次通常能恢复）
+        if failed_stocks:
+            logger.info(f"开始重试 {len(failed_stocks)} 只失败股票...")
+            retry_success = 0
+            retry_fail = 0
+            # 重试使用新的 Baostock 会话（原会话可能因故障处于不稳定状态）
+            with BaostockSession() as retry_session:
+                for code, symbol in failed_stocks:
+                    try:
+                        kline_df = self._fetch_with_timeout(
+                            retry_session, symbol, days=120, timeout=15
+                        )
+                        if kline_df is not None and len(kline_df) > 0:
+                            # 只保留新数据
+                            latest_data = self.db.get_latest_kline_date(code)
+                            if latest_data:
+                                from datetime import datetime as dt
+                                if isinstance(latest_data, dt):
+                                    latest_date = latest_data
+                                else:
+                                    latest_date = dt.combine(
+                                        latest_data.date() if hasattr(latest_data, 'date') else latest_data,
+                                        dt.min.time()
+                                    )
+                                kline_df = kline_df[
+                                    pd.to_datetime(kline_df['date']) > latest_date
+                                ]
+                            if len(kline_df) > 0:
+                                self.db.save_kline_history(code, kline_df)
+                                retry_success += 1
+                                success += 1
+                                logger.info(f"重试成功：{code}")
+                                continue
+                        retry_fail += 1
+                    except Exception as e:
+                        retry_fail += 1
+                        logger.debug(f"重试失败：{code} - {e}")
+                    time.sleep(0.05)
+
+            logger.info(f"重试结果：成功 {retry_success} 只，失败 {retry_fail} 只")
+            logger.info(f"最终统计：成功更新 {success} 只，失败 {retry_fail} 只")
 
         self._verify_database()
 

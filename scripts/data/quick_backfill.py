@@ -17,9 +17,6 @@ from utils.logger import get_logger
 
 logger = get_logger()
 
-# 连续失败阈值
-MAX_CONSECUTIVE_FAILURES = 50
-
 
 def fetch_missing_for_date(target_date: str, max_stocks: int = 1000) -> None:
     """
@@ -58,10 +55,15 @@ def fetch_missing_for_date(target_date: str, max_stocks: int = 1000) -> None:
         db.close()
         return
 
+    from collections import deque
+
     success_count = 0
     error_count = 0
-    consecutive_failures = 0
     total = len(missing_df)
+    # 滑动窗口失败率检测
+    recent_results = deque(maxlen=100)
+    MAX_FAILURE_RATE = 0.7
+    TOTAL_TIMEOUT_LIMIT = 300
 
     logger.info("开始获取数据...")
 
@@ -81,7 +83,7 @@ def fetch_missing_for_date(target_date: str, max_stocks: int = 1000) -> None:
                 if df is not None and len(df) > 0:
                     db.save_kline_history(code, df)
                     success_count += 1
-                    consecutive_failures = 0
+                    recent_results.append(0)
 
                     target_exists = df[df['date'] == target_dt]
                     if len(target_exists) > 0:
@@ -96,25 +98,37 @@ def fetch_missing_for_date(target_date: str, max_stocks: int = 1000) -> None:
                         )
                 else:
                     error_count += 1
-                    consecutive_failures += 1
+                    recent_results.append(1)
                     logger.warning(f"[{idx+1}/{total}] {code} - {name}: 获取失败")
 
             except Exception as e:
                 error_count += 1
-                consecutive_failures += 1
+                recent_results.append(1)
                 logger.error(f"[{idx+1}/{total}] {code} - {name}: 异常 {e}")
 
-            # 连续失败过多，提前终止（Baostock 可能已宕机）
-            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+            # 滑动窗口失败率检测
+            if len(recent_results) >= 50:
+                failure_rate = sum(recent_results) / len(recent_results)
+                if failure_rate > MAX_FAILURE_RATE:
+                    logger.warning(
+                        f"最近 {len(recent_results)} 次请求失败率 {failure_rate:.0%}，"
+                        f"Baostock 间歇性故障，提前终止"
+                    )
+                    break
+
+            # 总超时次数硬上限
+            if error_count >= TOTAL_TIMEOUT_LIMIT:
                 logger.warning(
-                    f"连续 {consecutive_failures} 只股票获取失败，Baostock 可能已宕机，提前终止"
+                    f"累计失败 {error_count} 次，达到上限 {TOTAL_TIMEOUT_LIMIT}，提前终止"
                 )
                 break
 
             if (idx + 1) % 50 == 0:
+                fr = sum(recent_results) / len(recent_results) if recent_results else 0
                 logger.info(
                     f"进度：{idx+1}/{total}, "
-                    f"成功：{success_count}, 失败：{error_count}"
+                    f"成功：{success_count}, 失败：{error_count}, "
+                    f"窗口失败率：{fr:.0%}"
                 )
 
     logger.info("=" * 80)
