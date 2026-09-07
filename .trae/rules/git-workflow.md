@@ -6,7 +6,7 @@
 
 1. 简述当前任务概要
 2. 将概要作为 commit message 提交到 git
-3. Push 到服务器
+3. 仅在用户明确要求推送时 Push 到远程仓库
 
 ## 提交安全规则
 
@@ -22,7 +22,7 @@
 3. 运行 `git log --oneline -5` 查看最近提交风格（保持一致性）
 4. 编写 commit message：简洁描述"改动原因"而非"改动内容"
 5. 使用 `git add <具体文件>` 暂存（不要用 `git add -A`）
-6. 执行 `git commit` 和 `git push`
+6. 执行用户明确授权的 `git commit`；推送需单独获得授权（`/git` 除外）
 
 ## 推送规范
 

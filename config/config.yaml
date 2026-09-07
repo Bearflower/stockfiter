@@ -38,6 +38,17 @@ global:
   kline_service:
     remote_url: "http://43.156.242.184:8765/api/v1"
 
+  # K线数据补全配置（quick_backfill.py 故障熔断保护参数）
+  backfill:
+    days_back: 10                  # 回溯检查的自然日天数
+    kline_days: 20                 # 每只股票获取的 K 线天数
+    batch_size: 1000               # 每批查询缺失股票的数量
+    max_stocks_per_run: 4000       # 单次运行最多处理股票数（防止失控）
+    failure_rate_threshold: 0.7    # 滑动窗口失败率熔断阈值（70%）
+    failure_window_size: 100       # 滑动窗口大小（最近 N 次请求）
+    failure_window_min_samples: 50 # 熔断判定所需最小样本数
+    total_failure_limit: 300       # 累计失败硬上限
+
   # 日志配置
   logging:
     level: INFO

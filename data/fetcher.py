@@ -56,6 +56,40 @@ class BaostockSession:
             self._bs.logout()
             self._logged_in = False
     
+    def get_trade_dates(self, start_date: str, end_date: str) -> List[str]:
+        """
+        获取指定区间内的交易日列表（baostock 交易日历）
+
+        Args:
+            start_date: 起始日期 YYYY-MM-DD
+            end_date: 截止日期 YYYY-MM-DD
+
+        Returns:
+            交易日字符串列表（升序），如 ['2026-09-03', '2026-09-04']；
+            查询失败时返回空列表
+        """
+        if not self._logged_in:
+            if not self.login():
+                return []
+
+        try:
+            rs = self._bs.query_trade_dates(
+                start_date=start_date, end_date=end_date
+            )
+            if rs.error_code != '0':
+                logger.warning(f"获取交易日历失败：{rs.error_msg}")
+                return []
+
+            dates = []
+            while rs.next():
+                row = rs.get_row_data()
+                if row[1] == '1':
+                    dates.append(row[0])
+            return dates
+        except Exception as e:
+            logger.error(f"获取交易日历异常：{e}")
+            return []
+
     def get_kline(
         self, symbol: str, end_date: Optional[str] = None, days: int = 120
     ) -> Optional[pd.DataFrame]:

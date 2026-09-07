@@ -7,8 +7,8 @@
 
 ## 项目文档引用
 
-- 项目需求：根目录 [README.md](../../README.md)（精简版），完整需求见 `docs/plans/项目需求迭代文档.md`
-- 技术方案：`docs/` 目录下的文档，通过 `docs/README.md` 索引查询
+- 项目需求与运行方式：根目录 [README.md](../../README.md)
+- 技术方案：`docs/designs/` 目录下的设计文档，通过 [docs/README.md](../../docs/README.md) 索引查询
 - 文档存储：需求类、报告类、部署类、方案类、设计类的文档统一存放在 `docs/` 目录
 
 ## 禁止硬编码（强制）🚫
