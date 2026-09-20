@@ -16,10 +16,6 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-# V4 思考模式默认参数
-_V4_THINKING_MODE = {"thinking": {"type": "enabled"}}
-_V4_NON_THINKING_MODE = {"thinking": {"type": "disabled"}}
-
 
 def build_llm_client(config: dict[str, Any]) -> OpenAI:
     """根据配置构建 OpenAI 客户端。
@@ -205,26 +201,23 @@ def parse_json_response(text: str) -> Any:
     return None
 
 
-def call_v4_pro_with_thinking(
+def call_deepseek_chat(
     client: OpenAI,
     model: str,
     messages: list[dict],
-    reasoning_effort: str = "high",
     max_tokens: int = 4000,
     response_format: dict | None = None,
     timeout: int = 120,
 ) -> str:
-    """调用 DeepSeek V4 Pro 并启用思考模式。
+    """调用 DeepSeek 通用对话模型（deepseek-chat）。
 
-    支持思考模式 (thinking) + reasoning_effort 控制推理深度。
-    思考模式下 temperature/top_p 不生效，由模型自动管理。
-    超时通过 httpx 的 timeout 参数控制，避免卡死。
+    标准 OpenAI 兼容调用，不支持 reasoning_effort / thinking 等参数
+    （这些是早期误引入的"V4 Pro"幻觉参数，deepseek-chat 会静默忽略）。
 
     Args:
         client: OpenAI 客户端实例
-        model: 模型名，如 "deepseek-v4-pro"
+        model: 模型名，如 "deepseek-chat"
         messages: 消息列表（system + user）
-        reasoning_effort: 思考强度，"high" 或 "max"
         max_tokens: 最大输出 token 数
         response_format: 可选，如 {"type": "json_object"}
         timeout: 请求超时秒数（默认 120 秒）
@@ -239,9 +232,7 @@ def call_v4_pro_with_thinking(
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
-        "reasoning_effort": reasoning_effort,
         "timeout": timeout,
-        "extra_body": _V4_THINKING_MODE,
     }
     if response_format is not None:
         kwargs["response_format"] = response_format
@@ -257,24 +248,21 @@ def call_v4_pro_with_thinking(
     return content
 
 
-def call_v4_pro_json(
+def call_deepseek_json(
     client: OpenAI,
     model: str,
     messages: list[dict],
-    reasoning_effort: str = "high",
     max_tokens: int = 4000,
     timeout: int = 120,
 ) -> Any:
-    """调用 DeepSeek V4 Pro（思考模式）并自动解析 JSON 响应。
+    """调用 DeepSeek 通用对话模型并自动解析 JSON 响应。
 
-    思考模式下 response_format 不生效，因此在 prompt 中要求输出 JSON，
-    返回后通过 parse_json_response 进行弹性解析。
+    在 prompt 中要求输出 JSON，返回后通过 parse_json_response 进行弹性解析。
 
     Args:
         client: OpenAI 客户端实例
         model: 模型名
         messages: 消息列表
-        reasoning_effort: 思考强度
         max_tokens: 最大输出 token
         timeout: 超时秒数
 
@@ -282,19 +270,18 @@ def call_v4_pro_json(
         Any: 解析后的 JSON 对象（dict 或 list），
              API 返回空内容或解析失败时返回 None
     """
-    text = call_v4_pro_with_thinking(
+    text = call_deepseek_chat(
         client=client,
         model=model,
         messages=messages,
-        reasoning_effort=reasoning_effort,
         max_tokens=max_tokens,
         timeout=timeout,
     )
     if not text.strip():
-        logger.warning("API 返回空内容，call_v4_pro_json 返回 None")
+        logger.warning("API 返回空内容，call_deepseek_json 返回 None")
         return None
 
     result = parse_json_response(text)
     if result is None:
-        logger.warning("JSON 解析失败，call_v4_pro_json 返回 None")
+        logger.warning("JSON 解析失败，call_deepseek_json 返回 None")
     return result

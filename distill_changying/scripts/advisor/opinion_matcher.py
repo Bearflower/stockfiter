@@ -6,10 +6,13 @@
 
 按 source_type 分组：
 - operation（操作记录）：E大近期的买卖操作
-- observation（近期判断）：E大近期对市场的判断
+- observation（微博精选判断）：E大 微博精选中的投资理念/市场判断（数据源 2015-2022，
+  2022.12 微博精选停更后中断，近窗口召回时会被时间过滤）
+- product_opinion（品种观点）：E大 发车文章中对具体品种的判断（持续更新至 2026），
+  与 observation 合并作为"近期判断"候选，避免 observation 中断后近窗口召回为空
 - principle（通用原则）：E大的经典投资理念
 
-匹配优先级：observation > operation > principle
+匹配优先级：observation(含 product_opinion) > operation > principle
 用于在决策日报中生成"E大说过"段落。
 """
 
@@ -20,7 +23,7 @@ import logging
 import os
 from typing import Any
 
-from scripts.shared.llm_utils import build_llm_client, call_v4_pro_json
+from scripts.shared.llm_utils import build_llm_client, call_deepseek_json
 
 logger = logging.getLogger(__name__)
 
@@ -139,11 +142,7 @@ def _filter_recent(records: list[dict], months: int = 3) -> list[dict]:
 
         if record_time >= cutoff:
             filtered.append(r)
-        else:
-            # 超时记录标记
-            r["timed_out"] = True
-            # 仍放入 filtered（降级为通用匹配使用）
-            filtered.append(r)
+        # 超时记录不再保留，真正执行时间窗口过滤
 
     logger.info("时间窗口过滤: %d -> %d 条（窗口=%d个月）",
                 len(records), len(filtered), months)
@@ -209,9 +208,13 @@ def _format_operations_for_prompt(operations: list[dict]) -> str:
 
 
 def _format_observations_for_prompt(observations: list[dict]) -> str:
-    """将市场判断格式化为易读的文本，用于 prompt。"""
+    """将市场判断与品种观点格式化为易读的文本，用于 prompt。
+
+    observations 候选同时包含 observation（市场整体判断）与
+    product_opinion（品种观点），因为 2023 年后 E大的判断主要归入后者。
+    """
     if not observations:
-        return "（暂无近期市场判断）"
+        return "（暂无近期判断与品种观点）"
     lines = []
     for obs in observations[:15]:  # 最多取 15 条
         opinion = obs.get("opinion", "")
@@ -246,6 +249,26 @@ def _format_principles_for_prompt(principles: list[dict], max_chars: int = 2000)
     return "\n".join(lines)
 
 
+def _prioritize_by_market_condition(records: list[dict], temperature_label: str) -> list[dict]:
+    """按当前市场温度档优先排序观点。
+
+    market_condition 与当前温度档一致的记录排到前面，其余保持原序，
+    让 LLM 匹配时优先看到与当前市场状态相关的金句。
+
+    Args:
+        records: 观点记录列表（通常是 principle 类）
+        temperature_label: 当前市场温度标签（"钻石坑"/"低估"/"正常"/"高估"/"泡沫"）
+
+    Returns:
+        list[dict]: 重排后的记录列表
+    """
+    if not records or not temperature_label:
+        return records
+    matched = [r for r in records if r.get("market_condition") == temperature_label]
+    others = [r for r in records if r.get("market_condition") != temperature_label]
+    return matched + others
+
+
 def match_opinions(
     config: dict[str, Any],
     temperature: dict,
@@ -257,7 +280,7 @@ def match_opinions(
     """根据当前市场语境匹配 E大历史观点，统一观点库按 source_type 过滤。
 
     按 source_type 分组后按优先级组织输入：
-    observation（近期判断）> operation（操作记录）> principle（通用原则）
+    observation(含 product_opinion) > operation（操作记录）> principle（通用原则）
 
     Args:
         config: advisor 配置字典
@@ -279,7 +302,12 @@ def match_opinions(
 
     # 按 source_type 分组
     operations = [r for r in records if r.get("source_type") == "operation"]
-    observations = [r for r in records if r.get("source_type") == "observation"]
+    # observation 数据源（微博精选）2022.12 停更，停在 2022；
+    # 2023 年后 E大的判断通过发车文章表达：品种判断归入 product_opinion、操作归入 operation。
+    # 因此 observation 与 product_opinion 都纳入"近期判断"候选，避免近窗口召回为空
+    observations = [
+        r for r in records if r.get("source_type") in ("observation", "product_opinion")
+    ]
     principles = [r for r in records if r.get("source_type") in ("principle", None, "")]
 
     # 如果全部为空，使用备用
@@ -293,16 +321,18 @@ def match_opinions(
 
     match_config = config.get("opinion_matching", {})
     max_principles_chars = match_config.get("max_opinions_chars", 8000)
+    recent_months = match_config.get("recent_months", 12)
 
-    # 按优先级筛选和格式化三组数据
-    ops_text = _format_operations_for_prompt(_filter_recent(operations))
-    obs_text = _format_observations_for_prompt(_filter_recent(observations))
-    principles_text = _format_principles_for_prompt(principles, max_chars=max_principles_chars)
+    # 按优先级筛选和格式化三组数据（操作/判断按时间窗口过滤，原则按市场温度档优先召回）
+    ops_text = _format_operations_for_prompt(_filter_recent(operations, recent_months))
+    obs_text = _format_observations_for_prompt(_filter_recent(observations, recent_months))
+    prioritized_principles = _prioritize_by_market_condition(principles, temperature.get("label"))
+    principles_text = _format_principles_for_prompt(prioritized_principles, max_chars=max_principles_chars)
 
     # 合并为统一输入（按优先级排列：observation > operation > principle）
     all_opinions_parts = []
-    if obs_text.strip() and obs_text != "（暂无近期市场判断）":
-        all_opinions_parts.append("【近期判断】\n" + obs_text)
+    if obs_text.strip() and obs_text != "（暂无近期判断与品种观点）":
+        all_opinions_parts.append("【近期判断与品种观点】\n" + obs_text)
     if ops_text.strip() and ops_text != "（暂无近期操作记录）":
         all_opinions_parts.append("【近期操作】\n" + ops_text)
     if principles_text.strip() and principles_text != "（暂无通用原则）":
@@ -325,14 +355,13 @@ def match_opinions(
         client = build_llm_client(config)
         api_config = config["api"]
 
-        result = call_v4_pro_json(
+        result = call_deepseek_json(
             client=client,
-            model=api_config.get("model", "deepseek-v4-pro"),
+            model=api_config.get("model", "deepseek-chat"),
             messages=[
                 {"role": "system", "content": "你是一位熟悉E大投资思想的助手。请只输出 JSON 数组。"},
                 {"role": "user", "content": prompt},
             ],
-            reasoning_effort="high",
             max_tokens=match_config.get("max_tokens", 1500),
             timeout=match_config.get("timeout", 60),
         )

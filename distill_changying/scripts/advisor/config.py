@@ -90,9 +90,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     },
     "llm_analysis": {
         "enabled": True,
-        "model": "deepseek-v4-pro",
-        "thinking_mode": True,
-        "reasoning_effort": "high",
+        "model": "deepseek-chat",
         "temperature": None,
         "max_tokens": 4000,
         "timeout": 120,

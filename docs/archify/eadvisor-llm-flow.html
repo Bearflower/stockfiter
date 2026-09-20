@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E大估值日报 · LLM 调用阶段（最新）</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
+  .legend { font-size: 13px; color: #cbd5e1; margin-bottom: 16px; line-height: 1.7; }
+  .legend b.hot { color: #f59e0b; }
+  .legend b.cold { color: #64748b; }
+  .mermaid { background: #0f172a; }
+  h2 { font-size: 15px; color: #e2e8f0; border-left: 3px solid #f59e0b; padding-left: 8px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<h1>E大估值日报 · LLM 调用阶段（最新，第一项改动后）</h1>
+<div class="sub">stockfilter-eadvisor 容器 · 每日 23:10 调度</div>
+<div class="legend">
+  <b class="hot">🟡 LLM 调用点 ×2</b>：<b>call_llm_analysis</b>（决策主路径，仓位+ETF+解读）· <b>match_opinions</b>（观点共鸣层）<br>
+  <b class="cold">⚪ 无 LLM</b>：估值采集 / 温度判定 / 持仓展示 / 飞书推送 均为纯规则或纯 IO<br>
+  <span style="color:#94a3b8">虚线 = 降级/旁路</span>
+</div>
+
+<h2>① 每日日报主链路（LLM 决策）</h2>
+<div class="mermaid">
+flowchart LR
+  tick[定时触发 23:10<br/>scheduler.py] --> fetch[估值采集<br/>baostock 6指数] --> validate[质量校验<br/>PE>0] --> temperature[市场温度判定<br/>钻石坑→泡沫]
+  temperature -->|LLM 决策主路径| llm_analysis{{LLM 综合分析<br/>call_llm_analysis}}
+  llm_analysis -->|LLM 成功| opinion[LLM 观点匹配<br/>match_opinions]
+  opinion -->|「E大说过」段| push[飞书日报推送]
+</div>
+
+<h2>② 降级与旁路</h2>
+<div class="mermaid">
+flowchart LR
+  llm_analysis{{LLM 综合分析}} -.->|失败降级| position[规则仓位映射<br/>温度→股/债/现金] --> etf[规则 ETF 推荐<br/>买卖区比对]
+  etf -.->|降级后同样匹配| opinion2[LLM 观点匹配]
+  fetch2[估值采集] -.->|成分股查询失败| klineFallback[指数K线回退] -.-> validate2[质量校验]
+  validate2 -.->|valid_count=0| skip[跳过当日推送]
+</div>
+
+<h2>③ 数据流全景（含蒸馏知识库）</h2>
+<div class="mermaid">
+flowchart TD
+  B[baostock 数据源] --> F[估值采集] --> V[质量校验] --> T[市场温度判定]
+  T --> L[LLM 综合分析<br/>仓位+ETF+解读]
+  L -->|成功| O[LLM 观点匹配]
+  L -.->|失败降级| P[规则仓位] --> E[规则ETF] -.-> O
+  K[(蒸馏知识库<br/>观点库1994条)] -.->|按状态+品种召回金句| O
+  O --> U[飞书日报推送]
+</div>
+
+<script>mermaid.initialize({ startOnLoad: true, theme: 'dark', themeVariables: { fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif' } });</script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 """
 E大投资决策LLM分析模块
 
-通过 DeepSeek V4 Pro（思考模式）统一进行仓位建议、ETF 推荐和市场解读推理。
+通过 DeepSeek（deepseek-chat）统一进行仓位建议、ETF 推荐和市场解读推理。
 单次 LLM 调用同时产出三个输出，失败时由调用方（scheduler.py）降级到规则引擎。
 
 数据流：
   市场估值数据 + ETF 品种池 + E大观点原则 + 150 份框架
-    → DeepSeek V4 Pro（思考模式）
+    → DeepSeek（deepseek-chat）
     → { position_advice, etf_recommendations, market_commentary }
 """
 
@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Any
 
-from scripts.shared.llm_utils import build_llm_client, call_v4_pro_json
+from scripts.shared.llm_utils import build_llm_client, call_deepseek_json
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +189,7 @@ def call_llm_analysis(
 ) -> dict[str, Any] | None:
     """执行 LLM 投资分析，返回结构化分析结果。
 
-    单次调用 DeepSeek V4 Pro（思考模式，reasoning_effort=high），
+    单次调用 DeepSeek（deepseek-chat），
     同时输出仓位建议、ETF 推荐和市场解读。
 
     Args:
@@ -229,23 +229,21 @@ def call_llm_analysis(
         disclaimer=disclaimer,
     )
 
-    model = llm_cfg.get("model", "deepseek-v4-pro")
-    reasoning_effort = llm_cfg.get("reasoning_effort", "high")
+    model = llm_cfg.get("model", "deepseek-chat")
     max_tokens = llm_cfg.get("max_tokens", 4000)
     timeout = llm_cfg.get("timeout", 120)
 
-    logger.info("调用 DeepSeek V4 Pro(thinking) 进行综合分析...")
+    logger.info("调用 DeepSeek 进行综合分析...")
 
     try:
         client = build_llm_client(config)
-        result = call_v4_pro_json(
+        result = call_deepseek_json(
             client=client,
             model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            reasoning_effort=reasoning_effort,
             max_tokens=max_tokens,
             timeout=timeout,
         )
@@ -353,6 +351,12 @@ def _validate_and_normalize(
         action = rec.get("action", "hold")
         shares = rec.get("shares", 0)
         name = rec.get("etf_name", "")
+
+        # 白名单校验：LLM 返回的 etf_code 必须在 etf_pool 中，否则丢弃，
+        # 防止模型幻觉出不存在的品种（否则会以默认 max_shares 混入买卖建议）
+        if code not in etf_max_shares:
+            logger.warning("LLM 返回未在 etf_pool 中的品种 %s(%s)，已丢弃", name, code)
+            continue
 
         if action not in ("buy", "sell", "hold"):
             action = "hold"

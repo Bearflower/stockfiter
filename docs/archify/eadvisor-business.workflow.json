@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "E大估值系统 · 业务逻辑全景",
+    "locale": "zh-CN",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/archify/eadvisor-business.html",
+    "views": [
+      {
+        "id": "daily-route",
+        "label": "主链路（LLM 决策，现状在跑）",
+        "focus": ["baostock", "tick", "fetch", "validate", "temperature", "llm_analysis", "opinion", "push"],
+        "note": "容器日报：baostock 采集 → 温度判定 → LLM 综合分析（仓位+ETF+解读）→ 观点匹配 → 飞书推送。"
+      },
+      {
+        "id": "fallback",
+        "label": "规则引擎降级路径",
+        "focus": ["llm_analysis", "position", "etf"],
+        "note": "LLM 综合分析失败时降级到规则引擎（仓位映射 + ETF 买卖区比对），保证日报不中断。"
+      },
+      {
+        "id": "asset",
+        "label": "蒸馏资产（已接入消费）",
+        "focus": ["knowledge", "opinion"],
+        "note": "观点库通过 match_opinions 被日报消费：按「市场状态 + 品种」召回 E大 金句注入「E大说过」段。"
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "source", "label": "数据源与知识底座" },
+    { "id": "pipeline", "label": "决策链路" },
+    { "id": "fallback", "label": "规则引擎降级", "variant": "exception" },
+    { "id": "notify", "label": "输出" }
+  ],
+  "phases": [
+    { "id": "collect", "label": "采集 + 校验", "fromCol": 0, "toCol": 2, "variant": "emphasis" },
+    { "id": "decide", "label": "LLM 决策 + 观点匹配", "fromCol": 3, "toCol": 5, "variant": "emphasis" }
+  ],
+  "mainPath": ["tick", "fetch", "validate", "temperature", "llm_analysis", "opinion", "push"],
+  "nodes": [
+    { "id": "baostock", "lane": "source", "col": 0, "type": "cloud", "label": "baostock 数据源", "sublabel": "6 指数成分股 PE/PB", "tag": "采样前 20 只", "width": 140, "height": 66 },
+    { "id": "knowledge", "lane": "source", "col": 4, "type": "database", "label": "蒸馏知识库", "sublabel": "观点库 + 操作时间线 + 别名映射", "tag": "观点库 1994 条·已接入", "width": 150, "height": 66 },
+    { "id": "tick", "lane": "pipeline", "col": 0, "type": "backend", "label": "定时触发 23:10", "sublabel": "分钟匹配 + 当日防重", "tag": "scheduler.py", "width": 140, "height": 66 },
+    { "id": "fetch", "lane": "pipeline", "col": 1, "type": "cloud", "label": "估值采集", "sublabel": "成分股 PE 中位数", "tag": "6 指数", "width": 140, "height": 66 },
+    { "id": "validate", "lane": "pipeline", "col": 2, "type": "security", "label": "质量校验", "sublabel": "PE>0 · 分位∈[0,100]", "tag": "写缓存 TTL 6h", "width": 140, "height": 66 },
+    { "id": "temperature", "lane": "pipeline", "col": 3, "type": "backend", "label": "市场温度判定", "sublabel": "PE 分位等权平均 → 五档", "tag": "纯规则 · 钻石坑→泡沫", "width": 140, "height": 66 },
+    { "id": "llm_analysis", "lane": "pipeline", "col": 4, "type": "external", "label": "LLM 综合分析", "sublabel": "仓位 + ETF 买卖 + 市场解读", "tag": "call_llm_analysis", "width": 150, "height": 72 },
+    { "id": "opinion", "lane": "pipeline", "col": 5, "type": "messagebus", "label": "LLM 观点匹配", "sublabel": "按状态召回 E大 金句", "tag": "match_opinions", "width": 140, "height": 66 },
+    { "id": "position", "lane": "fallback", "col": 4, "type": "backend", "label": "规则仓位映射", "sublabel": "温度 → 股/债/现金", "tag": "降级兜底", "width": 140, "height": 66 },
+    { "id": "etf", "lane": "fallback", "col": 5, "type": "backend", "label": "规则 ETF 推荐", "sublabel": "买卖区比对 + 份数", "tag": "降级兜底", "width": 140, "height": 66 },
+    { "id": "push", "lane": "notify", "col": 5, "type": "messagebus", "label": "飞书日报推送", "sublabel": "interactive card → webhook", "tag": "每日一条", "width": 140, "height": 66 }
+  ],
+  "edges": [
+    { "id": "e-baostock-fetch", "from": "baostock", "to": "fetch", "label": "估值数据", "variant": "default" },
+    { "id": "e-tick-fetch", "from": "tick", "to": "fetch", "variant": "emphasis" },
+    { "id": "e-fetch-validate", "from": "fetch", "to": "validate", "variant": "emphasis" },
+    { "id": "e-validate-temp", "from": "validate", "to": "temperature", "variant": "emphasis" },
+    { "id": "e-temp-llm", "from": "temperature", "to": "llm_analysis", "label": "LLM 决策主路径", "variant": "emphasis" },
+    { "id": "e-llm-position", "from": "llm_analysis", "to": "position", "label": "失败降级", "variant": "dashed", "role": "error" },
+    { "id": "e-position-etf", "from": "position", "to": "etf", "variant": "dashed" },
+    { "id": "e-etf-opinion", "from": "etf", "to": "opinion", "label": "降级后同样匹配", "variant": "dashed" },
+    { "id": "e-llm-opinion", "from": "llm_analysis", "to": "opinion", "label": "成功", "variant": "emphasis" },
+    { "id": "e-knowledge-opinion", "from": "knowledge", "to": "opinion", "label": "召回金句", "variant": "dashed", "role": "branch" },
+    { "id": "e-opinion-push", "from": "opinion", "to": "push", "label": "「E大说过」段", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "LLM 主路径已接入",
+      "items": [
+        "call_llm_analysis 接入每日调度，LLM 一次产出仓位 + ETF 买卖 + 市场解读",
+        "规则引擎（仓位 + ETF）降级为失败兜底，日报永不中断"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "蒸馏资产已消费",
+      "items": [
+        "观点库 1994 条通过 match_opinions 被日报消费，按市场状态 + 品种召回金句",
+        "observation（微博精选）停在 2022 是数据现实，观点匹配已合并 product_opinion 召回近期品种判断"
+      ]
+    }
+  ]
+}

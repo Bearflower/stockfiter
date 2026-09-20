@@ -12,7 +12,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import yaml
-import requests
 
 TZ = ZoneInfo("Asia/Shanghai")
 
@@ -32,8 +31,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("eadvisor_scheduler")
 
-# 加载配置
-with open("config/config.yaml") as f:
+# 配置来源说明：eadvisor 有两套配置，职责分工如下，互不重叠——
+# 1) config/config.yaml（下方 cfg）：调度层参数（scan_time/feishu_timeout）+ 飞书 webhook（global.notification）
+# 2) scripts/advisor/config.yaml（run_scan_and_push 内 get_config()）：业务参数（api/估值/llm/etf_pool 等）
+# 调度参数唯一来源是 config/config.yaml，业务参数唯一来源是 scripts/advisor/config.yaml。
+# config/config.yaml 位于项目根 stockfilter_v3/，向上 4 级定位，避免相对路径依赖 cwd。
+_project_root = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+with open(os.path.join(_project_root, "config", "config.yaml")) as f:
     cfg = yaml.safe_load(f)
 
 advisor_config = cfg.get("distill_changying", {}).get("advisor", {})
@@ -64,10 +70,9 @@ def run_scan_and_push():
     from scripts.advisor.config import get_config
     from scripts.advisor.market_data import fetch_all_valuations
     from scripts.advisor.temperature import calculate_market_temperature
-    from scripts.advisor.position import get_position_advice
-    from scripts.advisor.etf_recommend import (
-        generate_recommendations,
-        format_recommendations_text,
+    from scripts.advisor.daily_report import (
+        build_daily_report,
+        push_feishu_message,
     )
 
     logger.info("正在获取指数估值数据...")
@@ -79,39 +84,34 @@ def run_scan_and_push():
         return
 
     temperature = calculate_market_temperature(market_data["indices"], config)
-    position = get_position_advice(temperature["label"], config)
-    etf_recs = generate_recommendations(market_data, config)
 
-    lines = [
-        "🌡️ E大投资决策日报",
-        "",
-        f"全市场温度：{temperature['label']}（PE分位均值 {temperature['avg_percentile']:.1f}%）",
-        f"建议仓位：A股 {position['stock']}% / 债券 {position['bond']}% / 现金 {position['cash']}%",
-        "",
-        format_recommendations_text(etf_recs),
-        "",
-        "---",
-        cfg.get("disclaimer", "以上分析仅供参考，不构成投资建议。"),
-    ]
-    msg = "\n".join(lines)
+    # 组装日报（LLM 主路径 + 规则引擎降级 + 观点匹配 + 持仓展示）
+    msg = build_daily_report(config, market_data, temperature)
     logger.info("E大日报内容:\n%s", msg)
 
-    if feishu_webhook:
-        payload = {
-            "msg_type": "interactive",
-            "card": {
-                "header": {
-                    "title": {"tag": "plain_text", "content": "E大投资决策日报"},
-                    "template": "blue",
-                },
-                "elements": [{"tag": "markdown", "content": msg}],
-            },
-        }
-        try:
-            resp = requests.post(feishu_webhook, json=payload, timeout=10)
-            logger.info("飞书推送结果: %s %s", resp.status_code, resp.text[:100])
-        except Exception as e:
-            logger.error("飞书推送失败: %s", e)
+    push_feishu_message(
+        msg, feishu_webhook, timeout=schedule_config.get("feishu_timeout", 10)
+    )
+
+
+def run_knowledge_base_check():
+    """每日检测新博客并执行增量蒸馏 + 观点提炼（失败不影响主日报）。
+
+    在估值扫描与推送完成后串行调用：扫描 docs/blog/ 新增文件，
+    若有新文件则触发增量蒸馏（摘要 + 深度分析 + 观点库提炼）。
+    无新文件时仅刷新 .meta.yaml，开销极小。
+    """
+    try:
+        from scripts.distill.main import run_update
+        result = run_update(force_analyze=False)
+        logger.info(
+            "知识库增量更新完成: 新增 %d 篇，累计 %d/%d 篇",
+            result.get("new_count", 0),
+            result.get("summarized_count", 0),
+            result.get("total_files", 0),
+        )
+    except Exception as e:
+        logger.warning("知识库增量更新失败（不影响主日报推送）: %s", e)
 
 
 logger.info("等待定时触发...")
@@ -127,6 +127,8 @@ while True:
             run_scan_and_push()
         except Exception as e:
             logger.error("E大估值扫描失败: %s", e, exc_info=True)
+        # 每日增量蒸馏 + 观点提炼（串行，失败不影响主日报）
+        run_knowledge_base_check()
         time.sleep(90)
 
     else:

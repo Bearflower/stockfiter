@@ -219,14 +219,21 @@ def cmd_distill(args: argparse.Namespace) -> None:
     _generate_meta_after_distill(config, logger)
 
 
-def cmd_update(args: argparse.Namespace) -> None:
+def run_update(force_analyze: bool = False) -> dict[str, Any]:
     """执行增量知识库更新：检测新文件、摘要 + 分析、生成 .meta.yaml。
 
     与 distill 全量处理不同，update 只处理新增的博客文件，
     并仅在有新文件或强制分析时才执行跨文章深度分析。
 
+    与 cmd_update 的区别：不依赖 argparse.Namespace，不重复初始化日志，
+    便于 scheduler.py 在每日推送后串行调用（自动接线）。
+
     Args:
-        args: 解析后的命令行参数
+        force_analyze: 即使无新文件也强制执行跨文章深度分析
+
+    Returns:
+        dict: 更新统计信息，含 new_count / summarized_count / total_files /
+              summarize_elapsed / analyze_elapsed
     """
     import time
 
@@ -246,7 +253,6 @@ def cmd_update(args: argparse.Namespace) -> None:
     )
 
     config = get_config()
-    setup_logging(config)
     logger = logging.getLogger(__name__)
 
     meta_path = config["meta"]["meta_file"]
@@ -275,7 +281,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     logger.info("新增文件: %d 篇", new_count)
 
     # 4. 如果没有新文件且不强制分析，仅刷新 .meta.yaml
-    if new_count == 0 and not args.force_analyze:
+    if new_count == 0 and not force_analyze:
         logger.info("知识库已是最新，无需更新")
 
         # 生成 .meta.yaml（无耗时数据）
@@ -291,7 +297,13 @@ def cmd_update(args: argparse.Namespace) -> None:
         )
         meta_result_path = write_meta_yaml(meta_path, meta_content)
         logger.info("元数据文件已刷新: %s", meta_result_path)
-        return
+        return {
+            "new_count": 0,
+            "summarized_count": summarized_count,
+            "total_files": len(all_files),
+            "summarize_elapsed": 0,
+            "analyze_elapsed": 0,
+        }
 
     summarize_elapsed = 0.0
     analyze_elapsed = 0.0
@@ -317,11 +329,11 @@ def cmd_update(args: argparse.Namespace) -> None:
         logger.info("第一层蒸馏耗时: %.1f 秒", summarize_elapsed)
 
     # 6. 如果有新文件或强制分析，执行跨文章分析
-    if new_count > 0 or args.force_analyze:
+    if new_count > 0 or force_analyze:
         from scripts.distill.analyzer import run_analysis  # pyright: ignore[reportMissingImports]
 
         logger.info("=" * 50)
-        logger.info("开始跨文章深度分析（新文件数=%d, 强制=%s）", new_count, args.force_analyze)
+        logger.info("开始跨文章深度分析（新文件数=%d, 强制=%s）", new_count, force_analyze)
         logger.info("=" * 50)
 
         t0 = time.time()
@@ -402,6 +414,25 @@ def cmd_update(args: argparse.Namespace) -> None:
         analyze_elapsed,
     )
     logger.info("=" * 50)
+
+    return {
+        "new_count": new_count,
+        "summarized_count": len(updated_state),
+        "total_files": len(all_files),
+        "summarize_elapsed": summarize_elapsed,
+        "analyze_elapsed": analyze_elapsed,
+    }
+
+
+def cmd_update(args: argparse.Namespace) -> None:
+    """CLI 入口：初始化日志后执行增量知识库更新。
+
+    Args:
+        args: 解析后的命令行参数（含 force_analyze 布尔标记）
+    """
+    config = get_config()
+    setup_logging(config)
+    run_update(force_analyze=args.force_analyze)
 
 
 def _generate_meta_after_distill(config: dict, logger: logging.Logger) -> None:

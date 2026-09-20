@@ -5,7 +5,7 @@ api:
   provider: "deepseek"
   api_key_env: "DEEPSEEK_API_KEY"
   base_url: "https://api.deepseek.com"
-  model: "deepseek-v4-pro"          # 2026-07-24 旧模型废弃，改用 V4 Pro
+  model: "deepseek-chat"              # DeepSeek-V3 通用对话（deepseek-v4-pro 不存在，已修正）
   temperature: 0.7                  # 思考模式下不生效，保留仅用于非思考模式降级
   max_tokens: 2000
   max_retries: 3
@@ -14,11 +14,9 @@ api:
 # LLM 分析配置 —— 仓位建议 + ETF 推荐 + 市场解读（通过大模型推理替代规则引擎）
 llm_analysis:
   enabled: true                     # 总开关，关闭则回退到规则引擎
-  model: "deepseek-v4-pro"          # 分析专用模型
-  thinking_mode: true               # 启用思考模式
-  reasoning_effort: "high"          # 思考强度 high/max
-  temperature: null                 # 思考模式下不使用 temperature
-  max_tokens: 4000                  # 输出上限（含推理 + 内容）
+  model: "deepseek-chat"            # 分析专用模型（DeepSeek-V3）
+  temperature: null                 # 置空则不传 temperature 参数
+  max_tokens: 4000                  # 输出上限
   timeout: 120                      # 单次 LLM 调用超时（秒）
   fallback_to_rules: true           # LLM 失败时降级到规则引擎
 
@@ -107,17 +105,14 @@ chat:
 # 免责声明（所有输出末尾追加）
 disclaimer: "以上分析仅供参考，不构成投资建议。投资有风险，决策须谨慎。"
 
-# 调度器配置
-schedule:
-  scan_time: "23:10"           # 每日扫描时间（北京时间）
-  feishu_timeout: 10           # 飞书推送超时（秒）
-  post_scan_sleep: 90          # 扫描后等待（秒），避免因重复执行
-  poll_interval: 30            # 主循环轮询间隔（秒）
-  scan_timeout: 1800           # 整体扫描超时（秒），baostock 成分股查询慢时需长超时
+# 调度参数（scan_time/feishu_timeout/post_scan_sleep/poll_interval/scan_timeout）
+# 已统一到项目根 config/config.yaml 的 distill_changying.advisor.schedule，
+# 由 scheduler.py / manual_scan.py 读取，此处不再重复定义，避免两套配置不一致。
 
 # 市场语境匹配配置
 opinion_matching:
   max_opinions_chars: 8000       # 发送给 LLM 的观点库最大字符数
+  recent_months: 12              # 操作/判断类观点的召回时间窗口（月），观点库近月内容稀少，需放宽
   temperature: 0.3               # 匹配 LLM 温度
   max_tokens: 1000               # 匹配 LLM 最大 tokens
   opinions_path: ""              # 观点库路径，为空时自动使用 distill 产物目录下的 观点库.jsonl
