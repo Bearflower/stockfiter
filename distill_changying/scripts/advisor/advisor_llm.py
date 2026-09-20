@@ -185,7 +185,6 @@ ANALYSIS_PROMPT_TEMPLATE = """【E大投资原则参考】
 def call_llm_analysis(
     config: dict[str, Any],
     temperature: dict,
-    etf_recs: dict | None = None,
 ) -> dict[str, Any] | None:
     """执行 LLM 投资分析，返回结构化分析结果。
 
@@ -195,8 +194,6 @@ def call_llm_analysis(
     Args:
         config: advisor 配置字典
         temperature: 市场温度计算结果（来自 temperature.py 的 calculate_market_temperature）
-        etf_recs: 可选。当 LLM 失败降级到规则引擎后的 etf 推荐结果，
-                  用于和 LLM 结果做对比合并
 
     Returns:
         dict | None: 成功时返回包含 position_advice、etf_recommendations、market_commentary 的字典；

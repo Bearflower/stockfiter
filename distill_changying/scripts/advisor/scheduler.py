@@ -15,14 +15,9 @@ import yaml
 
 TZ = ZoneInfo("Asia/Shanghai")
 
+# 向上 2 级定位到 distill_changying/（scripts 包的父目录），确保任意目录下 from scripts.xxx 可导入
 sys.path.insert(
-    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-)
-sys.path.insert(
-    0,
-    os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "distill_changying"
-    ),
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
 )
 
 logging.basicConfig(
