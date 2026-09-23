@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.trae/
+.agents/
+*.md
+archive/
+.github/
+logs/
+data/backtest/
+distill_changying/docs/
+config/config.yaml

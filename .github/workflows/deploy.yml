@@ -1,0 +1,159 @@
+name: CI/CD — 构建镜像并自动部署
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.trae/**'
+      - '.agents/**'
+      - 'docs/**'
+      - 'data/backtest/**'
+      - '*.md'
+      - '*.sqlite3'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: bearflower
+
+jobs:
+  build-and-push:
+    name: 🛠️ 构建所有镜像
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: kline
+            dockerfile: Dockerfile.kline
+            image_tag: ghcr.io/bearflower/stockfilter-kline:latest
+            dir: ""
+          - service: obpc
+            dockerfile: Dockerfile.obpc
+            image_tag: ghcr.io/bearflower/stockfilter-obpc:latest
+            dir: ""
+          - service: eadvisor
+            dockerfile: Dockerfile.eadvisor
+            image_tag: ghcr.io/bearflower/stockfilter-eadvisor:latest
+            dir: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔍 判断是否需要构建
+        id: check
+        run: |
+          CHANGED_FILES=$(git diff HEAD~1 HEAD --name-only 2>/dev/null || echo "")
+          echo "本次修改:"
+          echo "$CHANGED_FILES"
+
+          # stockfilter_v3 是单目录项目，任何源代码变更都影响所有容器
+          # 只有 config.yaml、.env、文档、backtest 数据等不触发构建
+          if echo "$CHANGED_FILES" | grep -qE '^(\.trae/|\.agents/|docs/|data/backtest/|logs/|\.env|\.gitignore|ARCHIVE|AGENTS\.md|README\.md)'; then
+            # 但如果除了上面还有别的变更，还是要构建
+            OTHER_CHANGES=$(echo "$CHANGED_FILES" | grep -vE '^(\.trae/|\.agents/|docs/|data/backtest/|logs/|\.env|\.gitignore|ARCHIVE|AGENTS\.md|README\.md)$' || true)
+            if [ -z "$OTHER_CHANGES" ]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "⏭️  仅文档/配置/规则变更，跳过构建"
+              exit 0
+            fi
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: 🐳 Setup buildx
+        if: steps.check.outputs.skip == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🐳 Login GHCR
+        if: steps.check.outputs.skip == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐳 Build + Push ${{ matrix.service }}
+        if: steps.check.outputs.skip == 'false'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ matrix.image_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: 🚀 自动部署到服务器
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: 🔑 配置 SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 43.156.242.184 >> ~/.ssh/known_hosts
+
+      - name: 📤 上传 docker-compose.yml
+        run: scp -i ~/.ssh/id_rsa docker-compose.yml root@43.156.242.184:/root/stockfilter_v3/docker-compose.yml
+
+      - name: 🚀 生成并上传远程部署脚本
+        run: |
+          cat > /tmp/deploy.sh << 'REMOTE_SCRIPT'
+            set -e
+            cd /root/stockfilter_v3
+
+            echo "========================================"
+            echo "stockfilter_v3 CI/CD 自动部署"
+            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "========================================"
+
+            # GHCR 认证
+            echo "__GHCR_TOKEN__" | docker login ghcr.io -u bearflower --password-stdin
+
+            # 拉新镜像
+            echo "📥 docker compose pull..."
+            docker compose pull
+
+            # 更新所有容器
+            echo "🔄 docker compose up -d..."
+            docker compose up -d --remove-orphans
+
+            # 等就绪
+            echo "⏳ 等待 15s..."
+            sleep 15
+
+            # 状态检查
+            echo ""
+            echo "✅ 当前容器状态："
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep stockfilter || echo "⚠️ 未找到 stockfilter 容器"
+
+            # 写部署日志
+            mkdir -p deploy_logs
+            DEPLOY_TIME=$(date "+%Y-%m-%d %H:%M:%S")
+            COMMIT_SHA="__COMMIT_SHA__"
+            echo "[${DEPLOY_TIME}] DEPLOY_SUCCESS commit=${COMMIT_SHA}" >> "deploy_logs/$(date '+%Y%m%d').log"
+
+            echo ""
+            echo "🎉 stockfilter_v3 CI/CD 部署完成！"
+          REMOTE_SCRIPT
+          sed -i "s|__GHCR_TOKEN__|${{ secrets.GHCR_PULL_TOKEN }}|g" /tmp/deploy.sh
+          sed -i "s|__COMMIT_SHA__|${{ github.sha }}|g" /tmp/deploy.sh
+          scp -i ~/.ssh/id_rsa /tmp/deploy.sh root@43.156.242.184:/tmp/deploy.sh
+
+      - name: ▶️ 执行远程部署
+        run: ssh -i ~/.ssh/id_rsa root@43.156.242.184 "bash /tmp/deploy.sh && rm /tmp/deploy.sh"
