@@ -30,6 +30,11 @@ services:
     restart: unless-stopped
     networks:
       - common_service_common_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: python -u scripts/scheduler_kline.py
 
   # ==================== 容器 2: OBPC 策略服务 ====================
@@ -59,6 +64,11 @@ services:
       - common_service_common_network
     depends_on:
       - kline-service
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: python -u scripts/scheduler_obpc.py
 
   # ==================== 容器 3: E大估值策略服务 ====================
@@ -78,6 +88,11 @@ services:
     restart: unless-stopped
     networks:
       - common_service_common_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: python -u distill_changying/scripts/advisor/scheduler.py
 
 networks:
