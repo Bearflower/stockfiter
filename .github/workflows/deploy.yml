@@ -141,6 +141,20 @@ jobs:
           }
           RETRY_SH
 
+      - name: 🔍 SSH 连通性诊断
+        run: |
+          echo "=== 密钥文件检查 ==="
+          ls -la ~/.ssh/id_rsa
+          echo "密钥行数: $(wc -l < ~/.ssh/id_rsa)"
+          head -1 ~/.ssh/id_rsa
+          tail -1 ~/.ssh/id_rsa
+          echo ""
+          echo "=== SSH config ==="
+          cat ~/.ssh/config
+          echo ""
+          echo "=== SSH 连接测试（带 verbose）==="
+          ssh -vvv -o StrictHostKeyChecking=no 43.156.242.184 "echo '✅ SSH 连通 OK' && hostname && whoami" 2>&1 | tail -30
+
       - name: 📤 上传 docker-compose.yml
         run: |
           source /tmp/ci_retry.sh
