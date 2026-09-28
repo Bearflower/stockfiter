@@ -101,15 +101,50 @@ jobs:
       packages: read
 
     steps:
-      - name: 🔑 配置 SSH
+      - name: 🔑 配置 SSH + 重试脚本
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 43.156.242.184 >> ~/.ssh/known_hosts
 
+          # SSH 客户端配置：统一设置 Host/User/IdentityFile + 超时加固参数
+          cat >> ~/.ssh/config << 'SSH_CONFIG'
+          Host 43.156.242.184
+            User root
+            IdentityFile ~/.ssh/id_rsa
+            ConnectTimeout 15
+            ServerAliveInterval 15
+            ServerAliveCountMax 3
+          SSH_CONFIG
+          chmod 600 ~/.ssh/config
+
+          # 公共重试函数：仅 exit 255（连接层失败）时重试 3 次
+          cat > /tmp/ci_retry.sh << 'RETRY_SH'
+          retry_connect() {
+            local i rc
+            for i in 1 2 3; do
+              rc=0
+              "$@" || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                return 0
+              fi
+              if [ "$rc" -ne 255 ]; then
+                echo "❌ 非连接类失败（exit ${rc}），不重试"
+                return "$rc"
+              fi
+              echo "⚠️ 连接失败（exit 255），第 ${i}/3 次，15s 后重试..."
+              sleep 15
+            done
+            echo "❌ 连接重试 3 次仍失败"
+            return 255
+          }
+          RETRY_SH
+
       - name: 📤 上传 docker-compose.yml
-        run: scp -i ~/.ssh/id_rsa docker-compose.yml root@43.156.242.184:/root/stockfilter_v3/docker-compose.yml
+        run: |
+          source /tmp/ci_retry.sh
+          retry_connect scp docker-compose.yml 43.156.242.184:/root/stockfilter_v3/docker-compose.yml
 
       - name: 🚀 生成并上传远程部署脚本
         run: |
@@ -122,7 +157,7 @@ jobs:
             echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
             echo "========================================"
 
-            # GHCR 认证
+            # GHCR 认证（每次都确保登录）
             echo "__GHCR_TOKEN__" | docker login ghcr.io -u bearflower --password-stdin
 
             # 拉新镜像
@@ -153,7 +188,10 @@ jobs:
           REMOTE_SCRIPT
           sed -i "s|__GHCR_TOKEN__|${{ secrets.GHCR_PULL_TOKEN }}|g" /tmp/deploy.sh
           sed -i "s|__COMMIT_SHA__|${{ github.sha }}|g" /tmp/deploy.sh
-          scp -i ~/.ssh/id_rsa /tmp/deploy.sh root@43.156.242.184:/tmp/deploy.sh
+          source /tmp/ci_retry.sh
+          retry_connect scp /tmp/deploy.sh 43.156.242.184:/tmp/deploy.sh
 
       - name: ▶️ 执行远程部署
-        run: ssh -i ~/.ssh/id_rsa root@43.156.242.184 "bash /tmp/deploy.sh && rm /tmp/deploy.sh"
+        run: |
+          source /tmp/ci_retry.sh
+          retry_connect ssh 43.156.242.184 "bash /tmp/deploy.sh && rm /tmp/deploy.sh"
