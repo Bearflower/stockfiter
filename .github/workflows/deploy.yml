@@ -101,7 +101,7 @@ jobs:
       packages: read
 
     steps:
-      - name: 🔑 配置 SSH + 重试脚本
+      - name: 🔑 配置 SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
@@ -119,93 +119,55 @@ jobs:
           SSH_CONFIG
           chmod 600 ~/.ssh/config
 
-          # 公共重试函数：仅 exit 255（连接层失败）时重试 3 次
-          cat > /tmp/ci_retry.sh << 'RETRY_SH'
-          retry_connect() {
-            local i rc
-            for i in 1 2 3; do
-              rc=0
-              "$@" || rc=$?
-              if [ "$rc" -eq 0 ]; then
-                return 0
-              fi
-              if [ "$rc" -ne 255 ]; then
-                echo "❌ 非连接类失败（exit ${rc}），不重试"
-                return "$rc"
-              fi
-              echo "⚠️ 连接失败（exit 255），第 ${i}/3 次，15s 后重试..."
-              sleep 15
-            done
-            echo "❌ 连接重试 3 次仍失败"
-            return 255
-          }
-          RETRY_SH
+          # 仅测试 ssh 连通性，不依赖 scp
+          ssh 43.156.242.184 "echo '✅ SSH 连通 OK' && hostname && whoami"
 
-      - name: 🔍 SSH 连通性诊断
+      - name: 🚀 远程部署
         run: |
-          echo "=== 密钥文件检查 ==="
-          ls -la ~/.ssh/id_rsa
-          echo "密钥行数: $(wc -l < ~/.ssh/id_rsa)"
-          head -1 ~/.ssh/id_rsa
-          tail -1 ~/.ssh/id_rsa
+          # 远程执行完整部署流程（compose 文件用 curl 从 GitHub 直接拉，不走 scp）
+          DEPLOY_CMD=$(cat <<REMOTE
+          set -e
+          cd /root/stockfilter_v3
+
+          echo "========================================"
+          echo "stockfilter_v3 CI/CD 自动部署"
+          echo "commit: ${{ github.sha }}"
+          echo "时间: \$(date '+%Y-%m-%d %H:%M:%S')"
+          echo "========================================"
+
+          # 1. 用 curl 从 GitHub raw 下载最新 compose 文件（绕过 scp）
+          echo "📥 下载 docker-compose.yml..."
+          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/main/docker-compose.yml" -o docker-compose.yml
+
+          # 2. GHCR 认证
+          echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u bearflower --password-stdin
+
+          # 3. 拉新镜像
+          echo "📥 docker compose pull..."
+          docker compose pull
+
+          # 4. 更新所有容器
+          echo "🔄 docker compose up -d..."
+          docker compose up -d --remove-orphans
+
+          # 5. 等就绪
+          echo "⏳ 等待 15s..."
+          sleep 15
+
+          # 6. 状态检查
           echo ""
-          echo "=== SSH config ==="
-          cat ~/.ssh/config
+          echo "✅ 当前容器状态："
+          docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep stockfilter || echo "⚠️ 未找到 stockfilter 容器"
+
+          # 7. 写部署日志
+          mkdir -p deploy_logs
+          DEPLOY_TIME="\$(date '+%Y-%m-%d %H:%M:%S')"
+          echo "[\${DEPLOY_TIME}] DEPLOY_SUCCESS commit=${{ github.sha }}" >> "deploy_logs/\$(date '+%Y%m%d').log"
+
           echo ""
-          echo "=== SSH 连接测试（带 verbose）==="
-          ssh -vvv -o StrictHostKeyChecking=no 43.156.242.184 "echo '✅ SSH 连通 OK' && hostname && whoami" 2>&1 | tail -30
+          echo "🎉 stockfilter_v3 CI/CD 部署完成！"
+          REMOTE
+          )
 
-      - name: 📤 上传 docker-compose.yml
-        run: |
-          source /tmp/ci_retry.sh
-          retry_connect scp docker-compose.yml 43.156.242.184:/root/stockfilter_v3/docker-compose.yml
-
-      - name: 🚀 生成并上传远程部署脚本
-        run: |
-          cat > /tmp/deploy.sh << 'REMOTE_SCRIPT'
-            set -e
-            cd /root/stockfilter_v3
-
-            echo "========================================"
-            echo "stockfilter_v3 CI/CD 自动部署"
-            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
-            echo "========================================"
-
-            # GHCR 认证（每次都确保登录）
-            echo "__GHCR_TOKEN__" | docker login ghcr.io -u bearflower --password-stdin
-
-            # 拉新镜像
-            echo "📥 docker compose pull..."
-            docker compose pull
-
-            # 更新所有容器
-            echo "🔄 docker compose up -d..."
-            docker compose up -d --remove-orphans
-
-            # 等就绪
-            echo "⏳ 等待 15s..."
-            sleep 15
-
-            # 状态检查
-            echo ""
-            echo "✅ 当前容器状态："
-            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep stockfilter || echo "⚠️ 未找到 stockfilter 容器"
-
-            # 写部署日志
-            mkdir -p deploy_logs
-            DEPLOY_TIME=$(date "+%Y-%m-%d %H:%M:%S")
-            COMMIT_SHA="__COMMIT_SHA__"
-            echo "[${DEPLOY_TIME}] DEPLOY_SUCCESS commit=${COMMIT_SHA}" >> "deploy_logs/$(date '+%Y%m%d').log"
-
-            echo ""
-            echo "🎉 stockfilter_v3 CI/CD 部署完成！"
-          REMOTE_SCRIPT
-          sed -i "s|__GHCR_TOKEN__|${{ secrets.GHCR_PULL_TOKEN }}|g" /tmp/deploy.sh
-          sed -i "s|__COMMIT_SHA__|${{ github.sha }}|g" /tmp/deploy.sh
-          source /tmp/ci_retry.sh
-          retry_connect scp /tmp/deploy.sh 43.156.242.184:/tmp/deploy.sh
-
-      - name: ▶️ 执行远程部署
-        run: |
-          source /tmp/ci_retry.sh
-          retry_connect ssh 43.156.242.184 "bash /tmp/deploy.sh && rm /tmp/deploy.sh"
+          # 远程执行（base64 编码避免转义问题）
+          echo "$DEPLOY_CMD" | base64 -w0 | ssh 43.156.242.184 "base64 -d | bash -s"
