@@ -6,10 +6,9 @@ WORKDIR /app
 ARG PIP_INDEX_URL=
 
 # 安装依赖（eadvisor 有两个 requirements 文件）
-COPY requirements-eadvisor.txt requirements-advisor.txt* ./
+COPY requirements-eadvisor.txt ./
 COPY distill_changying/requirements-advisor.txt ./
-RUN cat requirements-advisor.txt 2>/dev/null || true
-RUN pip install --no-cache-dir -r requirements-eadvisor.txt -r distill_changying/requirements-advisor.txt ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL}
+RUN pip install --no-cache-dir -r requirements-eadvisor.txt -r requirements-advisor.txt ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL}
 
 # 复制全部源码
 COPY . /app/
