@@ -34,8 +34,12 @@ logger = logging.getLogger("eadvisor_scheduler")
 _project_root = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
+# 同时将项目根加入 sys.path，使 utils.xxx 可直接导入
+sys.path.insert(0, _project_root)
 with open(os.path.join(_project_root, "config", "config.yaml")) as f:
     cfg = yaml.safe_load(f)
+
+from utils.trade_calendar import is_trading_day
 
 advisor_config = cfg.get("distill_changying", {}).get("advisor", {})
 schedule_config = advisor_config.get("schedule", {})
@@ -114,6 +118,14 @@ while True:
     now = datetime.now(TZ)
     today = now.strftime("%Y-%m-%d")
     hm = now.strftime("%H:%M")
+
+    # 交易日检查：非交易日跳过扫描任务
+    if not is_trading_day(today):
+        if last_run != today:
+            logger.info("=== %s 非交易日，E大估值调度器今日休眠 ===", today)
+            last_run = today
+        time.sleep(30)
+        continue
 
     if hm == scan_time and last_run != today:
         last_run = today

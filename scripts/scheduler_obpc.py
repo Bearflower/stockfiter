@@ -34,6 +34,8 @@ logger = logging.getLogger("obpc_scheduler")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from utils.trade_calendar import is_trading_day
+
 logger.info("OBPC 策略调度器启动（当前时间: %s）", datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"))
 logger.info("定时任务：22:15 形态扫描 / 07:30 补全后重扫 / 08:10 飞书推送（均为北京时间）")
 logger.info("K线等待超时：%ds，轮询间隔：%ds", KLINE_WAIT_TIMEOUT, KLINE_WAIT_INTERVAL)
@@ -111,9 +113,16 @@ def wait_for_backfill() -> bool:
 while True:
     now = datetime.now(TZ)
     today = now.strftime("%Y-%m-%d")
+    yesterday = (now - timedelta(days=1)).strftime("%Y-%m-%d")
     hm = now.strftime("%H:%M")
 
     if hm == SCHEDULE_SCAN and last_run_scan != today:
+        # 扫描时段：仅当天是交易日才执行
+        if not is_trading_day(today):
+            logger.info("=== %s 非交易日，跳过形态扫描 ===", today)
+            last_run_scan = today
+            time.sleep(LOOP_INTERVAL)
+            continue
         last_run_scan = today
         logger.info("=== 等待 K 线更新 ===")
         wait_for_kline_update()
@@ -130,6 +139,12 @@ while True:
         time.sleep(POST_TASK_DELAY)
 
     elif hm == SCHEDULE_RESCAN and last_run_rescan != today:
+        # 重扫时段：仅当天是交易日才执行
+        if not is_trading_day(today):
+            logger.info("=== %s 非交易日，跳过补全后重扫 ===", today)
+            last_run_rescan = today
+            time.sleep(LOOP_INTERVAL)
+            continue
         last_run_rescan = today
         logger.info("=== 等待历史补全完成 ===")
         backfill_ok = wait_for_backfill()
@@ -151,6 +166,13 @@ while True:
         time.sleep(POST_TASK_DELAY)
 
     elif hm == SCHEDULE_PUSH and last_run_push != today:
+        # 推送时段：当天或前一天任一为交易日都放行
+        # 覆盖周五 22:15 扫描 → 周六 08:10 推送的场景
+        if not is_trading_day(today) and not is_trading_day(yesterday):
+            logger.info("=== %s 和 %s 均为非交易日，跳过飞书推送 ===", yesterday, today)
+            last_run_push = today
+            time.sleep(LOOP_INTERVAL)
+            continue
         last_run_push = today
         logger.info("=== 执行飞书推送（08:10 北京）===")
         try:
