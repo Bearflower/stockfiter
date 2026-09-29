@@ -83,6 +83,7 @@ services:
       - PYTHONPATH=/app:/app/distill_changying
     volumes:
       - ./logs:/app/logs
+      - ./distill_changying/docs/blog:/app/distill_changying/docs/blog:ro
       - ./distill_changying/docs/distilled/logs:/app/distill_changying/docs/distilled/logs
       - ./config/config.yaml:/app/config/config.yaml:ro
     restart: unless-stopped
