@@ -207,11 +207,22 @@ class FeishuPusher:
             return False
 
 
-def load_signals() -> List:
-    """加载信号文件"""
-    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+def load_signals(signal_date: Optional[str] = None) -> List:
+    """加载信号文件
 
-    signal_file = Path(f'signals/signals_{yesterday}.json')
+    C-3 修复：支持显式指定信号日期，用于 scheduler_obpc 早晨重扫后推送当天信号。
+    未指定时回退到「昨日」逻辑，保持手动运行兼容。
+
+    Args:
+        signal_date: 显式指定的信号日期（YYYY-MM-DD），None 时用昨天
+
+    Returns:
+        List: 信号列表
+    """
+    # C-3：支持显式日期参数，未指定时回退到 yesterday
+    target_date = signal_date or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    signal_file = Path(f'signals/signals_{target_date}.json')
 
     if not signal_file.exists():
         print(f"信号文件不存在：{signal_file}")
@@ -223,6 +234,15 @@ def load_signals() -> List:
 
 def main() -> None:
     """主函数"""
+    # C-3：添加 --signal-date 参数，支持 scheduler_obpc 早晨重扫后推送当天信号
+    import argparse
+    parser = argparse.ArgumentParser(description='飞书推送脚本')
+    parser.add_argument(
+        '--signal-date', type=str, default=None,
+        help='指定信号日期（YYYY-MM-DD），不指定时用昨天'
+    )
+    args = parser.parse_args()
+
     print("=" * 80)
     print("飞书推送系统 V3")
     print("=" * 80)
@@ -232,7 +252,8 @@ def main() -> None:
         print("错误：未配置 FEISHU_WEBHOOK 环境变量")
         sys.exit(1)
 
-    signals = load_signals()
+    # C-3：传入 signal_date，load_signals 内部处理回退逻辑
+    signals = load_signals(signal_date=args.signal_date)
 
     if not signals:
         print("\n今日无买入信号")

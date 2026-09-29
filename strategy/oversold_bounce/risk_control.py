@@ -171,6 +171,13 @@ class RiskControlConfig:
     score_min_limit: float = 0.0
     """评分下限（V2.1 新增），调整后评分不低于此值"""
 
+    # ===== R06 新增：指数数据新鲜度校验 =====
+    freshness_strategy: str = "skip"
+    """数据不新鲜时的处理策略（R06 新增）：skip / fail / stale_days"""
+
+    freshness_stale_days: int = 3
+    """strategy=stale_days 时允许的最近 N 交易日（R06 新增）"""
+
     def __post_init__(self) -> None:
         """
         配置合法性校验（V2.1 新增，fail-fast）
@@ -200,6 +207,19 @@ class RiskControlConfig:
             raise ValueError(
                 f"不支持的 macd_condition={self.macd_condition}，"
                 f"目前仅支持 'dif > 0'"
+            )
+
+        # R06：校验新鲜度策略取值
+        if self.freshness_strategy not in ("skip", "fail", "stale_days"):
+            raise ValueError(
+                f"不支持的 freshness_strategy={self.freshness_strategy}，"
+                f"仅支持 'skip' / 'fail' / 'stale_days'"
+            )
+
+        # R06：stale_days 策略下允许天数必须为正
+        if self.freshness_strategy == "stale_days" and self.freshness_stale_days <= 0:
+            raise ValueError(
+                f"freshness_stale_days 必须为正整数（当前 {self.freshness_stale_days}）"
             )
 
     @classmethod
@@ -257,6 +277,9 @@ class RiskControlConfig:
             ),
             score_max_limit=score_adjustment.get("score_max_limit", 100.0),
             score_min_limit=score_adjustment.get("score_min_limit", 0.0),
+            # ===== R06 新增：指数数据新鲜度校验 =====
+            freshness_strategy=index_filter.get("freshness_strategy", "skip"),
+            freshness_stale_days=index_filter.get("freshness_stale_days", 3),
         )
 
 
@@ -511,6 +534,58 @@ class RealtimeMarketContextProvider(MarketContextProvider):
         if index_df is None or index_df.empty:
             logger.warning(f"指数 {self.config.index_code} 数据为空，跳过大盘过滤")
             return None
+
+        # R06：指数数据新鲜度校验（在计算任何指标前先比对日期）
+        last_raw_date = index_df["date"].iloc[-1]
+        # 统一转成日期字符串 YYYY-MM-DD
+        if hasattr(last_raw_date, "strftime"):
+            last_date_str = last_raw_date.strftime("%Y-%m-%d")
+        elif isinstance(last_raw_date, str):
+            last_date_str = last_raw_date[:10]
+        else:
+            last_date_str = str(last_raw_date)[:10]
+
+        if last_date_str != date_str:
+            # 指数最后 K 线日期 != 目标交易日 → 数据不新鲜
+            diff_msg = f"指数 {self.config.index_code} 最新日期 {last_date_str} != 目标日期 {date_str}"
+            strategy = self.config.freshness_strategy
+
+            if strategy == "stale_days":
+                # 允许最近 N 交易日内的延迟
+                from datetime import datetime as _dt
+                try:
+                    last_dt = _dt.strptime(last_date_str, "%Y-%m-%d")
+                    target_dt = _dt.strptime(date_str, "%Y-%m-%d")
+                    if abs((target_dt - last_dt).days) <= self.config.freshness_stale_days:
+                        logger.info(
+                            f"指数数据延迟在容忍范围内（{abs((target_dt - last_dt).days)} 天 ≤ "
+                            f"{self.config.freshness_stale_days} 天），继续计算"
+                        )
+                    else:
+                        logger.warning(
+                            f"{diff_msg}，延迟超过允许上限 "
+                            f"{self.config.freshness_stale_days} 天，按 skip 策略跳过大盘过滤"
+                        )
+                        return None
+                except ValueError:
+                    logger.warning(
+                        f"{diff_msg}，日期解析失败，按 skip 策略跳过大盘过滤"
+                    )
+                    return None
+
+            elif strategy == "fail":
+                logger.error(
+                    f"{diff_msg}，freshness_strategy=fail 要求严格日期一致，"
+                    f"大盘风控上下文不可用"
+                )
+                return None
+
+            else:  # "skip"（默认）
+                logger.warning(
+                    f"{diff_msg}，freshness_strategy=skip 跳过大盘过滤，"
+                    f"signal_date={date_str}"
+                )
+                return None
 
         # 取最新一条作为当日收盘价
         current_close = float(index_df["close"].iloc[-1])
@@ -961,6 +1036,56 @@ class InMemoryMonthlyCounter(MonthlySignalCounter):
         self.counts[year_month] = self.counts.get(year_month, 0) + 1
 
 
+# ==================== R02/R21：月度额度统一分配纯函数 ====================
+
+def cap_by_monthly_quota(
+    candidates,
+    used_count: int,
+    max_per_month: int,
+    max_daily: int = 0,
+):
+    """
+    按剩余月度额度 + 日额度上限，从已排序候选中截取入选信号（R02/R21）。
+
+    设计意图：
+        原逻辑在逐候选风控时拦截 monthly_limit，
+        但 DatabaseMonthlyCounter.get_count 是静态快照（扫描结束才入库），
+        导致每个候选都看到同一个 count 值，月度额度形同虚设。
+
+        修复后：逐候选风控只保留「评分阈值 + 大盘趋势」，
+        本函数在排序完成后统一按「剩余额度」截断。
+        实盘（daily_scan）和回测（backtest_obpc）同用此函数，保证行为一致。
+
+    Args:
+        candidates: 已按评分降序排列的候选信号列表。
+            元素类型可为 Signal 对象或 dict，本函数不关心具体类型。
+        used_count: 该月份已占用的信号数（从计数器读库）
+        max_per_month: 月度上限（来自 config.max_signals_per_month）
+        max_daily: 当日上限（来自 config.max_daily_signals）。
+            0 或负数表示不启用日限额。
+
+    Returns:
+        list: 入选的候选子集，顺序与输入保持一致（已按评分降序）
+    """
+    # 剩余月度额度（已全部用完则返回空列表）
+    remaining = max(0, max_per_month - used_count)
+    if remaining == 0:
+        return []
+
+    # 日限与月限取更严格者
+    # 先应用日限（如果启用）
+    if max_daily > 0 and max_daily < len(candidates):
+        selected = candidates[:max_daily]
+    else:
+        selected = list(candidates)
+
+    # 再应用月限（更严格则进一步截断）
+    if len(selected) > remaining:
+        selected = selected[:remaining]
+
+    return selected
+
+
 # ==================== 风控控制器 ====================
 
 class RiskController:
@@ -1011,28 +1136,32 @@ class RiskController:
         self,
         signal,
         market_context: MarketContext,
-        monthly_count: int,
+        monthly_count: Optional[int] = None,
     ) -> RiskControlResult:
         """
-        应用全部四层风控检查（串联执行）（V2.1 扩展）
+        应用全部风控检查（V2.1 + R02 改造）。
 
         V2.1 执行顺序：
             0. 评分调整（V2.1 新增，可选）→ 修改 signal.score
             1. 动态评分阈值过滤（使用调整后的评分）
             2. 大盘趋势过滤（method 分支 + 斜率过滤）
-            3. 单月信号数量上限检查
+            3. 单月信号数量上限检查（R02：monthly_count=None 时跳过拦截）
 
         任一环节过滤即终止后续检查。
 
-        调整说明：
-            - 评分调整前置，极弱市场评分归零后直接过滤，不再走后续风控
-            - 评分阈值前置，确保低分信号先被过滤，不会占用单月名额
+        R02 改造说明：
+            单月上限逐候选拦截已失效（monthly_count 是静态快照，
+            不会随候选放行递减），故将第三层改为可选。
+            调用方传 monthly_count=None 时，本方法只执行前两层；
+            月度额度统一由调用方在排序后通过 cap_by_monthly_quota 应用。
 
         Args:
             signal: 策略产出的信号对象（需有 signal_date 和 score 属性）
                 V2.1 注意：score_adjustment 启用时，signal.score 会被修改
             market_context: 当日大盘环境上下文
-            monthly_count: 当月已产出的信号数（调用前由计数器提供）
+            monthly_count: 当月已产出的信号数。
+                None 时跳过单月上限检查（R02 推荐用法）；
+                非 None 时保持原行为，用于回测等场景。
 
         Returns:
             RiskControlResult: 风控检查结果
@@ -1092,13 +1221,16 @@ class RiskController:
                 )
             return result
 
-        # 风控3：单月信号数量上限检查
-        result = self.check_monthly_limit(signal.signal_date, monthly_count)
-        if not result.passed:
-            self._record_filter_stats(
-                signal.signal_date, "monthly_limit"
-            )
-            return result
+        # R02：单月信号数量上限检查（仅当 monthly_count 非 None 时执行）
+        # daily_scan.py 场景下传 None → 跳过此处拦截，
+        # 由调用方在排序后通过 cap_by_monthly_quota 统一配额
+        if monthly_count is not None:
+            result = self.check_monthly_limit(signal.signal_date, monthly_count)
+            if not result.passed:
+                self._record_filter_stats(
+                    signal.signal_date, "monthly_limit"
+                )
+                return result
 
         return result
 

@@ -37,3 +37,6 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.bak
+
+# 交接存档（本地临时快照，不进 git）
+docs/handoffs/

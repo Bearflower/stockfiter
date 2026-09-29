@@ -27,20 +27,60 @@ import sys
 import numpy as np
 import pandas as pd
 
-# ==================== 配置 ====================
-DATA_DIR = "/tmp/full_history"
-INDEX_FILE = "/tmp/index_000300_fq.csv"
+# ==================== 配置加载（H-2：禁止模块级业务阈值硬编码） ====================
+def _load_section_backtest_config(config_path: str = 'config/config.yaml') -> dict:
+    """从 config.yaml 读取 section_backtest 节（禁止硬编码）。
 
-REBALANCE_DAYS = 20       # 调仓周期（交易日）
-TOP_K = 20                # 截面持仓数量
-LOOKBACKS = [20, 60]      # 因子回看期（动量/反转各跑两档）
-COST = 0.0035             # 单次完整交易成本（约0.35%，复用 OBPC 口径）
+    当配置缺失时回退到脚本原默认值，保证向后兼容。
 
-# 温度计参数
-MA_PERIOD = 20            # 趋势均线周期
-SLOPE_LOOKBACK = 5        # 斜率回看
-MACD = (12, 26, 9)        # MACD 参数
-VOL_PERIOD = 20           # 波动率计算周期
+    Args:
+        config_path: 配置文件路径
+
+    Returns:
+        dict: section_backtest.cross_section 配置字典
+    """
+    default_cfg = {
+        'rebalance_days': 20,
+        'top_k': 20,
+        'lookbacks': [20, 60],
+        'cost': 0.0035,
+        'ma_period': 20,
+        'slope_lookback': 5,
+        'macd': [12, 26, 9],
+        'vol_period': 20,
+        'use_training_window': False,
+        'training_window_days': 500,
+    }
+    try:
+        import yaml
+        with open(config_path, 'r', encoding='utf-8') as f:
+            full = yaml.safe_load(f) or {}
+        cfg = (full.get('section_backtest') or {}).get('cross_section') or {}
+        default_cfg.update(cfg)
+    except Exception:
+        # config 加载失败时用默认值继续，不阻断脚本运行
+        pass
+    return default_cfg
+
+
+# 加载 cross_section 配置（启动时一次性读取，后续模块内直接用全局常量）
+_cs_cfg = _load_section_backtest_config()
+
+# ==================== 配置（DATA_DIR/INDEX_FILE 是本地临时路径，保留硬编码；其余全部从 config 读） ====================
+DATA_DIR = os.environ.get("CROSS_SECTION_DATA_DIR", "/tmp/full_history")
+INDEX_FILE = os.environ.get("CROSS_SECTION_INDEX_FILE", "/tmp/index_000300_fq.csv")
+
+# H-2：以下业务阈值全部从 section_backtest.cross_section 读取，禁止写死
+REBALANCE_DAYS = _cs_cfg['rebalance_days']     # 调仓周期（交易日）
+TOP_K = _cs_cfg['top_k']                       # 截面持仓数量
+LOOKBACKS = _cs_cfg['lookbacks']               # 因子回看期（动量/反转各跑两档）
+COST = _cs_cfg['cost']                         # 单次完整交易成本（约 0.35%，复用 OBPC 口径）
+
+# 温度计参数（H-2）
+MA_PERIOD = _cs_cfg['ma_period']               # 趋势均线周期
+SLOPE_LOOKBACK = _cs_cfg['slope_lookback']     # 斜率回看
+MACD = tuple(_cs_cfg['macd'])                  # MACD 参数 (fast, slow, signal)
+VOL_PERIOD = _cs_cfg['vol_period']             # 波动率计算周期
 
 
 # ==================== 数据加载 ====================
@@ -97,7 +137,10 @@ def calc_temperature(index_df, panel):
 
     # 维度3：波动（历史波动率越低分越高）
     vol = close.pct_change().rolling(VOL_PERIOD).std()
-    vol_med = vol.median()
+    # R08：expanding median 替代全局 median
+    # 原代码 vol.median() 对整个序列算单一值，导致前 100 行与完整序列的 vol_med 不一致
+    # expanding().median() 让每一行只依赖其历史，prefix / full 对齐后结果一致
+    vol_med = vol.expanding().median()
     # 波动率低于中位数满分，高于中位数2倍零分，线性
     score_vol = (2 - (vol / vol_med)).clip(0, 1) * 25
 

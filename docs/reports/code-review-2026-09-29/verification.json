@@ -1,0 +1,10 @@
+{
+  "python_files_ast_parsed": 92,
+  "reproduction_result_groups": 13,
+  "reproduction_exit_code": 0,
+  "all_reviewed_source_hashes_unchanged": true,
+  "preview_entries_accounted_for": 22,
+  "ruff_exit_code": 1,
+  "ruff_issues": 2,
+  "external_services_called": false
+}

@@ -50,8 +50,10 @@ from strategy.oversold_bounce.risk_control import (
     MarketContext,
     PreloadedMarketContextProvider,
     InMemoryMonthlyCounter,
+    cap_by_monthly_quota,
 )
 from strategy.base import Signal
+from collections import defaultdict
 
 logger = get_logger()
 
@@ -60,7 +62,12 @@ logger = get_logger()
 
 @dataclass
 class BacktestConfig:
-    """回测配置数据类，封装所有回测相关参数"""
+    """回测配置数据类，封装所有回测相关参数
+
+    所有交易参数默认值为 None，在 __post_init__ 里统一兜底，
+    避免硬编码散落在 dataclass 字段上。生产环境通过 load_backtest_config()
+    从 config.yaml 完整构造，__post_init__ 兜底仅用于直接实例化场景（如测试）。
+    """
 
     # 回测时间区间
     start_date: str = "2020-01-01"
@@ -77,14 +84,14 @@ class BacktestConfig:
     signal_cooldown_days: int = 60
     """同一股票信号冷却期（交易日），冷却期内不重复产生信号"""
 
-    # 交易模拟参数
-    trailing_stop_ratio: float = 0.08
+    # 交易模拟参数（H：默认 None，__post_init__ 统一兜底，禁止字段级硬编码）
+    trailing_stop_ratio: Optional[float] = None
     """移动止盈回撤比例"""
 
-    hard_stop_loss: float = 0.10
+    hard_stop_loss: Optional[float] = None
     """硬止损比例"""
 
-    stop_loss_ratio: float = 0.97
+    stop_loss_ratio: Optional[float] = None
     """止损比例（支撑位 × 该比例）"""
 
     min_hold_days: int = 5
@@ -93,14 +100,14 @@ class BacktestConfig:
     max_hold_days: int = 30
     """最长持仓天数"""
 
-    # 交易成本参数
-    commission: float = 0.00025
+    # 交易成本参数（H：默认 None，__post_init__ 统一兜底）
+    commission: Optional[float] = None
     """佣金费率（双向）"""
 
-    stamp_tax: float = 0.001
+    stamp_tax: Optional[float] = None
     """印花税费率（仅卖出）"""
 
-    slippage: float = 0.001
+    slippage: Optional[float] = None
     """滑点费率"""
 
     # 大盘过滤参数
@@ -142,6 +149,25 @@ class BacktestConfig:
 
     scheme_description: str = ""
     """回测方案描述（用于报告 meta）"""
+
+    def __post_init__(self):
+        """H：统一兜底交易参数，禁止字段级硬编码。
+
+        当参数为 None 时使用与 config.yaml strategies.oversold_bounce.params 节一致的兜底值，
+        保证直接实例化 BacktestConfig（如测试场景）也能正确运行。
+        """
+        # 兜底值与 config.yaml strategies.oversold_bounce.params 保持一致
+        _fallbacks = {
+            'trailing_stop_ratio': 0.08,
+            'hard_stop_loss': 0.10,
+            'stop_loss_ratio': 0.97,
+            'commission': 0.00025,
+            'stamp_tax': 0.001,
+            'slippage': 0.001,
+        }
+        for _field, _val in _fallbacks.items():
+            if getattr(self, _field) is None:
+                setattr(self, _field, _val)
 
 
 # ==================== V2.1 回测方案配置器 ====================
@@ -659,8 +685,9 @@ class TradeSimulator:
                 # 最短持仓期内仅检查硬止损
                 hard_stop_price = entry_price * (1 - self.config.hard_stop_loss)
                 if low <= hard_stop_price:
+                    # R07：跳空低开越过止损线 → 按开盘价成交（硬止损价可能高于当日 open）
+                    exit_price = min(hard_stop_price, float(row["open"]))
                     exit_idx = i
-                    exit_price = hard_stop_price
                     exit_reason = "hard_stop"
                     break
                 continue
@@ -670,23 +697,26 @@ class TradeSimulator:
             # 1. 硬止损：亏损达到 hard_stop_loss
             hard_stop_price = entry_price * (1 - self.config.hard_stop_loss)
             if low <= hard_stop_price:
+                # R07：跳空低开越过止损线 → 按开盘价成交
+                exit_price = min(hard_stop_price, float(row["open"]))
                 exit_idx = i
-                exit_price = hard_stop_price
                 exit_reason = "hard_stop"
                 break
 
             # 2. 支撑位止损：跌破支撑位 × stop_loss_ratio
             if low <= stop_loss_price:
+                # R07：跳空低开越过止损线 → 按开盘价成交
+                exit_price = min(stop_loss_price, float(row["open"]))
                 exit_idx = i
-                exit_price = stop_loss_price
                 exit_reason = "support_stop"
                 break
 
             # 3. 移动止盈：从最高价回撤 trailing_stop_ratio
             trailing_stop_price = max_price * (1 - self.config.trailing_stop_ratio)
             if low <= trailing_stop_price:
+                # R07：移动止盈线同样受跳空影响
+                exit_price = min(trailing_stop_price, float(row["open"]))
                 exit_idx = i
-                exit_price = trailing_stop_price
                 exit_reason = "trailing_stop"
                 break
 
@@ -853,8 +883,8 @@ class BacktestEngine:
                     if self.market_context_provider is None:
                         logger.warning("大盘上下文提供者构建失败，风控的大盘趋势过滤将失效")
 
-        # 遍历每只股票执行回测
-        all_trades: List[TradeResult] = []
+        # 阶段一：逐股票收集候选信号（只做前两层风控，不传 monthly_count）
+        all_candidates: List[Dict] = []
 
         for idx, row in stock_df.iterrows():
             code = row["code"]
@@ -863,11 +893,63 @@ class BacktestEngine:
             if (idx + 1) % 100 == 0:
                 logger.info(
                     f"回测进度：{idx + 1}/{len(stock_df)}，"
-                    f"已产生 {len(all_trades)} 笔交易"
+                    f"已收集 {len(all_candidates)} 个候选信号"
                 )
 
-            trades = self._backtest_single_stock(code, name)
-            all_trades.extend(trades)
+            candidates = self._backtest_single_stock(code, name)
+            all_candidates.extend(candidates)
+
+        # 阶段二：全局排序 + 按月分组 + 统一月度配额（R21 修复）
+        # 原逻辑在逐股票遍历中 increment monthly counter，导致结果依赖股票遍历顺序
+        # 改后：全部候选按 (signal_date, -score) 排序，同日期内评分降序、跨日期升序
+        #       再按月份分组，每月内用 cap_by_monthly_quota 统一分配名额
+        all_candidates.sort(key=lambda c: (c['signal_date'], -c['score']))
+
+        # 从风控配置读取配额参数（风控未启用时跳过月度配额，全部候选入选）
+        max_per_month = 0
+        max_daily = 0
+        if self.risk_controller is not None and self.config.risk_control_config is not None:
+            max_per_month = self.config.risk_control_config.max_signals_per_month
+            max_daily = self.config.risk_control_config.max_daily_signals
+
+        # 按月份分组
+        by_month: Dict[str, List[Dict]] = defaultdict(list)
+        for c in all_candidates:
+            by_month[c['signal_date'][:7]].append(c)
+
+        # 每月内统一配额分配 + 入选候选模拟交易
+        all_trades: List[TradeResult] = []
+        for ym in sorted(by_month.keys()):
+            month_cands = by_month[ym]
+            if self.risk_controller is not None:
+                # 风控启用：用 cap_by_monthly_quota 统一截断（复用实盘同名纯函数）
+                selected = cap_by_monthly_quota(month_cands, 0, max_per_month, max_daily)
+                # 截断数量计入 skipped_monthly_limit 统计
+                self.stats["skipped_monthly_limit"] += len(month_cands) - len(selected)
+            else:
+                # 风控未启用：全部候选入选
+                selected = month_cands
+
+            for cand in selected:
+                # 只有入选的才 increment monthly counter
+                if self.monthly_counter is not None:
+                    self.monthly_counter.increment(ym)
+
+                # 模拟交易
+                trade = self.trade_simulator.simulate(
+                    cand['signal'], cand['df'], cand['name']
+                )
+                if trade is None:
+                    self.stats["failed_trades"] += 1
+                    continue
+
+                all_trades.append(trade)
+                logger.info(
+                    f"{cand['code']} {cand['name']} 信号日 {cand['signal_date']}，"
+                    f"买入 {trade.entry_date}@{trade.entry_price}，"
+                    f"卖出 {trade.exit_date}@{trade.exit_price}，"
+                    f"收益 {trade.net_return*100:.2f}% ({trade.exit_reason})"
+                )
 
         self.stats["total_trades"] = len(all_trades)
         logger.info("=" * 70)
@@ -879,7 +961,8 @@ class BacktestEngine:
         logger.info(f"冷却期跳过：{self.stats['skipped_cooldown']}")
         logger.info(f"大盘过滤跳过：{self.stats['skipped_index_filter']}")
         logger.info(f"60日均线过滤：{self.stats['skipped_long_ma_filter']}")
-        logger.info(f"单月上限过滤：{self.stats['skipped_monthly_limit']}")
+        logger.info(f"候选信号数：{len(all_candidates)}（前两层风控通过）")
+        logger.info(f"单月上限截断：{self.stats['skipped_monthly_limit']}")
         logger.info(f"评分阈值过滤：{self.stats['skipped_score_filter']}")
         # V2.1 新增统计日志（仅在 V2.1 功能启用时输出）
         risk_cfg = self.config.risk_control_config
@@ -892,16 +975,22 @@ class BacktestEngine:
 
         return all_trades
 
-    def _backtest_single_stock(self, code: str, name: str) -> List[TradeResult]:
+    def _backtest_single_stock(self, code: str, name: str) -> List[Dict]:
         """
-        对单只股票执行滑动窗口回测
+        对单只股票执行滑动窗口回测（R21：只产出候选信号，不做月度配额、不 increment）
+
+        R21 改造：
+            原逻辑在逐股票遍历中 increment monthly counter，导致先遍历的股票月末信号
+            占满名额、后遍历的股票月初信号被过滤，结果依赖股票列表排序。
+            改后：本方法只做「同股票冷却期 + 前两层风控（评分阈值+大盘趋势）」，
+            返回候选信号列表（dict），月度配额统一在 run() 里按全局排序后分配。
 
         Args:
             code: 股票代码
             name: 股票名称
 
         Returns:
-            List[TradeResult]: 该股票的所有交易结果
+            List[Dict]: 候选信号列表，每个 dict 含 signal/signal_date/score/code/name/df
         """
         # 加载完整 K 线数据
         df = self.data_loader.load_kline_data(code)
@@ -914,18 +1003,17 @@ class BacktestEngine:
             self.stats["skipped_short_data"] += 1
             return []
 
-        trades: List[TradeResult] = []
-        # 记录最近一次信号日期，用于冷却期判断
+        candidates: List[Dict] = []
+        # 记录最近一次信号日期，用于冷却期判断（同股票内冷却期，保留在本方法）
         last_signal_idx = -self.config.signal_cooldown_days
 
         # 滑动窗口：从第 window_size 天开始，逐日作为"当前日期"
         for i in range(self.config.window_size, len(df), self.config.step_days):
-            # 信号冷却期检查
+            # 信号冷却期检查（同股票内冷却期，保留）
             if i - last_signal_idx < self.config.signal_cooldown_days:
                 continue
 
             # 截取窗口数据：只取最近 window_size 天，保持每次调用数据量固定
-            # 策略 declare_data_requirements 声明需要 120 天数据，传 120 天即可
             window_start = max(0, i - self.config.window_size + 1)
             window_df = df.iloc[window_start:i + 1].copy()
 
@@ -952,15 +1040,15 @@ class BacktestEngine:
                 continue
 
             # 检查信号日期是否为当前窗口的最后一天
-            # 策略可能返回窗口内任意位置的信号，这里要求信号日 = 窗口末日
             window_last_date = window_df["date"].iloc[-1].strftime("%Y-%m-%d")
             if signal_date != window_last_date:
                 continue
 
             self.stats["total_signals"] += 1
 
-            # ===== 三层风控检查（新增） =====
-            # 在信号产出后、交易模拟前执行风控判定
+            # ===== 前两层风控检查（R21：不传 monthly_count，让 apply_all_controls 跳过第三层）=====
+            # 原逻辑在此处传 monthly_count 拦截单月上限，导致结果依赖股票遍历顺序
+            # 改后：月度配额统一在 run() 全局排序后分配，此处只执行评分阈值 + 大盘趋势
             if self.risk_controller is not None:
                 # 获取当日大盘上下文
                 market_context = None
@@ -978,23 +1066,17 @@ class BacktestEngine:
                         data_sufficient=False,
                     )
 
-                # 获取当月已产出信号数
-                year_month = signal_date[:7]
-                monthly_count = 0
-                if self.monthly_counter is not None:
-                    monthly_count = self.monthly_counter.get_count(year_month)
-
-                # 应用全部三层风控检查
+                # R21：不传 monthly_count，apply_all_controls 只执行评分阈值 + 大盘趋势
+                # 第三层（单月上限）由 run() 在 cap_by_monthly_quota 里统一分配
                 risk_result = self.risk_controller.apply_all_controls(
-                    signal, market_context, monthly_count
+                    signal, market_context
                 )
 
                 if not risk_result.passed:
-                    # 更新回测引擎统计计数器（V2.1 扩展）
+                    # 更新回测引擎统计计数器
                     if risk_result.filter_rule == "long_ma_filter":
                         self.stats["skipped_long_ma_filter"] += 1
-                    elif risk_result.filter_rule == "monthly_limit":
-                        self.stats["skipped_monthly_limit"] += 1
+                    # R21：monthly_limit 不再在本层拦截，移除此统计
                     elif risk_result.filter_rule == "score_threshold":
                         self.stats["skipped_score_filter"] += 1
                     # V2.1 新增过滤规则
@@ -1005,7 +1087,6 @@ class BacktestEngine:
                     elif risk_result.filter_rule == "score_adjustment":
                         self.stats["skipped_score_adjustment"] += 1
 
-                    # 输出风控命中日志（统一格式）
                     logger.info(
                         f"[风控过滤] code={code} name={name} "
                         f"rule={risk_result.filter_rule} "
@@ -1015,27 +1096,19 @@ class BacktestEngine:
                     )
                     continue
 
-                # 风控通过，增加当月信号计数（用于后续信号的单月上限检查）
-                if self.monthly_counter is not None:
-                    self.monthly_counter.increment(year_month)
-
             last_signal_idx = i
 
-            # 模拟交易
-            trade = self.trade_simulator.simulate(signal, df, name)
-            if trade is None:
-                self.stats["failed_trades"] += 1
-                continue
+            # R21：候选信号收集到列表，不立即 simulate 和 increment
+            candidates.append({
+                'signal': signal,
+                'signal_date': signal_date,
+                'score': signal.score,
+                'code': code,
+                'name': name,
+                'df': df,
+            })
 
-            trades.append(trade)
-            logger.info(
-                f"{code} {name} 信号日 {signal_date}，"
-                f"买入 {trade.entry_date}@{trade.entry_price}，"
-                f"卖出 {trade.exit_date}@{trade.exit_price}，"
-                f"收益 {trade.net_return*100:.2f}% ({trade.exit_reason})"
-            )
-
-        return trades
+        return candidates
 
     def get_stats(self) -> Dict:
         """获取回测统计信息"""

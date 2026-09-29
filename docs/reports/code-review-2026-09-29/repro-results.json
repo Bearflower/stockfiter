@@ -1,0 +1,73 @@
+{
+  "monthly_limit": {
+    "before": 29,
+    "added": 5,
+    "after": 34,
+    "limit": 30
+  },
+  "morning_scan_date": "2026-09-29",
+  "retry": {
+    "fetch_calls": 2,
+    "saved_batches": 0
+  },
+  "fenced_json_array": {
+    "type": "dict",
+    "value": {
+      "opinion": "a"
+    }
+  },
+  "llm_validation": {
+    "position_advice": {
+      "stock_pct": 54,
+      "bond_pct": 7,
+      "cash_pct": 39,
+      "reasoning": "",
+      "temperature_label": "未知"
+    },
+    "etf_recommendations": [
+      {
+        "etf_code": "510300",
+        "etf_name": "",
+        "action": "buy",
+        "shares": -2,
+        "reasoning": ""
+      }
+    ],
+    "market_commentary": ""
+  },
+  "csv_bom": [
+    {
+      "file": "",
+      "summary": "x",
+      "keywords": "",
+      "topic": "x",
+      "year": ""
+    }
+  ],
+  "failed_summary_not_retried": {
+    "calls_across_two_runs": 1
+  },
+  "gap_stop": {
+    "exit_price": 90.0,
+    "exit_day_high": 85,
+    "reason": "hard_stop"
+  },
+  "swing_open_sell": {
+    "actual_exit": 92.0,
+    "open": 80,
+    "reason": "止损"
+  },
+  "swing_exit_order": {
+    "actual_exit": 92.0,
+    "scheduled_open_exit": 105
+  },
+  "future_volatility": {
+    "max_past_score_change_after_appending_future": 3.8637290474944876
+  },
+  "asset_alias": {
+    "纳斯达克100": "德国DAX"
+  },
+  "timeout_workers": {
+    "max_concurrent_workers": 2
+  }
+}

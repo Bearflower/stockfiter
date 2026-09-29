@@ -11,5 +11,6 @@ archive/
 .github/
 logs/
 data/backtest/
-distill_changying/docs/
+distill_changying/docs/*
+!distill_changying/docs/distilled/
 config/config.yaml

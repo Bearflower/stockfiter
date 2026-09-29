@@ -1,0 +1,40 @@
+[
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 69,
+      "row": 12
+    },
+    "filename": "/Users/yl/vscode/stockfilter_v3/utils/logger.py",
+    "fix": null,
+    "location": {
+      "column": 63,
+      "row": 12
+    },
+    "message": "Undefined name `loguru`",
+    "name": "undefined-name",
+    "noqa_row": 12,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  },
+  {
+    "cell": null,
+    "code": "F821",
+    "end_location": {
+      "column": 28,
+      "row": 52
+    },
+    "filename": "/Users/yl/vscode/stockfilter_v3/utils/logger.py",
+    "fix": null,
+    "location": {
+      "column": 22,
+      "row": 52
+    },
+    "message": "Undefined name `loguru`",
+    "name": "undefined-name",
+    "noqa_row": 52,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/undefined-name"
+  }
+]

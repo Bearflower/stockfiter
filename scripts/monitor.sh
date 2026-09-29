@@ -12,8 +12,11 @@
 # ============================================================
 
 # ---- Webhook 配置 ----
-# 所有监控告警统一发到 OBPC 群
-WEBHOOK="https://open.feishu.cn/open-apis/bot/v2/hook/955aced6-5b07-42a6-a714-4c5f4726b003"
+# 所有监控告警统一发到 OBPC 群；凭证通过环境变量注入，禁止硬编码
+WEBHOOK="${FEISHU_WEBHOOK_MONITOR:-}"
+if [ -z "$WEBHOOK" ]; then
+    log "❌ 未配置 FEISHU_WEBHOOK_MONITOR 环境变量，监控告警将失效"
+fi
 
 # ---- 检查参数 ----
 CHECK_INTERVAL=600   # 10 分钟

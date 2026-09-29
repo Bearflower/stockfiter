@@ -32,7 +32,7 @@ global:
   notification:
     enabled: true
     remote_url: "http://43.156.242.184:8766/api/v1"
-    feishu_webhook: "https://open.feishu.cn/open-apis/bot/v2/hook/42d0bed6-95e6-4af5-919e-3291d8c13c73"
+    feishu_webhook: ${FEISHU_WEBHOOK:-}
 
   # K线服务配置
   kline_service:
@@ -48,6 +48,18 @@ global:
     failure_window_size: 100       # 滑动窗口大小（最近 N 次请求）
     failure_window_min_samples: 50 # 熔断判定所需最小样本数
     total_failure_limit: 300       # 累计失败硬上限
+
+  # K线日更新完整性判定配置（update_kline_daily.py）
+  # 与 backfill 节语义不同：日更新关注「全市场当日数据是否完整」
+  kline_update:
+    days_to_update: 5              # C-1：更新最近多少天的数据（防止遗漏）
+    request_timeout_seconds: 15    # 单股抓取超时（秒）
+    request_interval_seconds: 0.05 # M-2：每次请求后休眠时间（秒），限流防止触发 Baostock API
+    failure_rate_threshold: 0.7    # 滑动窗口失败率熔断阈值
+    failure_window_size: 100       # 滑动窗口大小（最近 N 次请求）
+    failure_window_min_samples: 50 # 熔断判定最小样本数
+    total_failure_limit: 500       # 累计失败硬上限
+    min_success_rate: 0.9         # 完整性：成功率红线（成功/(成功+失败)）
 
   # 日志配置
   logging:
@@ -127,6 +139,10 @@ strategies:
         slope_lookback: 5                # 斜率回看天数（当前均线 vs N 天前均线）
         slope_threshold: 0.002           # 斜率阈值（0.2%），大于该值才视为均线向上
         min_index_data_days: 30          # 最小指数数据获取天数（确保数据量足够计算指标）
+
+        # ===== P1 新增：指数数据新鲜度校验（R06） =====
+        freshness_strategy: "skip"       # fail | stale_days | skip：指数数据不新鲜时的降级策略
+        freshness_stale_days: 3          # strategy=stale_days 时允许的最近 N 交易日
 
       # 信号间隔控制
       signal_cooldown_days: 60           # 信号冷却期（交易日）
@@ -236,6 +252,10 @@ strategies:
         pe_filter_min: 0
         pe_filter_max: 1000
         pb_filter_min: 0
+        # P1 新增（R01）：使用真实估值分位
+        # true=pe_percentile/pb_percentile 只接受真实估值序列分位，价格分位独立成 price_percentile
+        # false=保留旧近似但独立标注 price_percentile
+        use_real_valuation_percentile: true
 
       # 150 份资产配置
       allocation:
@@ -320,6 +340,44 @@ strategies:
     # 通知模板
     notification:
       template: "distill_changying_card"
+
+# ==================== 回测配置（R08/R19/R20 硬编码整改） ====================
+# 所有回测脚本的模块级硬编码常量从此读取，禁止在 backtest_*.py 里写死
+section_backtest:
+  # === cross_section 截面回测（scripts/backtest_cross_section.py） ===
+  cross_section:
+    rebalance_days: 20       # 调仓周期（交易日）
+    top_k: 20                # 截面持仓数量（Top K 因子选股）
+    lookbacks: [20, 60]      # 因子回看期（动量/反转各跑两档）
+    cost: 0.0035             # 单次完整交易成本（约 0.35%，复用 OBPC 口径）
+    ma_period: 20            # 温度计趋势均线周期
+    slope_lookback: 5        # 温度计斜率回看天数
+    macd: [12, 26, 9]        # 温度计 MACD (fast, slow, signal)
+    vol_period: 20           # 温度计波动率计算周期
+    # 未来波动率修复（R08）：expanding median 消除前视偏差
+    use_training_window: false  # false=扩展窗滚动统计；true=固定训练期
+    training_window_days: 500   # use_training_window=true 时的训练期天数
+
+  # === swing 波段回测（scripts/backtest_swing.py） ===
+  swing:
+    # 交易成本（复用 OBPC 口径，与 strategies.oversold_bounce.params 保持一致）
+    commission: 0.00025      # 佣金（双边）
+    stamp_tax: 0.001         # 印花税（仅卖出）
+    slippage: 0.001          # 滑点（双边）
+    # 固定止盈止损（与 OBPC hard_stop_loss=0.10 不同，swing 独立配置）
+    take_profit: 0.15        # 固定止盈比例
+    stop_loss: 0.08          # 固定止损比例
+    # 技术指标参数（算法核心常量，保留但从 config 读）
+    strategy_params:
+      ma_cross: {fast: 5, slow: 20}
+      macd: {fast: 12, slow: 26, signal: 9}
+      rsi: {period: 14, oversold: 30, overbought: 70}
+      boll: {period: 20, num_std: 2.0}
+    # EXIT_MODES 是纯枚举标签，保持 ['indicator', 'stop'] 即可，无需入 config
+
+  # === obpc OBPC 回测（scripts/backtest_obpc.py） ===
+  # OBPC 回测已从 strategies.oversold_bounce.params 读取交易成本/止损/风控参数，
+  # 此处不重复，避免双源漂移
 
 # ==================== 定时任务调度 ====================
 schedule:

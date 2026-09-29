@@ -1,0 +1,1294 @@
+{
+  "skill": "open-code-review-delegate",
+  "date": "2026-09-29",
+  "branch": "main",
+  "head": "d94b75e024bb778386beb0df055e3c8743b84baa",
+  "scope": "当前工作树全仓代码与运行配置；含已有未提交改动；不是仅审查 diff",
+  "summary": {
+    "total_files": 123,
+    "reviewed_files": 110,
+    "skipped_files": 13,
+    "coverage_rate": 89.43
+  },
+  "workspace_preview_summary": {
+    "total_files": 22,
+    "reviewed_files": 9,
+    "skipped_files": 13,
+    "coverage_rate": 40.91
+  },
+  "findings": [
+    {
+      "id": "R01",
+      "priority": 1,
+      "title": "价格分位被作为 PE/PB 估值分位输出",
+      "path": "distill_changying/scripts/advisor/market_data.py",
+      "start_line": 520,
+      "end_line": 523,
+      "category": "bug",
+      "severity": "high",
+      "content": "成分股估值分支将指数收盘价历史分位同时赋给 pe_percentile 和 pb_percentile，后续温度计、ETF 阈值和日报把它们当成估值指标使用。即使盈利或净资产变化，价格分位也不能代表 PE/PB 分位，可能给出方向错误的估值建议。应计算相应估值时间序列；若保留价格指标，必须使用独立字段、标签及适配后的规则。",
+      "evidence": "代码路径确认"
+    },
+    {
+      "id": "R02",
+      "priority": 1,
+      "title": "月度上限未计入本批待保存信号",
+      "path": "scripts/daily_scan.py",
+      "start_line": 264,
+      "end_line": 271,
+      "category": "bug",
+      "severity": "high",
+      "content": "扫描每个候选时都读取同一数据库月计数，直到扫描结束才 save_scan_result，DatabaseMonthlyCounter.increment 也不增加本地计数。因此已有 29 条、月限 30、日限 5 时仍新增 5 条，最终 34 条。应按剩余额度截取最终排序结果，并在保存时防止并发超额。",
+      "evidence": "隔离复现：monthly_limit"
+    },
+    {
+      "id": "R03",
+      "priority": 1,
+      "title": "早晨重扫使用当天日期，推送却读取昨天文件",
+      "path": "scripts/daily_scan.py",
+      "start_line": 41,
+      "end_line": 46,
+      "category": "bug",
+      "severity": "high",
+      "content": "scheduler_obpc 在 07:30 补全后调用同一 daily_scan，而这里只按星期计算日期，盘前也返回今天。feishu_push 则读取 signals_昨天.json；重扫新增结果写到今天文件，无法进入当晨推送，且扫描日期、冷却与月计数被错记。应由调度器传入本次已完成行情的交易日，让扫描、落库、文件和推送共享日期。",
+      "evidence": "隔离复现：morning_scan_date；跨文件调用链确认"
+    },
+    {
+      "id": "R04",
+      "priority": 1,
+      "title": "投顾知识库被排除出镜像且没有挂载产物目录",
+      "path": "docker-compose.yml",
+      "start_line": 84,
+      "end_line": 88,
+      "category": "bug",
+      "severity": "high",
+      "content": "当按仓库 Dockerfile 构建新镜像时，.dockerignore:14 排除了整个 distill_changying/docs；此处只挂载 blog 和 distilled/logs，核心 .state.json、观点库、持仓及索引既未进入镜像也未从宿主机提供。投顾首次运行会缺失既有知识，重新生成的产物也随容器重建丢失。应持久化并初始化完整产物目录，验证干净部署与重建后的读取。",
+      "evidence": "构建上下文与挂载配置确认；未运行 Docker 部署"
+    },
+    {
+      "id": "R05",
+      "priority": 1,
+      "title": "OBPC 信号目录没有持久化",
+      "path": "docker-compose.yml",
+      "start_line": 57,
+      "end_line": 61,
+      "category": "bug",
+      "severity": "high",
+      "content": "扫描写入 /app/signals，推送也从该目录读文件，但这里只挂载 /app/output。晚间扫描后、早间推送前重建容器会丢失信号文件；数据库已有记录还会参与去重/冷却，不能假定重扫能够恢复同一批信号。应挂载实际 signals 目录，或让推送从持久数据库重建待推送批次。",
+      "evidence": "代码路径确认"
+    },
+    {
+      "id": "R06",
+      "priority": 1,
+      "title": "历史指数数据未校验新鲜度即参与当天风控",
+      "path": "strategy/oversold_bounce/risk_control.py",
+      "start_line": 515,
+      "end_line": 516,
+      "category": "bug",
+      "severity": "high",
+      "content": "get_context(date_str) 直接用最后一条指数收盘价，未比较其实际日期与本次交易日，随后却把 current_date 设为 date_str。指数更新失败或停止时，旧 MA/MACD 仍被视作当天风控数据；仓库默认调度链只调用股票更新和补全，独立 index_update.py 未接入。应调度指数更新并按交易日校验新鲜度，缺失时显式失败或采用已配置的降级策略。",
+      "evidence": "静态调用链确认；未断言生产库当前已过期"
+    },
+    {
+      "id": "R07",
+      "priority": 1,
+      "title": "止损按不可成交的阈值记账",
+      "path": "scripts/backtest_obpc.py",
+      "start_line": 670,
+      "end_line": 681,
+      "category": "bug",
+      "severity": "high",
+      "content": "日线低价触发止损后直接采用止损线作为成交价，未处理开盘已经跳空跌破止损线的情况。合成数据入场 100、次日开盘 80、最高 85，仍以 90 卖出，成交价超过全天最高价，低估损失并抬高收益。应先判断开盘缺口，再处理盘中触发及滑点；backtest_swing 同类逻辑也需统一检查。",
+      "evidence": "隔离复现：gap_stop；仅合成 K 线，未运行历史回测"
+    },
+    {
+      "id": "R08",
+      "priority": 1,
+      "title": "截面回测使用未来波动率校准过去信号",
+      "path": "scripts/backtest_cross_section.py",
+      "start_line": 99,
+      "end_line": 102,
+      "category": "bug",
+      "severity": "high",
+      "content": "vol.median() 对整个回测区间计算中位数，再用于所有历史时点评分。追加未来行情即可改变已有日期的分数和仓位，导致未来信息泄漏，T+1 执行也不能消除此偏差。应使用截至决策时点可获得的滚动/扩展统计，或独立训练期常量，并增加前缀不变性检查。",
+      "evidence": "隔离复现：future_volatility"
+    },
+    {
+      "id": "R09",
+      "priority": 1,
+      "title": "持仓别名合并了不同资产",
+      "path": "distill_changying/scripts/distill/merge_positions.py",
+      "start_line": 48,
+      "end_line": 59,
+      "category": "bug",
+      "severity": "high",
+      "content": "NAME_MAP 将纳斯达克100、美国标普500归到德国DAX，另将信息技术归到全指金融。normalize_name 随后被用于持仓合并，不只是展示分组，故不同品种的买卖、净份数被混算，污染持仓和投顾输入。应仅合并同一资产的真实别名，用独立字段表达资产类别，并重新生成受影响的持仓。",
+      "evidence": "隔离复现：asset_alias"
+    },
+    {
+      "id": "R10",
+      "priority": 1,
+      "title": "仓库包含完整飞书机器人凭据",
+      "path": "scripts/monitor.sh",
+      "start_line": 16,
+      "end_line": 16,
+      "category": "security",
+      "severity": "high",
+      "content": "监控脚本把完整飞书 webhook 地址直接写入源码。任何获得源码或镜像的人都能获得该发送入口；是否仍有效未经外部验证。应改为注入环境变量或秘密管理，若仍有效则轮换并处理历史版本中的暴露。报告不复制令牌，也未尝试调用该 webhook。",
+      "evidence": "本地源码确认；未验证远程有效性"
+    },
+    {
+      "id": "R11",
+      "priority": 2,
+      "title": "重试分支无法处理数据库返回的日期字符串",
+      "path": "scripts/data/update_kline_daily.py",
+      "start_line": 272,
+      "end_line": 280,
+      "category": "bug",
+      "severity": "medium",
+      "content": "get_latest_kline_date 返回 YYYY-MM-DD 字符串；重试分支却把该字符串交给 datetime.combine，触发 TypeError。结果是首次失败后即使成功取得行情，有历史数据的股票仍无法补写。应像首次更新分支一样显式解析日期并统一返回类型。",
+      "evidence": "隔离复现：retry，抓取 2 次、保存 0 批"
+    },
+    {
+      "id": "R12",
+      "priority": 2,
+      "title": "请求超时后工作线程仍在运行",
+      "path": "scripts/data/update_kline_daily.py",
+      "start_line": 65,
+      "end_line": 72,
+      "category": "bug",
+      "severity": "medium",
+      "content": "shutdown(wait=False, cancel_futures=True) 不能取消已经运行的 get_kline。外层循环继续创建线程，并复用尚被旧请求占用的 Baostock 会话；连续超时会累积线程且可能交错访问同一连接。应采用底层可中断的连接超时，或隔离到可终止的工作进程，并在旧请求结束前禁止复用会话。",
+      "evidence": "隔离复现：timeout_workers，连续两次超时后有 2 个并发工作线程"
+    },
+    {
+      "id": "R13",
+      "priority": 2,
+      "title": "数据更新部分或全部失败仍上报成功",
+      "path": "scripts/data/update_kline_daily.py",
+      "start_line": 351,
+      "end_line": 355,
+      "category": "bug",
+      "severity": "medium",
+      "content": "update_all_klines 会捕获单股错误、达到失败阈值后提前结束；数据库核验只记日志，main 随后无条件退出 0。scheduler_kline 的 check=True 因而通过并写 task_status=completed，使扫描在数据未完成时继续。应返回成功/失败/跳过和实际行情日期，按可配置的完整性条件决定退出状态与下游是否放行。",
+      "evidence": "代码路径确认"
+    },
+    {
+      "id": "R14",
+      "priority": 2,
+      "title": "JSON 数组代码块被截成第一个对象",
+      "path": "distill_changying/scripts/shared/llm_utils.py",
+      "start_line": 157,
+      "end_line": 163,
+      "category": "bug",
+      "severity": "medium",
+      "content": "直接 JSON 解析失败后，先提取大括号对象再尝试去掉 Markdown 围栏。对于 ```json 包裹的多对象数组，这一步成功返回首个 dict，其余对象静默丢失；期望 list 的观点提取和匹配也会进入错误分支。应优先解析完整代码块，并保持顶层数组类型。",
+      "evidence": "隔离复现：fenced_json_array"
+    },
+    {
+      "id": "R15",
+      "priority": 2,
+      "title": "摘要 CSV 回读丢失文件名与年份",
+      "path": "distill_changying/scripts/distill/analyzer.py",
+      "start_line": 45,
+      "end_line": 51,
+      "category": "bug",
+      "severity": "medium",
+      "content": "export_to_csv 使用 utf-8-sig 写入，而这里用 utf-8 读取，使首列表头成为带 BOM 的 file；row.get(\"file\") 返回空字符串，year 随之为空，破坏来源和年度分析。修正 BOM 后还需处理导出端把文件名哈希 identifier 当 file 的问题，保存真实来源名及日期。",
+      "evidence": "隔离复现：csv_bom；哈希来源静态确认"
+    },
+    {
+      "id": "R16",
+      "priority": 2,
+      "title": "摘要失败也被永久标记为已处理",
+      "path": "distill_changying/scripts/distill/batch_processor.py",
+      "start_line": 174,
+      "end_line": 185,
+      "category": "bug",
+      "severity": "medium",
+      "content": "summarize_with_retry 重试耗尽返回失败占位摘要，异常分支同样生成占位内容，但这里仍无条件 mark_processed。后续增量任务只检查 identifier 是否存在，短暂 API 故障因此永久变成知识缺失。应将成功与失败状态分开，失败项保留重试资格，不作为有效产物导出。",
+      "evidence": "隔离复现：failed_summary_not_retried，两轮仅调用一次摘要服务"
+    },
+    {
+      "id": "R17",
+      "priority": 2,
+      "title": "仓位归一化重新突破已校验的边界",
+      "path": "distill_changying/scripts/advisor/advisor_llm.py",
+      "start_line": 318,
+      "end_line": 326,
+      "category": "bug",
+      "severity": "medium",
+      "content": "先逐项约束范围，再按总和缩放，却未重新校验边界。模型返回股票80/债券10/现金60时，归一化结果为54/7/39，债券低于自身10%的下限，仍作为合格建议输出。应使用同时满足总和与各项上下界的分配算法，无法满足时拒绝结果或回退。",
+      "evidence": "隔离复现：llm_validation"
+    },
+    {
+      "id": "R18",
+      "priority": 2,
+      "title": "买卖份数校验允许负数",
+      "path": "distill_changying/scripts/advisor/advisor_llm.py",
+      "start_line": 361,
+      "end_line": 368,
+      "category": "bug",
+      "severity": "medium",
+      "content": "买卖建议只限制 shares 的上限，未验证正整数和类型，buy + shares=-2 会原样进入输出；非数值还可能在比较时抛错。应先校验动作和有限整数范围，再按每次份数及持仓余量约束，不合法结果转为明确失败或 hold。",
+      "evidence": "隔离复现：llm_validation"
+    },
+    {
+      "id": "R19",
+      "priority": 2,
+      "title": "盘中止损覆盖了已应在开盘执行的卖出",
+      "path": "scripts/backtest_swing.py",
+      "start_line": 178,
+      "end_line": 189,
+      "category": "bug",
+      "severity": "medium",
+      "content": "已有 T-1 卖出信号时本应先在今日开盘离场，但代码先检查全天 low，再考虑开盘卖出。入场100、次日开盘105、盘中最低80时，代码以92止损，代替本应先发生的105开盘成交，改变交易收益及两类退出策略比较。应按时间先执行隔夜信号，再对剩余持仓检查盘中风控。",
+      "evidence": "隔离复现：swing_exit_order"
+    },
+    {
+      "id": "R20",
+      "priority": 2,
+      "title": "波段最大回撤采用了与成交不一致的净值",
+      "path": "scripts/backtest_swing.py",
+      "start_line": 254,
+      "end_line": 263,
+      "category": "bug",
+      "severity": "medium",
+      "content": "交易收益按开盘/止损成交计算，但回撤对任何 held=True 的整天都使用收盘对前收盘涨跌，既计入买入前的隔夜跳空，也计入开盘卖出后的涨跌，并未扣交易成本。因而最大回撤与同表的总收益不是同一资金曲线。应从现金、实际成交和每日持仓市值生成统一净值，再计算全部绩效指标。",
+      "evidence": "代码路径确认"
+    },
+    {
+      "id": "R21",
+      "priority": 2,
+      "title": "月度名额按股票顺序而非信号日期分配",
+      "path": "scripts/backtest_obpc.py",
+      "start_line": 857,
+      "end_line": 868,
+      "category": "bug",
+      "severity": "medium",
+      "content": "引擎逐只股票跑完整历史，所有股票共用一个 monthly_counter。前一股票月末的信号可能先占满名额，导致后一股票月初的信号被过滤，结果依赖股票列表排序且不符合实时扫描。应先生成候选，再按交易日和同日评分排序统一应用月限及日限。",
+      "evidence": "代码路径确认"
+    },
+    {
+      "id": "R22",
+      "priority": 2,
+      "title": "旧表迁移前先创建依赖新字段的索引",
+      "path": "data/database.py",
+      "start_line": 113,
+      "end_line": 115,
+      "category": "bug",
+      "severity": "medium",
+      "content": "DatabaseManager.__init__ 先 _create_tables 再 _migrate_add_frequency。已有 V2 klines 表缺少 frequency 时，CREATE TABLE IF NOT EXISTS 不会加列，这个索引创建先失败，后续迁移永远不会执行。应在依赖新列的索引之前完成幂等迁移，并验证旧模式与空库初始化。",
+      "evidence": "代码顺序确认；未连接 PostgreSQL 执行迁移"
+    },
+    {
+      "id": "R23",
+      "priority": 2,
+      "title": "主入口调用子 CLI 导致 --all 无法执行完整流水线",
+      "path": "main.py",
+      "start_line": 72,
+      "end_line": 73,
+      "category": "bug",
+      "severity": "medium",
+      "content": "run_kline_update 直接调用 updater.main；后者重新解析同一 sys.argv，仅接受 --days，遇到主入口 --all/--update 会以参数错误退出。即便绕过重复解析，子 main 末尾 os._exit(0) 仍终止整个进程，后续扫描与推送无法运行。应把业务函数与 CLI 解析分离，主入口调用可正常返回的更新函数。",
+      "evidence": "代码路径确认"
+    }
+  ],
+  "files": [
+    {
+      "path": ".archify_candidate_arch.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "f6125e32d164e50ef56a46e3818c56d7d925a57608a7c408eb21a0bc44196d62"
+    },
+    {
+      "path": ".dockerignore",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "af43f8d823776851119b546e0005af0298abcef7155b6db9984ac9a89fde615f"
+    },
+    {
+      "path": ".github/workflows/deploy.yml",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "716a15f5820cc295f779bd53d412286a995cf4dbd958eb625bdb46547c00048e"
+    },
+    {
+      "path": ".gitignore",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "f1e4b0b90786d3150c9c5ce89acf0dea368d09483b940debde77d596bccb19d2"
+    },
+    {
+      "path": "Dockerfile.eadvisor",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "6e26b00e1616faa784cf4162bff017c8815548cdea27ae70197a3d3ba36870aa"
+    },
+    {
+      "path": "Dockerfile.kline",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "4021463b1cf6cd38839cdf57b53b68a207a706e0eaf363d749690490fcae733f"
+    },
+    {
+      "path": "Dockerfile.obpc",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "a58371ebc15f91864be6a7b65774c100ea5b3e10f91ce8171e5042d882cdafa2"
+    },
+    {
+      "path": "backtest_july_signals.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "88363c1c4af53faaa21feafa15c0479890498fbcd1c1bb2cdb18b2c4854c3a1f"
+    },
+    {
+      "path": "config/config.yaml",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "c6e733cdf99a4c8f0d1d58617e1d338209548cf8c05f942756dad89e85b2bcf6"
+    },
+    {
+      "path": "data/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "db2556beaf5b69850e6f74c5531571787915a2001a126e39d55fb9dc16875f62"
+    },
+    {
+      "path": "data/data_source.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "de5e4fc7615070aeb02f8d321748b063fe29c8242d40b068ca7f83478a367758"
+    },
+    {
+      "path": "data/database.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "c89a22c8f502f3fe0d0c8cce9bc111c1f491800944d6b6e35e6098fe909a54ff"
+    },
+    {
+      "path": "data/fetcher.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "41820b43f2a1ff8c438e1eb8401f83aacd1184e274f1da607fd3313b56ce4800"
+    },
+    {
+      "path": "data/kline_service.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "bc699e59b8fbb5c7c89f5e23c1675e14401e0f1c89b927c9d734f58922a4be16"
+    },
+    {
+      "path": "data/stock_list.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "cf1e7449f2e44314af91a4a195ac005bd9fc5b381b1349b55660467bc039832e"
+    },
+    {
+      "path": "distill_changying/_final_backtest.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "26bb492ad19f462a1c750fcac02a2f8531f999b25d3587ee5275664494684a7e"
+    },
+    {
+      "path": "distill_changying/_verify.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "7c8261675719227a13cd2004938dca47186107473bf9f5c301d96a9638cae0dc"
+    },
+    {
+      "path": "distill_changying/docs/distilled/.meta.yaml",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "a7328d2f6df487536ec03584742ce585a9dbc4ff17c59dc10633fe8e47be60ca"
+    },
+    {
+      "path": "distill_changying/docs/distilled/品种别名映射.json",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "db3ed466c19f0182063e90415317622b0d65f2d3acf51a5e559fd76bc4926ab2"
+    },
+    {
+      "path": "distill_changying/requirements-advisor.txt",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "801179bba6c50d9d706131caa93a7298871149482605e1d0dae7f641348fce37"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/advisor_llm.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "65ea3e6fc4e64cb42bcdd72da7f5e11a17afca11f9254571940ad794a1335053"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/backfill_market_condition.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "72d0573ccf45fb3e297aad972eef725880154add4855ce86236ab2f3c91921ed"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/cache.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "9ed74038c0487ec23067e99732d3c4a40b39e91c4f460137a7e82a63e884006c"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/chat.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "89d835b1a94a11f0bbea8031d308d71ddc4697e1eb983d18e3a779f34bf89f20"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/config.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "f3b0df492fb950693627af640e8eddff75a4780c3d06e579f291ab24c8c8e28d"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/config.yaml",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "bc6e1e11c9683245eb3d2b3cfe04c09cce4f84100cdb05ae963fb7d17a93a0c5"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/daily_report.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "568f356d95370dddb5d5f48a3ab79b750b03892952449ce28ba7b4e3346fcf8c"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/etf_recommend.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "f7855ddb1de24606ff1cae84ca35ff42d2e5bdeef4d253b6114d6258e19aed49"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/knowledge_base.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "cc61cf230ec03b90c4db660efdcef378cf0c908cef93dc53c0f678b0f9ef2cd7"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/llm_report.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "3e845d7b7776d1af41b32ab04554a130d9a71722d33d04dc1f452fcda7536056"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/main.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "97f56d78b167efe1cce8ce6c05a83358d5789f849761883844ea22df24cff9be"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/manual_scan.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "641ec4d7f7633268ea7f47de2305534d772712591a22414ef6c4ba69f28d9cae"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/market_data.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "018a0f4d7560635aff4e9d0133067a5ffe18a94e3a209c1dd8be57823e06cea4"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/opinion_matcher.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "bb8fb1c78c67fe174407d5af437710d4ec836ecec1752131442f7cdd408f36d5"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/persona_query.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "57616166754b28593e7e6fff02dd95a82983c56afaf5622ed7ee5af53804f8ca"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/position.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "e37eda6a4d07d615e5d9fffa27991b697241f8ff0531e29f76eab0831f7cfa46"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/position_display.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "22aa60808a95ab9962753f9789424da5213e9ce1181c69507c684eea2c95c5ab"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/scheduler.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "31aedb3b196d60e0252940ce76daae2581f7e6791839330957a462e8d5d5e77c"
+    },
+    {
+      "path": "distill_changying/scripts/advisor/temperature.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "06fcb4806c215ec53dc3e29941d87b7babb07fb36d70ed8584932ea91041c396"
+    },
+    {
+      "path": "distill_changying/scripts/distill/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "d35c65110f6e357862d71c2c046c59fd952f048916116b801a48ae14cb233e9f"
+    },
+    {
+      "path": "distill_changying/scripts/distill/analyzer.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "98c60d284178616dc8181d789ec480c6ffc741a58177dd827b8873a285fcd0db"
+    },
+    {
+      "path": "distill_changying/scripts/distill/batch_processor.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "3fd01e58ce59ac88b922ff21a3fc21fc46c18890269ce4c928a8e34c95fe9b3c"
+    },
+    {
+      "path": "distill_changying/scripts/distill/config.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "487376ac42cecfc6109b212f2bb17243186495a14c866679183656f800f0443c"
+    },
+    {
+      "path": "distill_changying/scripts/distill/config.yaml",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "f23fb1d6552277108c2fcfaa51c81025ce4c6765e86dd446b322e4361a17cbab"
+    },
+    {
+      "path": "distill_changying/scripts/distill/file_handler.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "7f5d56703d594099e609e136d2439f7d243dfc150bc4e32c81002cdf561eb6ae"
+    },
+    {
+      "path": "distill_changying/scripts/distill/image_ocr.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "73ee07da420160fa6f1dfa57769f6676add1af40ad7e6494276c6aa139a1f28a"
+    },
+    {
+      "path": "distill_changying/scripts/distill/main.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "deefa5ce4c54df1e77dd72de2fcd2813b6f67d513728448ff4250a75eec3e183"
+    },
+    {
+      "path": "distill_changying/scripts/distill/merge_positions.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "88dbc069ca16610bd72e6e90413eb52d8dfa0fbf5be8df623035420659c3715d"
+    },
+    {
+      "path": "distill_changying/scripts/distill/metadata.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "8b60f74be54e6bf7cb8c99782c098340031036f5b3a5bb63ee78315d2e6c54eb"
+    },
+    {
+      "path": "distill_changying/scripts/distill/opinion_extractor.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "09793ad417413b03d70268704426671ef5e45fe1ef25f7ecf94656dbffe83a8e"
+    },
+    {
+      "path": "distill_changying/scripts/distill/output_writer.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "10077a8fa3f37379d9452c893565cf3677939911de120690a100a79087b67a72"
+    },
+    {
+      "path": "distill_changying/scripts/distill/persona_builder.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "ed50a45ea68655749644e041670bdaefcfa7769794e9d766778f645ba7dfbdb3"
+    },
+    {
+      "path": "distill_changying/scripts/distill/persona_index.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "024065a97797098bbffae622db06d08059c738cb1583c49cc1ddf450eca5bad5"
+    },
+    {
+      "path": "distill_changying/scripts/distill/persona_stats.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "9282c9c37f3f3b7b1c762da592e026aa029d68455958c6dc6f624b4ecb5a6936"
+    },
+    {
+      "path": "distill_changying/scripts/distill/persona_viz.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "91cc8c6d8306d49914d4b06c4ffbfdf77bbd13de597e0fa9832e2efe7a2f6d38"
+    },
+    {
+      "path": "distill_changying/scripts/distill/position_extractor.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "ab617b8e0c5ad5696fac1bdab0e780d9644cbe1167f5daec3bfd584ce2bf6fe9"
+    },
+    {
+      "path": "distill_changying/scripts/distill/record_extractor.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "88bd319bc5b5e9c9a58d276c775c326d07f1f086372f69e451c695e34d95a194"
+    },
+    {
+      "path": "distill_changying/scripts/distill/state_manager.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "b042af372e739cf6f2cff4f5ee1c3a82380bfd12b1fb55fbc7d47d3959a0c930"
+    },
+    {
+      "path": "distill_changying/scripts/distill/summarizer.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "c49ecab8b66e61a8640219fe995bdae43ae5d02af4e131d47b9e7edabc270f26"
+    },
+    {
+      "path": "distill_changying/scripts/distill/verify_products.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "e27c05d7d226356976fd59a36399729eff07ed5721badec2604f5ecdf55f9b5a"
+    },
+    {
+      "path": "distill_changying/scripts/shared/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "distill_changying/scripts/shared/llm_utils.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "177c9977f81574000baf0c9bde2eca097bb80e090dbf9a5376e92b3bc1690a5a"
+    },
+    {
+      "path": "docker-compose.yml",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "5d009f7d0f1cf5079f33d1e326a71ff4d8ec1010da7f96ed1591e19e31065e4d"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.html",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "024216eacac0b63c0600c3d1c5d9aa7a6cdc0df3a9231a61cf6b46a2a4f30193"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "ea7498185e645c479a8de52bd11f081ae86164ac1a3d78ecfeb4bf02f7de688c"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.html",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "49c548ecebebfcaac97d66898338d92a4058c16e7a129159c2252f074e526d86"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "2c998eab67dc0243bfa25af8d2a395cd2c67c3732c99468ab82a13c864ae710b"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.html",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "90a97e1ab46025135c94b8e6949b4ba13d2eae4eaecfd7020d18fce93853b911"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "b65b2e3b26732b32647faca5afd60708db200455abe635972b6f0ee1301fcb47"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.html",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "2d7e9987624defa5503362c654119dac6903aab9819059324e0fc773d6b4eb2d"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "0589470902b5266fea315a8c06377f430eb430621f5296540f6128041bf24506"
+    },
+    {
+      "path": "docs/designs/eadvisor-pipeline.html",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "94020730b269060b7141dfe13feac463a9fea6b05593da050efd633a80565cb1"
+    },
+    {
+      "path": "docs/designs/eadvisor-pipeline.workflow.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "a6a98914196e9563f425253f813f8d6465f2e2be4cc65060f8f426bbb2d33ebe"
+    },
+    {
+      "path": "docs/designs/gen_docs.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/长赢指数投资/_article_index.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "2a1cac4883ff6e61e3a1a78d659c8697543b68b05994742f1d6fa9d6c1a21ccf"
+    },
+    {
+      "path": "docs/长赢指数投资/_article_links.json",
+      "status": "skipped",
+      "depth": "未进行业务审查",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "engine/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "295f5deb2f61a4148abf6fb3046b332f8ce16f05d13fe594392960b880a930a9"
+    },
+    {
+      "path": "engine/registry.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "8fbe4723c87007804e0ed47e40263be5f76edcd6ccb36a927b74f00d8307d590"
+    },
+    {
+      "path": "engine/scheduler.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "0841b23a33f2ec5f789e954d404e112d1f9484edbe58368c84084bb6e91071e1"
+    },
+    {
+      "path": "main.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "6e6cca37093f7c67ad1d11defebb85583179034c8a34b5c9e03f4cd76c8266be"
+    },
+    {
+      "path": "notification/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "b624b33e51bd6ed1cde37a160b4d5c60ae94683cc89f99333eec4c81550098f3"
+    },
+    {
+      "path": "notification/service.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "94ca71be99950ffad9154ba8a89509e8cae87b0bce46f182c9357060dde37f71"
+    },
+    {
+      "path": "requirements-eadvisor.txt",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "61452b21dc7ccf07e391543de7e714c0c743a3ad17e17fa257184562acf8f842"
+    },
+    {
+      "path": "requirements-kline.txt",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "e2dcc82e0b2f9f6473444df11dde94878a75e76538c46ffa9db3dc53011a11ef"
+    },
+    {
+      "path": "requirements-obpc.txt",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "86667cea4e3def594ccc0a1d6011ba0db05acbc713232f613fe795cb9ea8f546"
+    },
+    {
+      "path": "requirements.txt",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "391a52314d1050736b590d2b1502608caa9f57c7eef033319c886c218cd923be"
+    },
+    {
+      "path": "scripts/backtest_cross_section.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "a8780ec78b819c87fd538f6ccf28ad109554050da7af8178fb34a23e20b92d4b"
+    },
+    {
+      "path": "scripts/backtest_obpc.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "21d84395bf08bbad6f757240cc7de23a7cb10e8531fdfb965aebc9233eba700d"
+    },
+    {
+      "path": "scripts/backtest_swing.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "0ee84b6c48a93f0064bbe313138fe98950411f4dc4a184cc72fd0a144e57b406"
+    },
+    {
+      "path": "scripts/check_stock_obpc.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "8401dd796519266c8afe387cc933f6572f83f0efaaa50a6cf416c0fd455513d6"
+    },
+    {
+      "path": "scripts/compare_sources.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "07e92f1ec0070a66edb1f5c9e5316eba0751a403fc223a933dcd60d357896496"
+    },
+    {
+      "path": "scripts/daily_scan.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "deda7c922f41b3fcfa4adedb619c88d1c7bc2c52a95a4ca9631c8692e3694084"
+    },
+    {
+      "path": "scripts/data/backfill_all_history.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "b9927bbeb15ddee9b33e4b4659dba231e772fa07bf1e99e65012d717229d8c6e"
+    },
+    {
+      "path": "scripts/data/backfill_diag.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "7cf217b579b686bbef35fea3e41ed48d7d8ed0a86f47695e3261a08ad19c90bb"
+    },
+    {
+      "path": "scripts/data/backfill_history.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "cab178fcb176a458df317624e5d3bbbbcb42f892fa00754be7b92b930235ce81"
+    },
+    {
+      "path": "scripts/data/baostock_diff_test.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "3e6a27a9f973cf4f81726374e9fb46e821cd9d48084f63e2a0a2fce1d81519c7"
+    },
+    {
+      "path": "scripts/data/baostock_ping.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "3c6b809f0e5ccd896d808f0b0d74f0c388455c9dbfa0d57903ee451c0ac6dcf2"
+    },
+    {
+      "path": "scripts/data/baostock_replicate.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "481da28b33b4de7d3a9ce0b61296e346aba21dae02ff46ad1db54df05313c5ca"
+    },
+    {
+      "path": "scripts/data/index_update.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "43bdac8ab8416a528e525220ae0961e80f05017c5a16d0019ca41447459e1d41"
+    },
+    {
+      "path": "scripts/data/quick_backfill.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "54940edfb8d43279f30ac89c457ee918c6518126951db488b2ff0a1bbf74ef86"
+    },
+    {
+      "path": "scripts/data/speed_test.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "b359fe897a50c70bb69e4b07a4d31d5c879e9dc7a666032f55551e30a95ff87e"
+    },
+    {
+      "path": "scripts/data/update_kline_daily.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "bfe24246352d81a8e89bbd94f04acde3639c86e73b9e6c77470842e2d6d0eccc"
+    },
+    {
+      "path": "scripts/diagnose_obpc.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "1f853ab29c7f4eeb654ecb401d6260edfe625f166a463898bdbca506984cfb3c"
+    },
+    {
+      "path": "scripts/feishu_push.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "bb25ab9077fd654fe967d2ae32a4ca6a6613eb745b19e9d5027f10be911f8f20"
+    },
+    {
+      "path": "scripts/import_index_data.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "839ccb583d02662bafac86b5dddfefc8a53d7e72d56835ba0b325edcaa61f709"
+    },
+    {
+      "path": "scripts/monitor.sh",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "955dd4b40c2e24ff4ed94f916551d780332f2712a0b1fb650a4135a565d3f5b6"
+    },
+    {
+      "path": "scripts/review_obpc.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "1933e1b93d621324ef9c42aa1f3eff658e5a826c9d75ca537db6ebe657668c35"
+    },
+    {
+      "path": "scripts/scheduler_kline.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "7d0585ba47e23155ce1b07dfc7d63f0e3a343b51f87641fc3f4edbf994ca2f27"
+    },
+    {
+      "path": "scripts/scheduler_obpc.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "38b6845d2a825ba56fb35fca85c0ef0e01978de751dcbf32a71e07c9e64da005"
+    },
+    {
+      "path": "scripts/verify_fix.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "b2c22d82db9f8837662914619be52d94db3772dcb4c6fbfdc452fab02120dc29"
+    },
+    {
+      "path": "strategy/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "16d5fb748d5d5c924632662216ceac5c6a02329a0d40eb70c533e809c696abb5"
+    },
+    {
+      "path": "strategy/base.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "7a2bf4d0cc905fc348de2fe32fd105f948ec300cf92aa116dfcb48fbcca571a4"
+    },
+    {
+      "path": "strategy/oversold_bounce/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "0f088bc536cfb65d0724a9864e91279d85b8fe95afa92bbc7415a43a91d0c131"
+    },
+    {
+      "path": "strategy/oversold_bounce/risk_control.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "6c0fa0393022389426ff0c657c3d28645c69ab7d1de58cb80e770ca29d03a712"
+    },
+    {
+      "path": "strategy/oversold_bounce/strategy.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "4889154fcedac668ca5df486a26afa3f5f8fe87a842914d1d38a0b46f1449e25"
+    },
+    {
+      "path": "tmp_check_kline.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "89c288ae008fcf917ee61f5402138cd5fcbc2bf75f20909c553c2bee6656b1b3"
+    },
+    {
+      "path": "tmp_check_retrace.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "60580590fccd5c2a768bfe019b99aadb8d4213f69f008fd09d3fc1dbe50a061d"
+    },
+    {
+      "path": "tmp_check_scan.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "c489947433f0feb8c10c220d9f313f635c57dda2dca32c4be7dec1be3b33c9d3"
+    },
+    {
+      "path": "tmp_check_scan2.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "6cdfcfe1bd810abe7dd2959d322b92e0446563e62ac2a353e62c08da8641494b"
+    },
+    {
+      "path": "utils/__init__.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "1832e1292ecfc4cde7aad4cbac6526f7de2587ea634f3e85c43d42f9968bb437"
+    },
+    {
+      "path": "utils/logger.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "d69a1fffc88d44f5f2511fcc09f4f5d2cbb15888596aee45a31f3a7030317be2"
+    },
+    {
+      "path": "utils/trade_calendar.py",
+      "status": "reviewed",
+      "depth": "本地静态代码/配置审查；关键路径另有隔离复现",
+      "reason": "",
+      "sha256": "8edf9c4ce1ad47f5ae198bd8e096ca316dac872f9b760c0ef5f370bb98a08c57"
+    }
+  ],
+  "workspace_checklist": [
+    {
+      "path": ".gitignore",
+      "git_status": "modified",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": ".archify_candidate_arch.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "distill_changying/docs/distilled/品种别名映射.json",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.html",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.html",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.html",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.html",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/designs/eadvisor-pipeline.html",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/designs/eadvisor-pipeline.workflow.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/长赢指数投资/_article_index.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "docs/长赢指数投资/_article_links.json",
+      "git_status": "added",
+      "review_status": "skipped",
+      "reason": "生成的架构/视觉验证产物或文章索引，不属于策略运行逻辑；未逐项验证其展示和内容正确性"
+    },
+    {
+      "path": "scripts/backtest_swing.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "scripts/data/backfill_all_history.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "scripts/data/backfill_diag.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "scripts/data/backfill_history.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "scripts/data/baostock_ping.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "scripts/data/baostock_replicate.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    },
+    {
+      "path": "scripts/data/index_update.py",
+      "git_status": "added",
+      "review_status": "reviewed",
+      "reason": ""
+    }
+  ]
+}

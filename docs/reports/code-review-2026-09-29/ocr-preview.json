@@ -1,0 +1,2365 @@
+{
+  "schema_version": "1",
+  "mode": "workspace",
+  "repository": "/Users/yl/vscode/stockfilter_v3",
+  "total_files": 339,
+  "reviewable_count": 22,
+  "excluded_count": 317,
+  "total_insertions": 82832,
+  "total_deletions": 745,
+  "reviewable_files": [
+    {
+      "path": ".gitignore",
+      "status": "modified",
+      "insertions": 3,
+      "deletions": 0
+    },
+    {
+      "path": ".archify_candidate_arch.json",
+      "status": "added",
+      "insertions": 41,
+      "deletions": 0
+    },
+    {
+      "path": "distill_changying/docs/distilled/品种别名映射.json",
+      "status": "added",
+      "insertions": 120,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.html",
+      "status": "added",
+      "insertions": 32,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.json",
+      "status": "added",
+      "insertions": 548,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.html",
+      "status": "added",
+      "insertions": 32,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.json",
+      "status": "added",
+      "insertions": 548,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.html",
+      "status": "added",
+      "insertions": 14981,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.json",
+      "status": "added",
+      "insertions": 69,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.html",
+      "status": "added",
+      "insertions": 32,
+      "deletions": 0
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.json",
+      "status": "added",
+      "insertions": 548,
+      "deletions": 0
+    },
+    {
+      "path": "docs/designs/eadvisor-pipeline.html",
+      "status": "added",
+      "insertions": 14906,
+      "deletions": 0
+    },
+    {
+      "path": "docs/designs/eadvisor-pipeline.workflow.json",
+      "status": "added",
+      "insertions": 106,
+      "deletions": 0
+    },
+    {
+      "path": "docs/长赢指数投资/_article_index.json",
+      "status": "added",
+      "insertions": 14542,
+      "deletions": 0
+    },
+    {
+      "path": "docs/长赢指数投资/_article_links.json",
+      "status": "added",
+      "insertions": 1,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/backtest_swing.py",
+      "status": "added",
+      "insertions": 347,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/data/backfill_all_history.py",
+      "status": "added",
+      "insertions": 253,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/data/backfill_diag.py",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/data/backfill_history.py",
+      "status": "added",
+      "insertions": 121,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/data/baostock_ping.py",
+      "status": "added",
+      "insertions": 21,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/data/baostock_replicate.py",
+      "status": "added",
+      "insertions": 86,
+      "deletions": 0
+    },
+    {
+      "path": "scripts/data/index_update.py",
+      "status": "added",
+      "insertions": 124,
+      "deletions": 0
+    }
+  ],
+  "excluded_files": [
+    {
+      "path": ".trae/rules/deployment.md",
+      "status": "modified",
+      "insertions": 146,
+      "deletions": 415,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": ".trae/rules/development-workflow.md",
+      "status": "deleted",
+      "insertions": 0,
+      "deletions": 330,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": ".trae/rules/development-workflow.md",
+      "status": "added",
+      "insertions": 1,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": ".trae/rules/development-workflow.md.bak.202609281004",
+      "status": "added",
+      "insertions": 337,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "distill_changying/docs/distilled/扩池品种估值锚清单.md",
+      "status": "added",
+      "insertions": 116,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.1440x900.dark.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.1440x900.light.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.2048x1320.dark.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-business.visual-check.2048x1320.light.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.1440x900.dark.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.1440x900.light.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.2048x1320.dark.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-container.visual-check.2048x1320.light.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.1440x900.dark.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.1440x900.light.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.2048x1320.dark.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/archify/eadvisor-dataflow.visual-check.2048x1320.light.png",
+      "status": "binary",
+      "insertions": 0,
+      "deletions": 0,
+      "exclude_reason": "binary"
+    },
+    {
+      "path": "docs/designs/OPBC 庄家减仓版策略需求文档.md",
+      "status": "added",
+      "insertions": 214,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/designs/个股波段择时策略研究.md",
+      "status": "added",
+      "insertions": 157,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/designs/量化策略研究对比_个股波段vs全池择时.md",
+      "status": "added",
+      "insertions": 143,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2015年9-12月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 160,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2016年“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 339,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年1-3月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 352,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年10月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 231,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年11月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 47,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年12月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 342,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年4月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 377,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年5月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 415,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年6月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 305,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年7月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 328,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年8月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 247,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2017年9月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 49,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【10.08-10.14】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 115,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【10.15-10.21】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 153,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【10.22-10.28】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 96,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【10.29-11.04】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 101,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【11.12-11.18】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 82,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【11.19-11.25】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 91,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【11.26-12.02】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 66,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【12.03-12.09】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 52,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【12.10-12.16】 “ETF拯救世界” 微博 ....md",
+      "status": "added",
+      "insertions": 67,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【12.17-12.23】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 91,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【12.24-12.31】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 95,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【9.1-9.23】 “ETF拯救世界” 微博精选.md",
+      "status": "added",
+      "insertions": 419,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018【9.24-9.29】 “ETF拯救世界” 微博精选.md",
+      "status": "added",
+      "insertions": 110,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年1月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 469,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年2月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 336,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年3月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 429,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年4月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 333,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年5月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 598,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年6月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 474,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年7月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 806,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2018年8月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019-03-07 【文字发车】.md",
+      "status": "added",
+      "insertions": 39,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019-08-15 【文字发车】.md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019-2020【12.30-01.05】“ETF拯救世界 ....md",
+      "status": "added",
+      "insertions": 83,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【01.01-01.06】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 97,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【01.07-01.13】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 51,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【01.14-01.20】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 98,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【01.21-01.27】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 71,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【01.28-02.03】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 106,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【02.11-02.17】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 97,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【02.18-02.24】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 113,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【02.25-03.03】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 91,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【03.04-03.10】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 126,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【03.11-03.17】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 88,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【03.18-03.24】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 122,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【03.25-03.31】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 71,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【04.01-04.07】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 95,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【04.08-04.14】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 143,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【04.15-04.21】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 104,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【04.22-04.28】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 61,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【04.29-05.05】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 82,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【05.06-05.12】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 123,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【05.13-05.19】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 73,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【05.20-05.26】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 93,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【05.27-06.02】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 62,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【06.03-06.09】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 100,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【06.10-06.16】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 59,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【06.17-06.23】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 132,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【06.24-06.30】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 68,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【07.01-07.07】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 75,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【07.08-07.14】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 67,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【07.15-07.21】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【07.22-07.28】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 84,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【07.29-08.04】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 91,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【08.05-08.11】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 117,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【08.12-08.18】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 84,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【08.19-08.25】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【08.26-09.01】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 74,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【09.02-09.08】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 109,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【09.09-09.15】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 83,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【09.16-09.22】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【09.23-09.29】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 67,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【10.07-10.13】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 116,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【10.14-10.20】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 67,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【10.21-10.27】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 55,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【10.28-11.03】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 124,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【11.04-11.10】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 118,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【11.11-11.17】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 92,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【11.18-11.24】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 120,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【11.25-12.01】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 71,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【12.02-12.08】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 110,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【12.09-12.15】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 128,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【12.16-12.22】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 88,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2019【12.23-12.29】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 79,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【01.06-01.12】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 108,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【01.13-01.19】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 95,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【01.20-02.02】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 116,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【02.03-02.09】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 156,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【02.10-02.16】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 95,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【02.17-02.23】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 178,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【02.24-03.01】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 317,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【03.02-03.08】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 125,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【03.09-03.15】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 202,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【03.16-03.22】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 170,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【03.23-03.29】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 164,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【03.30-04.05】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 128,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【04.06-04.12】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 91,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【04.13-04.19】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 131,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【04.20-04.26】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 72,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【04.27-05.03】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 102,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【05.04-05.10】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 105,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【05.11-05.17】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 77,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【05.18-05.24】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 70,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【05.25-05.31】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【06.01-06.07】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 98,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【06.08-06.14】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 146,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【06.15-06.21】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 79,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【06.22-06.28】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 120,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【06.29-07.05】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 159,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【07.06-07.12】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 174,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【07.13-07.19】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 142,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【07.20-07.26】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 143,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【07.27-08.02】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 88,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【08.03-08.09】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 69,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【08.10-08.16】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 98,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【08.17-08.23】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 107,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【08.24-08.30】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 71,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【08.31-09.06】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 116,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【09.07-09.13】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 135,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【09.14-09.20】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 130,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【09.21-09.27】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 75,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【09.28-10.11】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 73,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【10.12-10.18】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 72,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【10.19-10.25】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 65,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【10.26-11.01】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【11.02-11.08】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 81,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【11.09-11.15】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 102,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【11.16-11.22】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 91,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【11.23-11.29】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 96,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【11.30-12.06】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 135,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【12.07-12.13】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 93,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【12.14-12.20】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 101,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【12.21-12.27】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 133,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020【12.28-01.03】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 76,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020年11月ETF计划（二）：150计划卖出一份.md",
+      "status": "added",
+      "insertions": 51,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2020年12月ETF计划（三）：150计划卖出一份；买入一 ....md",
+      "status": "added",
+      "insertions": 41,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【01.04-01.10】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 141,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【01.11-01.17】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 134,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【01.18-01.24】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 108,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【01.25-01.31】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 165,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【02.01-02.07】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 130,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【02.08-02.14】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 101,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【02.15-02.21】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 98,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【02.22-02.28】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 129,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【03.01-03.07】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 149,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【03.08-03.14】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 205,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【03.15-03.21】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 135,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【03.22-03.28】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 118,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【03.29-04.04】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 80,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【04.05-04.11】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 82,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【04.12-04.18】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 115,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【04.19-04.25】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 88,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【04.26-05.02】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 107,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【05.03-05.09】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 76,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【05.10-05.16】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 122,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【05.17-05.23】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 100,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【05.24-05.30】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 122,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【05.31-06.06】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 85,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【06.07-06.13】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 110,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【06.14-06.20】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 101,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【06.21-06.27】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 90,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【06.28-07.04】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 68,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【07.05-07.11】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 93,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【07.12-07.18】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 78,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【07.19-07.25】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 140,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【07.26-08.01】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 194,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【08.02-08.08】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 85,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【08.09-08.15】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 87,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【08.16-08.22】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 111,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【08.23-08.29】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 66,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021【08.30-09.05】“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 136,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021年09月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 208,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021年10月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 203,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021年11月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 157,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2021年12月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 390,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年01月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 445,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年02月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 361,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年03月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 560,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年04月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 862,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年05月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 459,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年06月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 440,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年08月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 44,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年09月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 106,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年10月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 759,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年11月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 397,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年12月“ETF拯救世界”微博精选.md",
+      "status": "added",
+      "insertions": 238,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2022年1月ETF计划（三）：S计划买入一份.md",
+      "status": "added",
+      "insertions": 49,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年10月长赢指数投资计划（一）：150_S计划各买入 ....md",
+      "status": "added",
+      "insertions": 62,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年12月长赢指数投资计划（一）：150_S计划各卖出 ....md",
+      "status": "added",
+      "insertions": 46,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年12月长赢指数投资计划（三）：150_S计划各买入 ....md",
+      "status": "added",
+      "insertions": 50,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年12月长赢指数投资计划（二）：S计划买入一份.md",
+      "status": "added",
+      "insertions": 52,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年12月长赢指数投资计划（四）：150_S计划各买入 ....md",
+      "status": "added",
+      "insertions": 64,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年5月长赢指数投资计划（三）：150计划卖出两份_S ....md",
+      "status": "added",
+      "insertions": 50,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年5月长赢指数投资计划（二）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 43,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年6月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 44,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年6月长赢指数投资计划（三）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年6月长赢指数投资计划（二）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 43,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年6月长赢指数投资计划（四）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 51,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年7月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 54,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年8月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 52,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年8月长赢指数投资计划（三）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 50,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年8月长赢指数投资计划（二）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年8月长赢指数投资计划（五）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 44,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年8月长赢指数投资计划（六）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2023年8月长赢指数投资计划（四）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 44,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年10月长赢指数投资计划（一）：150卖出两份；S卖 ....md",
+      "status": "added",
+      "insertions": 53,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年10月长赢指数投资计划（三）：150_S计划各买入 ....md",
+      "status": "added",
+      "insertions": 49,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年10月长赢指数投资计划（二）：150卖出一份.md",
+      "status": "added",
+      "insertions": 50,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年10月长赢指数投资计划（四）：150_S计划各买入 ....md",
+      "status": "added",
+      "insertions": 43,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年11月长赢指数投资计划（一）：150_S计划各卖出 ....md",
+      "status": "added",
+      "insertions": 50,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年11月长赢指数投资计划（三）：150_S计划各卖出 ....md",
+      "status": "added",
+      "insertions": 44,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年11月长赢指数投资计划（二）：150_S计划各卖出 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年12月长赢指数投资计划（一）：150计划卖出2份； ....md",
+      "status": "added",
+      "insertions": 48,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年1月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年1月长赢指数投资计划（三）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 53,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年1月长赢指数投资计划（二）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年2月长赢指数投资计划（一）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 47,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年3月长赢指数投资计划（一）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 54,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年4月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 57,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年4月长赢指数投资计划（二）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 43,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年5月长赢指数投资计划（一）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 46,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年5月长赢指数投资计划（二）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年6月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年7月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年8月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 52,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年8月长赢指数投资计划（二）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 48,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年9月长赢指数投资计划（一）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 62,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年9月长赢指数投资计划（三）：150_S计划各卖出一 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年9月长赢指数投资计划（二）：150_S计划各买入一 ....md",
+      "status": "added",
+      "insertions": 49,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2024年9月长赢指数投资计划（四）：150卖出两份；S卖出 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年10月长赢指数投资计划（一）：150卖出一份.md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年11月长赢指数投资计划（一）：150卖出一份.md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年11月长赢指数投资计划（二）：150卖出一份；S卖 ....md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年12月长赢指数投资计划（一）：S买入一份.md",
+      "status": "added",
+      "insertions": 41,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年12月长赢指数投资计划（二）：150买入一份；S买 ....md",
+      "status": "added",
+      "insertions": 46,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年2月长赢指数投资计划（一）：150卖出一份；S卖出 ....md",
+      "status": "added",
+      "insertions": 43,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年5月长赢指数投资计划（三）：S买入一份.md",
+      "status": "added",
+      "insertions": 54,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年5月长赢指数投资计划（二）：S卖出一份.md",
+      "status": "added",
+      "insertions": 40,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年7月长赢指数投资计划（一）：150买入一份、卖出一 ....md",
+      "status": "added",
+      "insertions": 56,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年7月长赢指数投资计划（三）：150买入一份；S买入 ....md",
+      "status": "added",
+      "insertions": 47,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年7月长赢指数投资计划（二）：150卖出一份；S卖出 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年7月长赢指数投资计划（四）：S卖出一份.md",
+      "status": "added",
+      "insertions": 47,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年8月长赢指数投资计划（二）：150卖出一份；S卖出 ....md",
+      "status": "added",
+      "insertions": 45,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年9月长赢指数投资计划（一）：150卖出一份；S卖出 ....md",
+      "status": "added",
+      "insertions": 44,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年9月长赢指数投资计划（三）：150卖出一份；S卖出 ....md",
+      "status": "added",
+      "insertions": 42,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年9月长赢指数投资计划（二）：150买入一份；S买入 ....md",
+      "status": "added",
+      "insertions": 53,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2025年9月长赢指数投资计划（四）：S计划买入一份、卖出一 ....md",
+      "status": "added",
+      "insertions": 43,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年1月长赢投资计划（三）（卖出部分）.md",
+      "status": "added",
+      "insertions": 60,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年1月长赢投资计划（五）（卖出部分）.md",
+      "status": "added",
+      "insertions": 48,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年1月长赢投资计划（六）（卖出部分）.md",
+      "status": "added",
+      "insertions": 21,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年1月长赢投资计划（四）（卖出部分）.md",
+      "status": "added",
+      "insertions": 53,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年1月长赢指数投资计划（一）.md",
+      "status": "added",
+      "insertions": 53,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年1月长赢指数投资计划（二）.md",
+      "status": "added",
+      "insertions": 41,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年2月长赢投资计划（一）（卖出部分）.md",
+      "status": "added",
+      "insertions": 23,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年3月长赢投资计划（一）（卖出部分）.md",
+      "status": "added",
+      "insertions": 19,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年3月长赢投资计划（二）（卖出部分）.md",
+      "status": "added",
+      "insertions": 21,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年4月长赢投资计划(一)（卖出部分）.md",
+      "status": "added",
+      "insertions": 15,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年4月长赢投资计划(三）（卖出部分）.md",
+      "status": "added",
+      "insertions": 17,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年4月长赢投资计划(二)（卖出部分）.md",
+      "status": "added",
+      "insertions": 13,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年5月长赢投资计划(一)（卖出部分）.md",
+      "status": "added",
+      "insertions": 23,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年5月长赢投资计划(二)（卖出部分）.md",
+      "status": "added",
+      "insertions": 33,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年6月长赢投资计划（一）（卖出部分）.md",
+      "status": "added",
+      "insertions": 10,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年6月长赢投资计划（三）（卖出部分）.md",
+      "status": "added",
+      "insertions": 39,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/2026年6月长赢投资计划（二）（卖出部分）.md",
+      "status": "added",
+      "insertions": 24,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/A股日趋成熟，对长赢未来收益有影响吗？.md",
+      "status": "added",
+      "insertions": 67,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/ETF拯救世界的干货合集 2015年9月24日.md",
+      "status": "added",
+      "insertions": 122,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大是如何对多类品种、信息保持有效关注的？2020-09-12.md",
+      "status": "added",
+      "insertions": 111,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大是如何建立一套不断进化的投资体系的呢？.md",
+      "status": "added",
+      "insertions": 99,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大是如何看待各个大类品种的特性？（上）.md",
+      "status": "added",
+      "insertions": 111,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大是如何看待各个大类品种的特性？（下）.md",
+      "status": "added",
+      "insertions": 95,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大的本金是如何积累到的？.md",
+      "status": "added",
+      "insertions": 112,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大给长赢用户的话 2023-1-5.md",
+      "status": "added",
+      "insertions": 36,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/E大：请将10年不用的钱先拿出来 2021-02-082021-02-08.md",
+      "status": "added",
+      "insertions": 82,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/​2020年11月ETF计划（三）：150计划卖出一份.md",
+      "status": "added",
+      "insertions": 49,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/“第三轮发车记录”不再更新.md",
+      "status": "added",
+      "insertions": 26,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/“长赢同路人”的投顾内容不更新.md",
+      "status": "added",
+      "insertions": 31,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/假如没有下一轮，自己该如何参考长赢进行投资？.md",
+      "status": "added",
+      "insertions": 62,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/关于长赢指数投资计划发布时效的一则说明.md",
+      "status": "added",
+      "insertions": 54,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/发车的不少指数为什么无法跑赢大盘呢_.md",
+      "status": "added",
+      "insertions": 136,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/各位长赢的朋友，大家新春快乐！ 2019-02-04.md",
+      "status": "added",
+      "insertions": 81,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/如果只推荐三支指数长期投资，E大会选哪三支？2020-09-12.md",
+      "status": "added",
+      "insertions": 86,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/如果牛市来临，长赢真能跑赢大盘吗？.md",
+      "status": "added",
+      "insertions": 144,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/对于资金量不大的工薪族，E大有何投资建议？2020-09-12.md",
+      "status": "added",
+      "insertions": 141,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/年底发的10万年终奖如何跟随长赢操作？.md",
+      "status": "added",
+      "insertions": 49,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/现在长赢150份不怎么发车了，还没补够怎么办？.md",
+      "status": "added",
+      "insertions": 80,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/第三轮长赢计划三周年业绩回顾 2018-08-03.md",
+      "status": "added",
+      "insertions": 118,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢发车逻辑 2022年03月18日.md",
+      "status": "added",
+      "insertions": 54,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢指数投资计划2019年上半年回顾 2019-07-10.md",
+      "status": "added",
+      "insertions": 58,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢指数投资计划2021年的操作大思路 2021-02-02.md",
+      "status": "added",
+      "insertions": 71,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢计划2018年度回顾 2019-01-11.md",
+      "status": "added",
+      "insertions": 61,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢计划2019年度回顾 2020-01-28.md",
+      "status": "added",
+      "insertions": 100,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢计划发车文章中的“预计最大跌幅”是如何得出呢？.md",
+      "status": "added",
+      "insertions": 107,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "docs/长赢指数投资/长赢计划已经盈利的份数，是否需要补入？.md",
+      "status": "added",
+      "insertions": 46,
+      "deletions": 0,
+      "exclude_reason": "unsupported_ext"
+    },
+    {
+      "path": "scripts/data/baostock_diff_test.py",
+      "status": "added",
+      "insertions": 63,
+      "deletions": 0,
+      "exclude_reason": "default_path"
+    },
+    {
+      "path": "scripts/data/speed_test.py",
+      "status": "added",
+      "insertions": 62,
+      "deletions": 0,
+      "exclude_reason": "default_path"
+    }
+  ]
+}

@@ -58,6 +58,7 @@ services:
       - ./logs:/app/logs
       - ./output:/app/output
       - ./data:/app/data:ro
+      - ./signals:/app/signals              # R05：OBPC 信号目录持久化（容器重启后不丢失）
       - ./config/config.yaml:/app/config/config.yaml:ro
     restart: unless-stopped
     networks:
@@ -84,7 +85,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./distill_changying/docs/blog:/app/distill_changying/docs/blog:ro
-      - ./distill_changying/docs/distilled/logs:/app/distill_changying/docs/distilled/logs
+      - ./distill_changying/docs/distilled:/app/distill_changying/docs/distilled   # R04：完整知识库目录（蒸馏产物+索引）
       - ./config/config.yaml:/app/config/config.yaml:ro
     restart: unless-stopped
     networks:

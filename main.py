@@ -63,15 +63,32 @@ def init_strategies(config: Dict) -> None:
 
 
 def run_kline_update() -> None:
-    """执行 K 线数据更新"""
+    """执行 K 线数据更新（C-1：所有阈值从 config.yaml 读取，禁止硬编码）"""
     logger.info("=" * 50)
     logger.info("开始执行 K 线数据更新...")
     logger.info("=" * 50)
 
     try:
-        from scripts.data.update_kline_daily import main as update_main
-        update_main()
-        logger.info("K 线数据更新完成")
+        # C-1：加载 config.yaml，所有参数从配置读取，禁止硬编码
+        config_path = os.path.join(os.path.dirname(__file__), 'config/config.yaml')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            cfg = yaml.safe_load(f) or {}
+        kline_cfg = (cfg.get('global') or {}).get('kline_update') or {}
+
+        # C-1：不再调 updater.main()（后者抛 SystemExit 会被 except Exception 漏掉）
+        # 改为调 run_update 业务函数，正常 return UpdateResult，流水线可继续
+        from scripts.data.update_kline_daily import run_update as kline_run_update
+        # C-1 + H-1：days 和 cfg 都从 config 读取，统一由 updater.cfg 单点管理
+        result = kline_run_update(cfg=kline_cfg)
+
+        # C-1：完整性阈值从同一 config 读取，禁止字面量
+        min_success_rate = kline_cfg.get('min_success_rate', 0.9)
+        total_failure_limit = kline_cfg.get('total_failure_limit', 500)
+        logger.info(
+            "K 线数据更新完成：success=%d, failed=%d, skipped=%d, completeness=%s",
+            result.success, result.failed, result.skipped,
+            "PASS" if result.is_complete(min_success_rate, total_failure_limit) else "FAIL",
+        )
     except Exception as e:
         logger.error(f"K 线数据更新失败: {e}")
 

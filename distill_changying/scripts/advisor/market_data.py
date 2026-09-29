@@ -154,6 +154,10 @@ class BaostockDataSource(MarketDataSource):
             config: 完整配置字典
         """
         self.config = config
+        # R01：从配置读取是否使用真实估值分位（true=PE/PB分位不再冒充价格分位，无历史序列时返回 None）
+        self.use_real_valuation_percentile = config.get("data_source", {}).get(
+            "use_real_valuation_percentile", True
+        )
 
     # ------------------------------------------------------------------
     # 私有方法：成分股方案
@@ -432,12 +436,15 @@ class BaostockDataSource(MarketDataSource):
         pe_percentile = _calc_series_percentile(df, "peTTM", pe_val)
         pb_percentile = _calc_series_percentile(df, "pbMRQ", pb_val)
 
+        # R01：回退方案也补充 price_percentile 字段，保持两种方案输出结构一致
+        _, price_percentile = self._get_index_close_and_percentile(index_code)
+
         logger.debug(
-            "%s(%s): PE=%.2f, PE分位=%.1f%%, PB=%.2f, PB分位=%.1f%% (回退方案, %d 历史点)",
+            "%s(%s): PE=%.2f, PE分位=%.1f%%, PB=%.2f, PB分位=%.1f%%, 价格分位=%.1f%% (回退方案, %d 历史点)",
             index_name, index_code,
             pe_val or 0, pe_percentile or 0,
             pb_val or 0, pb_percentile or 0,
-            len(df),
+            price_percentile or 0, len(df),
         )
 
         return {
@@ -445,8 +452,9 @@ class BaostockDataSource(MarketDataSource):
             "code": index_code,
             "pe": pe_val,
             "pb": pb_val,
-            "pe_percentile": pe_percentile,
-            "pb_percentile": pb_percentile,
+            "pe_percentile": pe_percentile,   # 回退方案有真实 PE 历史序列 → 真实 PE 分位
+            "pb_percentile": pb_percentile,   # 回退方案有真实 PB 历史序列 → 真实 PB 分位
+            "price_percentile": price_percentile,  # R01：新增明确的价格分位字段
         }
 
     # ------------------------------------------------------------------
@@ -517,16 +525,27 @@ class BaostockDataSource(MarketDataSource):
             pe_median = _calc_median(pe_list) if pe_list else None
             pb_median = _calc_median(pb_list) if pb_list else None
 
-            # 5. 使用指数收盘价分位近似 PE/PB 估值分位
-            _, close_percentile = self._get_index_close_and_percentile(index_code)
-            pe_percentile = close_percentile
-            pb_percentile = close_percentile
+            # 5. 获取指数收盘价分位（R01：新增 price_percentile 字段，明确价格分位 vs 估值分位）
+            _, price_percentile = self._get_index_close_and_percentile(index_code)
+
+            # R01：PE/PB 分位不再用价格分位冒充
+            # 成分股方案没有 PE/PB 历史序列（只有当前中位数），无法计算真实估值分位
+            # use_real_valuation_percentile=true 时返回 None，false 时保持原行为（价格分位）
+            if self.use_real_valuation_percentile:
+                pe_percentile = None
+                pb_percentile = None
+            else:
+                pe_percentile = price_percentile
+                pb_percentile = price_percentile
 
             logger.debug(
-                "%s(%s): PE=%.2f (n=%d), PE分位=%.1f%%, PB=%.2f (n=%d), PB分位=%.1f%% (成分股方案)",
+                "%s(%s): PE=%.2f (n=%d), PE分位=%s%%, PB=%.2f (n=%d), PB分位=%s%%, 价格分位=%s%% (成分股方案)",
                 index_name, index_code,
-                pe_median or 0, len(pe_list), pe_percentile or 0,
-                pb_median or 0, len(pb_list), pb_percentile or 0,
+                pe_median or 0, len(pe_list),
+                f"{pe_percentile:.1f}" if pe_percentile is not None else "N/A",
+                pb_median or 0, len(pb_list),
+                f"{pb_percentile:.1f}" if pb_percentile is not None else "N/A",
+                f"{price_percentile:.1f}" if price_percentile is not None else "N/A",
             )
 
             return {
@@ -536,6 +555,7 @@ class BaostockDataSource(MarketDataSource):
                 "pb": pb_median,
                 "pe_percentile": pe_percentile,
                 "pb_percentile": pb_percentile,
+                "price_percentile": price_percentile,  # R01：新增明确的价格分位字段
             }
 
         finally:

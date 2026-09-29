@@ -149,10 +149,11 @@ while True:
         logger.info("=== 等待历史补全完成 ===")
         backfill_ok = wait_for_backfill()
         if backfill_ok:
-            logger.info("=== 执行补全后重扫（07:30 北京）===")
+            logger.info("=== 执行补全后重扫（07:30 北京，信号日期=%s）===", today)
             try:
                 subprocess.run(
-                    [sys.executable, "scripts/daily_scan.py"],
+                    [sys.executable, "scripts/daily_scan.py",
+                     "--signal-date", today],  # R03：早晨重扫用当天日期
                     check=True,
                     timeout=SCAN_TIMEOUT,
                 )
@@ -174,10 +175,16 @@ while True:
             time.sleep(LOOP_INTERVAL)
             continue
         last_run_push = today
-        logger.info("=== 执行飞书推送（08:10 北京）===")
+
+        # C-3：决定推送哪个日期的信号
+        # 优先今天（早晨重扫在 07:30，已生成今日信号），
+        # 否则回退昨天（周五扫描 → 周六推送场景）
+        push_date = today if is_trading_day(today) else yesterday
+        logger.info("=== 执行飞书推送（08:10 北京，信号日期=%s）===", push_date)
         try:
             subprocess.run(
-                [sys.executable, "scripts/feishu_push.py"],
+                [sys.executable, "scripts/feishu_push.py",
+                 "--signal-date", push_date],  # C-3：显式指定信号日期
                 check=True,
                 timeout=PUSH_TIMEOUT,
             )

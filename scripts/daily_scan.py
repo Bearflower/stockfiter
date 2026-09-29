@@ -27,6 +27,7 @@ from strategy.oversold_bounce.risk_control import (
     MarketContext,
     RealtimeMarketContextProvider,
     DatabaseMonthlyCounter,
+    cap_by_monthly_quota,
 )
 
 logger = get_logger()
@@ -46,13 +47,14 @@ def get_latest_trading_date() -> str:
     return today.strftime('%Y-%m-%d')
 
 
-def scan_daily_signals(config: Dict, output_dir: str = 'signals') -> List:
+def scan_daily_signals(config: Dict, output_dir: str = 'signals', signal_date_override: str = None) -> List:
     """
     扫描当日信号
 
     Args:
         config: 配置字典
         output_dir: 输出目录
+        signal_date_override: 强制指定信号日期（R03：早晨重扫场景用当天日期而非 get_latest_trading_date）
 
     Returns:
         list: 信号列表
@@ -61,7 +63,12 @@ def scan_daily_signals(config: Dict, output_dir: str = 'signals') -> List:
     print("每日形态扫描")
     print("=" * 80)
 
-    signal_date = get_latest_trading_date()
+    # R03：优先使用调用方显式指定的信号日期（早晨重扫场景）
+    # 否则才按 get_latest_trading_date() 推断最近交易日
+    if signal_date_override:
+        signal_date = signal_date_override
+    else:
+        signal_date = get_latest_trading_date()
     print(f"扫描日期：{signal_date}")
     print()
 
@@ -179,6 +186,17 @@ def scan_daily_signals(config: Dict, output_dir: str = 'signals') -> List:
                         f"评分系数={multiplier}"
                     )
         else:
+            # M-1：freshness_strategy='skip' → 风控数据不可用就不开新仓
+            # 原代码只跳过大盘过滤继续扫描，实际变成"放行所有"，偏离设计意图
+            # 设计文档 D-3 定稿：skip = 该日判定"风控数据不可用"并跳过相关开仓
+            if risk_config.freshness_strategy == 'skip':
+                print(f"警告：freshness_strategy=skip 且指数数据不可用，当日停止开仓")
+                logger.warning(
+                    "[M-1] 指数数据过期/缺失，freshness_strategy=skip 触发，"
+                    "当日所有开仓跳过。signal_date=%s", signal_date
+                )
+                db.close()
+                return []
             print(f"警告：获取大盘上下文失败，跳过大盘过滤")
         print()
     else:
@@ -261,13 +279,10 @@ def scan_daily_signals(config: Dict, output_dir: str = 'signals') -> List:
                         else:
                             effective_context = market_context
 
-                        # 获取当月已产出信号数
-                        year_month = signal_date[:7]
-                        monthly_count = monthly_counter.get_count(year_month)
-
-                        # 应用全部三层风控检查
+                        # R02：逐候选风控不再拦截月度额度，apply_all_controls 只执行前两层
+                        # monthly_count 统一在 Top N 排序后通过 cap_by_monthly_quota 应用
                         risk_result = risk_controller.apply_all_controls(
-                            signal, effective_context, monthly_count
+                            signal, effective_context  # monthly_count 默认 None
                         )
 
                         if not risk_result.passed:
@@ -341,29 +356,53 @@ def scan_daily_signals(config: Dict, output_dir: str = 'signals') -> List:
     print(f"扫描完成：发现 {len(signals)} 个信号")
     print("=" * 80)
 
-    # ===== Top N 稀缺性控制 =====
-    # 每日只取评分最高的前 N 个信号，确保推送的是最优质的形态
-    max_daily_signals = params.get('max_daily_signals', 0)
-    if max_daily_signals > 0 and len(signals) > max_daily_signals:
-        # 按评分降序排列
+    # ===== Top N 稀缺性控制 + R02 月度额度统一分配 =====
+    # 先按评分降序排序，确保后续按质量优先选入
+    if len(signals) > 1:
         signals.sort(key=lambda x: x.get('score', 0), reverse=True)
-        dropped_count = len(signals) - max_daily_signals
+
+    # R02：月度额度在逐候选风控中不再拦截（见 apply_all_controls 调用处），
+    # 此处统一按「剩余额度」截断，保证已用 + 本批 ≤ max_signals_per_month
+    year_month = signal_date[:7]
+    monthly_count = monthly_counter.get_count(year_month)
+    max_daily_signals = params.get('max_daily_signals', 0)
+    selected = cap_by_monthly_quota(
+        signals,
+        used_count=monthly_count,
+        max_per_month=risk_config.max_signals_per_month,
+        max_daily=max_daily_signals,
+    )
+
+    # 输出截断日志（保留原 Top N 段的可读性输出）
+    dropped_count = len(signals) - len(selected)
+    if dropped_count > 0:
         dropped_scores = [
             f"{s['code']}({s.get('score', 0):.1f})"
-            for s in signals[max_daily_signals:max_daily_signals + 5]
+            for s in signals[len(selected):len(selected) + 5]
         ]
         dropped_scores_str = "、".join(dropped_scores)
         if dropped_count > 5:
             dropped_scores_str += f" 等{dropped_count}只"
+
+        # 区分日限还是月限导致的截断（或两者叠加）
+        reasons = []
+        if max_daily_signals > 0 and len(selected) > max_daily_signals:
+            reasons.append(f"日限 {max_daily_signals}")
+        remaining = risk_config.max_signals_per_month - monthly_count
+        if remaining < len(signals) and len(selected) == remaining:
+            reasons.append(f"月限剩余 {remaining}（已用 {monthly_count}/{risk_config.max_signals_per_month}）")
+        reason_str = " + ".join(reasons) if reasons else "未知"
+
         logger.info(
-            f"Top N 稀缺性控制：保留评分最高的 {max_daily_signals} 只，"
-            f"丢弃 {dropped_count} 只（{dropped_scores_str}）"
+            f"额度截断：入选 {len(selected)} 只，丢弃 {dropped_count} 只（{reason_str}）。"
+            f"丢弃前几名：{dropped_scores_str}"
         )
         print(
-            f"Top N 稀缺性控制：保留 {max_daily_signals} 只，"
-            f"丢弃 {dropped_count} 只"
+            f"额度截断：入选 {len(selected)} 只，丢弃 {dropped_count} 只"
+            f"（{reason_str}）"
         )
-        signals = signals[:max_daily_signals]
+
+    signals = selected
 
     # 保存扫描结果到数据库（用于冷却期和年度限制检查）
     if signals:
@@ -411,6 +450,13 @@ def main() -> None:
     print("股票形态每日扫描系统 V3")
     print("=" * 80)
 
+    # R03：命令行可显式指定信号日期（早晨重扫场景用当天日期）
+    import argparse
+    parser = argparse.ArgumentParser(description='OBPC 每日形态扫描')
+    parser.add_argument('--signal-date', type=str, default=None,
+                        help='强制指定信号日期（格式 YYYY-MM-DD），不指定时自动推断最近交易日')
+    args = parser.parse_args()
+
     try:
         config = load_config()
         print("\n配置加载完成")
@@ -418,7 +464,7 @@ def main() -> None:
         print(f"\n配置加载失败：{e}")
         sys.exit(1)
 
-    signals = scan_daily_signals(config)
+    signals = scan_daily_signals(config, signal_date_override=args.signal_date)
 
     if not signals:
         print("\n今日无信号")
