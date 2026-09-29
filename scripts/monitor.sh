@@ -11,11 +11,22 @@
 # 告警策略：仅在状态变化时发送，避免重复告警
 # ============================================================
 
+# ---- 环境变量加载 ----
+# 先 source 服务器 .env（与 docker-compose 共用同一份），再读 env 兜底
+ENV_FILE="/root/stockfilter_v3/.env"
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+fi
+
 # ---- Webhook 配置 ----
-# 所有监控告警统一发到 OBPC 群；凭证通过环境变量注入，禁止硬编码
-WEBHOOK="${FEISHU_WEBHOOK_MONITOR:-}"
+# 所有监控告警统一发到 OBPC 群。优先读专用变量 FEISHU_WEBHOOK_MONITOR，
+# 未设置时回退 FEISHU_WEBHOOK（容器推送用的同一群）
+WEBHOOK="${FEISHU_WEBHOOK_MONITOR:-${FEISHU_WEBHOOK:-}}"
 if [ -z "$WEBHOOK" ]; then
-    log "❌ 未配置 FEISHU_WEBHOOK_MONITOR 环境变量，监控告警将失效"
+    echo "❌ 未配置 FEISHU_WEBHOOK_MONITOR 或 FEISHU_WEBHOOK 环境变量，监控告警将失效"
 fi
 
 # ---- 检查参数 ----
