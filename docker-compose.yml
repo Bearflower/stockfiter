@@ -36,6 +36,12 @@ services:
         max-size: "10m"
         max-file: "3"
     command: python -u scripts/scheduler_kline.py
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f scheduler_kline.py || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # ==================== 容器 2: OBPC 策略服务 ====================
   strategy-obpc:
@@ -71,6 +77,12 @@ services:
         max-size: "10m"
         max-file: "3"
     command: python -u scripts/scheduler_obpc.py
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f scheduler_obpc.py || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # ==================== 容器 3: E大估值策略服务 ====================
   strategy-eadvisor:
@@ -96,6 +108,12 @@ services:
         max-size: "10m"
         max-file: "3"
     command: python -u distill_changying/scripts/advisor/scheduler.py
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'advisor/scheduler.py' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
 networks:
   common_service_common_network:
