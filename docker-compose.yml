@@ -37,7 +37,7 @@ services:
         max-file: "3"
     command: python -u scripts/scheduler_kline.py
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f scheduler_kline.py || exit 1"]
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q 'scheduler_kline.py' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -78,7 +78,7 @@ services:
         max-file: "3"
     command: python -u scripts/scheduler_obpc.py
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f scheduler_obpc.py || exit 1"]
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q 'scheduler_obpc.py' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -109,7 +109,7 @@ services:
         max-file: "3"
     command: python -u distill_changying/scripts/advisor/scheduler.py
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'advisor/scheduler.py' || exit 1"]
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q 'advisor/scheduler.py' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
