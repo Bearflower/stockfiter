@@ -107,11 +107,12 @@ while True:
 
         try:
             # R13：kline_update.py main() 现在返回有意义的退出码
-            # capture_output=True 手动检查 returncode，不再用 check=True 抛异常
+            # 用 capture_output=False + stdout/stderr=None 让子进程日志实时输出到 docker logs
+            # 之前 capture_output=True 会缓冲 3 小时卡死期间所有日志，进程退出后才一次性读取
             result = subprocess.run(
                 [sys.executable, "scripts/data/update_kline_daily.py"],
-                capture_output=True,
-                text=True,
+                stdout=None,  # 继承父进程 stdout → 实时输出到 docker logs
+                stderr=None,  # 继承父进程 stderr
                 timeout=KLINE_UPDATE_TIMEOUT,
             )
             if result.returncode == 0:
@@ -121,9 +122,8 @@ while True:
                 # R13：完整性判定失败（success_rate < min_success_rate 或 failed > total_limit）
                 # 写 failed 状态，下游 scheduler_obpc.py 应据此阻断扫描
                 logger.error(
-                    "K 线数据更新完整性判定 FAIL（退出码 %d），stdout 尾部：%s",
+                    "K 线数据更新完整性判定 FAIL（退出码 %d）",
                     result.returncode,
-                    (result.stdout or "")[-500:],
                 )
                 _write_task_status("kline_update", "failed")
         except subprocess.TimeoutExpired:
@@ -140,11 +140,11 @@ while True:
         last_run_backfill = today
         logger.info("=== 执行历史数据补全（07:00 北京）===")
         try:
-            # R13：同样 capture_output + 手动检查 returncode
+            # 同样不 capture_output，让补全日志实时输出到 docker logs
             result = subprocess.run(
                 [sys.executable, "scripts/data/quick_backfill.py"],
-                capture_output=True,
-                text=True,
+                stdout=None,  # 继承父进程 stdout → 实时输出到 docker logs
+                stderr=None,
                 timeout=BACKFILL_TIMEOUT,
             )
             if result.returncode == 0:
@@ -152,9 +152,8 @@ while True:
                 _write_task_status("backfill", "completed")
             else:
                 logger.error(
-                    "历史数据补全返回非零退出码 %d，stdout 尾部：%s",
+                    "历史数据补全返回非零退出码 %d",
                     result.returncode,
-                    (result.stdout or "")[-500:],
                 )
                 _write_task_status("backfill", "failed")
         except subprocess.TimeoutExpired:

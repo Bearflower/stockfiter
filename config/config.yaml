@@ -58,7 +58,7 @@ global:
     failure_rate_threshold: 0.7    # 滑动窗口失败率熔断阈值
     failure_window_size: 100       # 滑动窗口大小（最近 N 次请求）
     failure_window_min_samples: 50 # 熔断判定最小样本数
-    total_failure_limit: 500       # 累计失败硬上限
+    total_failure_limit: 200       # 累计失败硬上限（单股 15s × 200 = 3000s ≈ 50min，在 3h 超时前熔断）
     min_success_rate: 0.9         # 完整性：成功率红线（成功/(成功+失败)）
 
   # 日志配置
