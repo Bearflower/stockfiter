@@ -94,12 +94,21 @@ class UpdateResult:
             return 1.0
         return self.success / self.total_processed
 
+    @property
+    def skipped_ratio(self) -> float:
+        """跳过股票占比 = skipped / total；total 为 0 时返回 0"""
+        if self.total == 0:
+            return 0.0
+        return self.skipped / self.total
+
     def is_complete(self, min_success_rate: float, total_failure_limit: int) -> bool:
         """判定本次更新是否完整。
 
-        完整性条件（R13 设计文档）：
-            1. success_rate >= min_success_rate
-            2. failed <= total_failure_limit
+        完整性条件（R13 设计文档 + 休市日 guard）：
+            1. 休市日 guard：skipped / total >= 95% → 绝大多数股票已有最新数据
+               （说明数据库已覆盖到最近交易日，今日休市或已提前更新完），
+               此时少量停牌/退市股的"空数据"不代表 Baostock 故障，直接 PASS。
+            2. 正常交易日：success_rate >= min_success_rate 且 failed <= total_failure_limit。
 
         Args:
             min_success_rate: 成功率红线（0.0 - 1.0）
@@ -108,6 +117,12 @@ class UpdateResult:
         Returns:
             bool: True 表示数据完整，下游可放行；False 表示应阻断后续扫描
         """
+        # 休市日 guard：95%+ 股票已有最新数据 → 直接 PASS
+        # 覆盖场景：国庆/春节等长假、周末、或前序任务已提前跑完今日更新
+        if self.skipped_ratio >= 0.95:
+            return True
+
+        # 正常交易日判定
         return (
             self.success_rate >= min_success_rate
             and self.failed <= total_failure_limit
@@ -515,10 +530,10 @@ def run_update(days: Optional[int] = None, cfg: Optional[dict] = None) -> Update
         updater.cfg['total_failure_limit'],
     )
     logger.info(
-        "更新完整性判定：success_rate=%.2f, failed=%d, "
-        "total_limit=%d, success_rate>=%.2f 且 failed<=%d → %s",
-        result.success_rate, result.failed, updater.cfg['total_failure_limit'],
-        updater.cfg['min_success_rate'], updater.cfg['total_failure_limit'],
+        "更新完整性判定：success_rate=%.2f, skipped_ratio=%.2f, "
+        "failed=%d, total_limit=%d → %s",
+        result.success_rate, result.skipped_ratio, result.failed,
+        updater.cfg['total_failure_limit'],
         "PASS（可放行后续扫描）" if complete else "FAIL（建议阻断后续扫描）",
     )
 
