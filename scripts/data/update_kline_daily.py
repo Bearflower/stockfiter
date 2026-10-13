@@ -7,7 +7,6 @@
 
 import os
 import signal
-import sys
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
@@ -153,7 +152,8 @@ class DailyKlineUpdater:
         logger.info("\n收到中断信号，正在退出...")
         if self.db:
             self.db.close()
-        sys.exit(0)
+        # 同 main()：避免 concurrent.futures 的 atexit 等待 Baostock 挂起线程而卡住退出
+        os._exit(0)
 
     def _fetch_with_timeout(
         self, session: BaostockSession, symbol: str, days: int = 120,
@@ -562,7 +562,9 @@ def main() -> None:
         default_cfg['total_failure_limit'],
     )
 
-    sys.exit(0 if complete else 1)
+    # Baostock C 扩展可能残留无法终止的后台线程，concurrent.futures 的 atexit 会阻塞解释器退出，
+    # 故用 os._exit 强制退出（与 quick_backfill.py 一致）
+    os._exit(0 if complete else 1)
 
 
 if __name__ == '__main__':

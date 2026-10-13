@@ -8,7 +8,7 @@ import sys
 import time
 import logging
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Asia/Shanghai")
@@ -62,9 +62,10 @@ def wait_for_kline_update() -> bool:
         )
         row = cur.fetchone()
         if row and row[0]:
-            # PostgreSQL TIMESTAMP 返回 naive datetime，需补时区信息
-            ts = row[0] if row[0].tzinfo else row[0].replace(tzinfo=TZ)
-            elapsed = (datetime.now(TZ) - ts).total_seconds()
+            # last_completed_at 为无时区列、DB 会话时区为 UTC、实际存 UTC 裸时间戳，
+            # 必须按 UTC 解析并与 UTC 比较，否则与 Asia/Shanghai 差 8 小时导致新鲜度判定永远失败
+            ts = row[0] if row[0].tzinfo else row[0].replace(tzinfo=timezone.utc)
+            elapsed = (datetime.now(timezone.utc) - ts).total_seconds()
             if elapsed < FRESHNESS_THRESHOLD:
                 logger.info("K线更新已完成（%d分钟前）", int(elapsed / 60))
                 db.close()
@@ -94,9 +95,10 @@ def wait_for_backfill() -> bool:
         )
         row = cur.fetchone()
         if row and row[0]:
-            # PostgreSQL TIMESTAMP 返回 naive datetime，需补时区信息
-            ts = row[0] if row[0].tzinfo else row[0].replace(tzinfo=TZ)
-            elapsed = (datetime.now(TZ) - ts).total_seconds()
+            # last_completed_at 为无时区列、DB 会话时区为 UTC、实际存 UTC 裸时间戳，
+            # 必须按 UTC 解析并与 UTC 比较，否则与 Asia/Shanghai 差 8 小时导致新鲜度判定永远失败
+            ts = row[0] if row[0].tzinfo else row[0].replace(tzinfo=timezone.utc)
+            elapsed = (datetime.now(timezone.utc) - ts).total_seconds()
             if elapsed < FRESHNESS_THRESHOLD:
                 logger.info("历史补全已完成（%d分钟前）", int(elapsed / 60))
                 db.close()
