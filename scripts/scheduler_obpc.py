@@ -9,7 +9,10 @@ import time
 import logging
 import subprocess
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from zoneinfo import ZoneInfo
+
+import yaml
 
 TZ = ZoneInfo("Asia/Shanghai")
 
@@ -40,10 +43,13 @@ logger.info("OBPC 策略调度器启动（当前时间: %s）", datetime.now(TZ)
 logger.info("定时任务：22:15 形态扫描 / 07:30 补全后重扫 / 08:10 飞书推送（均为北京时间）")
 logger.info("K线等待超时：%ds，轮询间隔：%ds", KLINE_WAIT_TIMEOUT, KLINE_WAIT_INTERVAL)
 
-# 当天已触发过的任务
+# 各时段「当天已触发」守卫（值为自然日，防止同一分钟循环重复进入）
 last_run_scan: str = ""
-last_run_push: str = ""
 last_run_rescan: str = ""
+last_run_push: str = ""
+# 已推送的信号日期（值为信号日期，跨天保留，防止同一交易日信号被重复推送）；
+# 必须与上面按自然日的守卫分离，否则非交易日跳过分支会把信号日期污染为当天，导致重复推送
+last_pushed_signal_date: str = ""
 
 
 def wait_for_kline_update() -> bool:
@@ -112,6 +118,47 @@ def wait_for_backfill() -> bool:
     return False
 
 
+def _load_index_code(config_path: str = "config/config.yaml") -> str:
+    """从配置读取大盘指数代码，禁止硬编码"""
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return (
+            ((cfg.get("strategies") or {}).get("oversold_bounce") or {})
+            .get("params", {})
+            .get("index_filter", {})
+            .get("index_code", "")
+        ) or ""
+    except Exception as e:
+        logger.warning("读取配置 index_code 失败：%s", e)
+        return ""
+
+
+def get_signal_target_date() -> Optional[str]:
+    """取最近一个已完成交易日作为重扫/推送的信号日期基准。
+
+    新鲜度校验（risk_control.get_context）要求「指数最新日期 == signal_date」；
+    07:30 重扫与 08:10 推送都发生在当天指数（22:00 才生成）之前，
+    因此必须锚定「前一交易日（= 数据库中指数最新日期）」，而非当天，
+    否则重扫恒为 0 信号、推送恒找不到信号文件。
+    """
+    from data.database import DatabaseManager
+
+    index_code = _load_index_code()
+    if not index_code:
+        return None
+
+    db = DatabaseManager()
+    try:
+        df = db.get_index_kline(index_code, days=1)
+        if df is None or df.empty:
+            return None
+        last = df["date"].iloc[-1]
+        return last.strftime("%Y-%m-%d") if hasattr(last, "strftime") else str(last)[:10]
+    finally:
+        db.close()
+
+
 while True:
     now = datetime.now(TZ)
     today = now.strftime("%Y-%m-%d")
@@ -151,37 +198,54 @@ while True:
         logger.info("=== 等待历史补全完成 ===")
         backfill_ok = wait_for_backfill()
         if backfill_ok:
-            logger.info("=== 执行补全后重扫（07:30 北京，信号日期=%s）===", today)
-            try:
-                subprocess.run(
-                    [sys.executable, "scripts/daily_scan.py",
-                     "--signal-date", today],  # R03：早晨重扫用当天日期
-                    check=True,
-                    timeout=SCAN_TIMEOUT,
-                )
-                logger.info("补全后重扫完成")
-            except subprocess.TimeoutExpired:
-                logger.warning("补全后重扫超时（3600s），跳过")
-            except Exception as e:
-                logger.error("补全后重扫失败: %s", e, exc_info=True)
+            # 信号基准日期 = 前一交易日（= 指数最新日期）；当天指数 22:00 才生成，
+            # 用当天会导致新鲜度校验（指数最新日期==signal_date）不通过 → 恒 0 信号
+            signal_date = get_signal_target_date()
+            if not signal_date:
+                logger.warning("指数最新日期缺失，无法确定重扫信号日期，跳过重扫")
+            else:
+                logger.info("=== 执行补全后重扫（07:30 北京，信号日期=%s）===", signal_date)
+                try:
+                    subprocess.run(
+                        [sys.executable, "scripts/daily_scan.py",
+                         "--signal-date", signal_date],
+                        check=True,
+                        timeout=SCAN_TIMEOUT,
+                    )
+                    logger.info("补全后重扫完成")
+                except subprocess.TimeoutExpired:
+                    logger.warning("补全后重扫超时（3600s），跳过")
+                except Exception as e:
+                    logger.error("补全后重扫失败: %s", e, exc_info=True)
         else:
             logger.warning("历史补全未完成，跳过重扫")
         time.sleep(POST_TASK_DELAY)
 
     elif hm == SCHEDULE_PUSH and last_run_push != today:
+        # 按自然日守卫：本时段当天只进入一次，避免同一分钟循环重复判定
+        last_run_push = today
         # 推送时段：当天或前一天任一为交易日都放行
         # 覆盖周五 22:15 扫描 → 周六 08:10 推送的场景
         if not is_trading_day(today) and not is_trading_day(yesterday):
             logger.info("=== %s 和 %s 均为非交易日，跳过飞书推送 ===", yesterday, today)
-            last_run_push = today
             time.sleep(LOOP_INTERVAL)
             continue
-        last_run_push = today
 
-        # C-3：决定推送哪个日期的信号
-        # 优先今天（早晨重扫在 07:30，已生成今日信号），
-        # 否则回退昨天（周五扫描 → 周六推送场景）
-        push_date = today if is_trading_day(today) else yesterday
+        # 推送的信号日期 = 前一交易日（= 指数最新日期），与重扫保持一致的语义；
+        # 当天指数数据 22:00 才生成，用当天会找不到 signals_{当天}.json。
+        # 取不到日期时安全跳过，禁止回退「当天」，否则会复现找不到信号文件的问题
+        push_date = get_signal_target_date()
+        if not push_date:
+            logger.warning("指数最新日期缺失，无法确定推送信号日期，跳过飞书推送")
+            time.sleep(LOOP_INTERVAL)
+            continue
+
+        # 同一交易日的信号只推送一次（如周六已推周五信号，周一不再重复）
+        if last_pushed_signal_date == push_date:
+            logger.info("信号日期 %s 已推送过，跳过重复推送", push_date)
+            time.sleep(LOOP_INTERVAL)
+            continue
+        last_pushed_signal_date = push_date
         logger.info("=== 执行飞书推送（08:10 北京，信号日期=%s）===", push_date)
         try:
             subprocess.run(
