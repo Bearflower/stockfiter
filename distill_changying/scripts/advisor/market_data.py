@@ -10,11 +10,12 @@ E大投资决策助手市场数据获取模块
 - fetch_all_valuations: 数据获取主入口（含缓存与降级）
 
 估值计算方案：
-- 主子方案：查询指数成分股个股的 peTTM/pbMRQ，取中位数作为指数 PE/PB
+- 主子方案：查询指数成分股个股的 peTTM/pbMRQ 历史序列，按交易日取中位数构建指数 PE/PB 序列
 - 成分股来源：baostock 的 query_sz50_stocks / query_hs300_stocks / query_zz500_stocks
-- PE/PB 分位：使用指数收盘价在 N 年历史中的分位近似（避免逐股查历史 PE 的耗时）
+- PE/PB 分位：由成分股中位数序列计算真实估值分位（回溯 percentile_lookback_years 年）
+- 价格分位：指数收盘价在 N 年历史中的分位，单独作为 price_percentile 字段提供
 - 回退方案：当成分股 API 不可用时，回退到指数 K 线查询（原方案）
-- 采样策略：按代码字典序取前 N 只成分股（采样数量由 config 控制，默认 50）
+- 采样策略：按代码字典序取前 N 只成分股（采样数量由 config.data_source.constituent_sample_size 控制）
 
 支持指数：000001(上证指数), 000016(上证50), 000300(沪深300),
 000905(中证500), 399001(深证成指), 399006(创业板指)
@@ -101,9 +102,25 @@ class MarketDataSource(ABC):
             dict | None: 成功返回估值数据字典，失败返回 None。
             返回格式：{"name": str, "code": str, "pe": float|None,
                        "pe_percentile": float|None, "pb": float|None,
-                       "pb_percentile": float|None}
+                       "pb_percentile": float|None, "price_percentile": float|None}
         """
         ...
+
+
+def _resolve_lookback_range(years: float) -> tuple[str, str]:
+    """根据回溯年数计算 baostock 查询的起止日期。
+
+    成分股 PE/PB 序列与指数收盘价分位共用同一回溯区间，避免两处算法漂移。
+
+    Args:
+        years: 回溯年数
+
+    Returns:
+        tuple[str, str]: (起始日期, 结束日期)，格式 YYYY-MM-DD
+    """
+    end_date = datetime.now().strftime("%Y-%m-%d")
+    start_date = (datetime.now() - timedelta(days=int(years * 365.25))).strftime("%Y-%m-%d")
+    return start_date, end_date
 
 
 def _calc_median(values: list[float]) -> float:
@@ -126,13 +143,36 @@ def _calc_median(values: list[float]) -> float:
     return round(result, 2)
 
 
+def _latest_and_percentile(series: dict[str, float]) -> tuple[float | None, float | None]:
+    """从 {日期: 值} 序列取末值与末值在序列中的分位。
+
+    分位口径与 _get_index_close_and_percentile 保持一致：
+    分位 = 序列中小于末值的数量 / 序列长度 * 100，范围 0-100。
+
+    Args:
+        series: 按日期索引的数值序列，如 {"2024-01-02": 12.3, ...}
+
+    Returns:
+        tuple[float | None, float | None]: (末值, 分位值)。
+        序列为空返回 (None, None)；样本不足 2 个时返回 (末值, None)。
+    """
+    if not series:
+        return None, None
+    latest_date = max(series)
+    latest_val = series[latest_date]
+    if len(series) < 2:
+        return latest_val, None
+    count_less = sum(1 for v in series.values() if v < latest_val)
+    return latest_val, round(count_less / len(series) * 100, 2)
+
+
 class BaostockDataSource(MarketDataSource):
     """通过 baostock（证券宝）获取 A 股指数估值数据。
 
-    核心方案：基于成分股 PE/PB 中位数计算指数估值。
+    核心方案：基于成分股 PE/PB 中位数序列计算指数估值。
     - baostock 的 index K 线 PE/PB 字段全为 0，因此改为查询成分股个股数据
     - 使用 baostock 成分股 API（query_sz50_stocks / query_hs300_stocks / query_zz500_stocks）
-    - PE/PB 分位使用指数收盘价在 5 年历史中的分位近似
+    - PE/PB 分位由成分股中位数序列（回溯 percentile_lookback_years 年）计算真实分位
 
     回退机制：当成分股方案不适用时，回退到原始指数 K 线查询方案。
 
@@ -251,26 +291,28 @@ class BaostockDataSource(MarketDataSource):
                 codes.append(row[1])
         return codes
 
-    def _get_constituent_pe_pb(
-        self, codes: list[str], lookback_days: int = 3
-    ) -> tuple[list[float], list[float]]:
-        """查询成分股个股的 PE/PB 数据。
+    def _get_constituent_valuation_series(
+        self, codes: list[str]
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        """查询成分股个股的 PE/PB 历史序列，按交易日取中位数。
 
-        对每只股票查询最近 lookback_days 个交易日的 peTTM/pbMRQ，
-        取最新有效值。过滤规则：PE > 0 且 PE < 1000，PB > 0。
+        对每只股票查询回溯 N 年（data_source.percentile_lookback_years）的
+        peTTM/pbMRQ 序列，同一交易日聚合全部有效样本后取中位数，
+        得到指数层级的 {日期: 中位数} PE/PB 序列。
+        过滤规则：pe_filter_min < PE < pe_filter_max，PB > pb_filter_min。
 
         Args:
             codes: 成分股代码列表（baostock 格式 sh.xxx / sz.xxx）
-            lookback_days: 向前查询的交易天数（默认 3）
 
         Returns:
-            tuple[list[float], list[float]]: (有效PE列表, 有效PB列表)
+            tuple[dict[str, float], dict[str, float]]: (PE 序列, PB 序列)，
+            均为 {日期: 中位数}，日期格式 YYYY-MM-DD
         """
         import baostock as bs
 
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        # 日期范围取 lookback_days * 3 天以覆盖非交易日
-        start_date = (datetime.now() - timedelta(days=lookback_days * 3)).strftime("%Y-%m-%d")
+        # 从配置读取回溯年限，与指数收盘价分位共用同一区间算法
+        years = self.config.get("data_source", {}).get("percentile_lookback_years", 5)
+        start_date, end_date = _resolve_lookback_range(years)
 
         # 从配置读取 PE/PB 过滤阈值
         ds_config = self.config.get("data_source", {})
@@ -278,8 +320,9 @@ class BaostockDataSource(MarketDataSource):
         pe_max = ds_config.get("pe_filter_max", 1000)
         pb_min = ds_config.get("pb_filter_min", 0)
 
-        pe_list: list[float] = []
-        pb_list: list[float] = []
+        # 各交易日累积有效样本，最后按日取中位数
+        pe_by_date: dict[str, list[float]] = {}
+        pb_by_date: dict[str, list[float]] = {}
         success_count = 0
 
         for code in codes:
@@ -296,35 +339,37 @@ class BaostockDataSource(MarketDataSource):
                 if rs.error_code != "0":
                     continue
 
-                latest_pe: float | None = None
-                latest_pb: float | None = None
-
+                code_valid = False
                 while rs.next():
                     row = rs.get_row_data()
-                    pe_val = _safe_float(row[1]) if len(row) > 1 else None
-                    pb_val = _safe_float(row[2]) if len(row) > 2 else None
-                    if pe_val is not None:
-                        latest_pe = pe_val
-                    if pb_val is not None:
-                        latest_pb = pb_val
+                    if len(row) < 3 or not row[0]:
+                        continue
+                    date_str = row[0]
+                    pe_val = _safe_float(row[1])
+                    pb_val = _safe_float(row[2])
+                    if pe_val is not None and pe_min < pe_val < pe_max:
+                        pe_by_date.setdefault(date_str, []).append(pe_val)
+                        code_valid = True
+                    if pb_val is not None and pb_val > pb_min:
+                        pb_by_date.setdefault(date_str, []).append(pb_val)
+                        code_valid = True
 
-                if latest_pe is not None and pe_min < latest_pe < pe_max:
-                    pe_list.append(latest_pe)
-                if latest_pb is not None and latest_pb > pb_min:
-                    pb_list.append(latest_pb)
-
-                if latest_pe is not None or latest_pb is not None:
+                if code_valid:
                     success_count += 1
 
-            except Exception:
+            except Exception as e:
                 # 单只股票查询失败不中断整体流程
+                logger.debug("成分股 %s PE/PB 序列查询失败: %s", code, e)
                 continue
 
+        pe_series = {d: _calc_median(vals) for d, vals in pe_by_date.items()}
+        pb_series = {d: _calc_median(vals) for d, vals in pb_by_date.items()}
+
         logger.debug(
-            "成分股 PE/PB 查询：%d/%d 只有效，PE 样本 %d，PB 样本 %d",
-            success_count, len(codes), len(pe_list), len(pb_list),
+            "成分股估值序列：%d/%d 只有效，PE 序列 %d 天，PB 序列 %d 天",
+            success_count, len(codes), len(pe_series), len(pb_series),
         )
-        return pe_list, pb_list
+        return pe_series, pb_series
 
     def _get_index_close_and_percentile(
         self, index_code: str,
@@ -343,11 +388,10 @@ class BaostockDataSource(MarketDataSource):
         import baostock as bs
 
         bs_code = _code_to_baostock(index_code)
-        end_date = datetime.now().strftime("%Y-%m-%d")
 
-        # 从配置读取历史数据年限，默认 5 年
+        # 从配置读取历史数据年限，与成分股估值序列共用同一回溯区间算法
         years = self.config.get("data_source", {}).get("percentile_lookback_years", 5)
-        start_date = (datetime.now() - timedelta(days=int(years * 365.25))).strftime("%Y-%m-%d")
+        start_date, end_date = _resolve_lookback_range(years)
 
         rs = bs.query_history_k_data_plus(
             bs_code,
@@ -464,13 +508,14 @@ class BaostockDataSource(MarketDataSource):
     def get_index_valuation(self, index_code: str, index_name: str) -> dict | None:
         """获取单个指数的 PE/PB 估值数据。
 
-        主子方案：基于成分股 PE/PB 中位数计算指数估值。
+        主子方案：基于成分股 PE/PB 中位数序列计算指数估值。
         流程：
         1. 获取指数成分股列表
         2. 按代码字典序排序，取前 N 只（采样数量由配置控制）
-        3. 查询每只成分股的最近 PE/PB，取中位数
-        4. 使用指数收盘价在 5 年历史中的分位近似 PE/PB 估值分位
-        5. 若成分股方案失败，回退到原始指数 K 线查询
+        3. 查询每只成分股回溯 N 年的 PE/PB 序列，按交易日取中位数
+        4. 序列末值作为指数 PE/PB，序列分位作为真实估值分位
+        5. 另取指数收盘价历史分位作为 price_percentile
+        6. 若成分股方案失败，回退到原始指数 K 线查询
 
         Args:
             index_code: 纯数字指数代码（如 "000300"）
@@ -480,7 +525,7 @@ class BaostockDataSource(MarketDataSource):
             dict | None: 估值数据字典，格式：
                 {"name": str, "code": str, "pe": float|None,
                  "pe_percentile": float|None, "pb": float|None,
-                 "pb_percentile": float|None}
+                 "pb_percentile": float|None, "price_percentile": float|None}
         """
         import baostock as bs
 
@@ -511,29 +556,29 @@ class BaostockDataSource(MarketDataSource):
                 index_name, index_code, len(sampled_codes), len(codes),
             )
 
-            # 3. 查询成分股 PE/PB
-            pe_list, pb_list = self._get_constituent_pe_pb(sampled_codes)
+            # 3. 查询成分股 PE/PB 历史序列，按交易日取中位数
+            pe_series, pb_series = self._get_constituent_valuation_series(sampled_codes)
 
-            if not pe_list and not pb_list:
+            if not pe_series and not pb_series:
                 logger.warning(
                     "%s(%s): 成分股 PE/PB 查询全部失败，使用回退方案",
                     index_name, index_code,
                 )
                 return self._fallback_index_kline(index_code, index_name)
 
-            # 4. 计算 PE/PB 中位数
-            pe_median = _calc_median(pe_list) if pe_list else None
-            pb_median = _calc_median(pb_list) if pb_list else None
+            # 4. 序列末值作为指数 PE/PB，序列分位作为真实估值分位
+            pe_median, real_pe_percentile = _latest_and_percentile(pe_series)
+            pb_median, real_pb_percentile = _latest_and_percentile(pb_series)
 
             # 5. 获取指数收盘价分位（R01：新增 price_percentile 字段，明确价格分位 vs 估值分位）
             _, price_percentile = self._get_index_close_and_percentile(index_code)
 
             # R01：PE/PB 分位不再用价格分位冒充
-            # 成分股方案没有 PE/PB 历史序列（只有当前中位数），无法计算真实估值分位
-            # use_real_valuation_percentile=true 时返回 None，false 时保持原行为（价格分位）
+            # use_real_valuation_percentile=true 时使用成分股序列的真实分位（无序列则为 None），
+            # false 时保持原行为（用价格分位近似估值分位）
             if self.use_real_valuation_percentile:
-                pe_percentile = None
-                pb_percentile = None
+                pe_percentile = real_pe_percentile
+                pb_percentile = real_pb_percentile
             else:
                 pe_percentile = price_percentile
                 pb_percentile = price_percentile
@@ -541,9 +586,9 @@ class BaostockDataSource(MarketDataSource):
             logger.debug(
                 "%s(%s): PE=%.2f (n=%d), PE分位=%s%%, PB=%.2f (n=%d), PB分位=%s%%, 价格分位=%s%% (成分股方案)",
                 index_name, index_code,
-                pe_median or 0, len(pe_list),
+                pe_median or 0, len(pe_series),
                 f"{pe_percentile:.1f}" if pe_percentile is not None else "N/A",
-                pb_median or 0, len(pb_list),
+                pb_median or 0, len(pb_series),
                 f"{pb_percentile:.1f}" if pb_percentile is not None else "N/A",
                 f"{price_percentile:.1f}" if price_percentile is not None else "N/A",
             )

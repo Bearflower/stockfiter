@@ -77,7 +77,8 @@ indices:
 data_source:
   start_date: "2010-01-01"              # 历史数据查询起始日期（回退方案用）
   constituent_sample_size: 20            # 成分股采样数量（按代码字典序取前N只，控制查询耗时）
-  percentile_lookback_years: 5           # 收盘价分位计算的历史回溯年数
+  percentile_lookback_years: 5           # 回溯年数（成分股 PE/PB 序列与收盘价分位共用）
+  use_real_valuation_percentile: true    # true=用成分股序列计算真实 PE/PB 分位；false=沿用价格分位近似（R01）
   pe_filter_min: 0                       # PE 有效值下限（过滤亏损股，PE<=0 的丢弃）
   pe_filter_max: 1000                    # PE 有效值上限（过滤极端异常值）
   pb_filter_min: 0                       # PB 有效值下限（过滤负资产个股）
