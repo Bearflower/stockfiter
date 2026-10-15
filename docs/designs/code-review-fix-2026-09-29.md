@@ -337,10 +337,11 @@ index_filter:
 
 **现状根因**：`market_data.py:520-523` 成分股方案把 `_get_index_close_and_percentile` 返回的收盘价分位同时赋给 `pe_percentile` 与 `pb_percentile`，而回退方案（`_fallback_index_kline`，第 429-433 行）用真实 `peTTM`/`pbMRQ` 历史序列算分位。两方案字段语义不一致，下游 `temperature.py`/`etf_recommend.py`/`daily_report.py` 统一把 `pe_percentile` 当估值分位消费。
 
-**修改方案**（按 D-2 决策定稿，默认方案 A）：
+**修改方案**（D-2 决策：**方案 B — 自建真实 PE/PB 历史序列**；2026-10-15 以「方案 S」落地，commit `e7d0886`）：
 1. `market_data.py` 返回结构新增 `price_percentile` 字段，仅承接收盘价分位；**`pe_percentile`/`pb_percentile` 只接受真实估值序列分位**。
-2. 成分股方案（主子方案）中：真实 PE/PB 分位若可得，则独立计算（需历史成分股 PE 时间序列，`data_source` 下有 `percentile_lookback_years` 可复用）；若不可得，则 `pe_percentile`/`pb_percentile` 置 `None`，估值判断由下游按「无估值分位」降级为 `hold`/「无数据」展示，不再用价格分位冒充。
-3. 回退方案（`_fallback_index_kline`）已是真实估值序列，无需改字段语义，只需在同结构上补齐 `price_percentile=None` 保持一致。
+2. 成分股方案（主子方案）中：真实 PE/PB 分位独立计算，复用 `data_source.percentile_lookback_years`——成分股查询由「近 3 天取最新值」改为回溯该年数，按交易日聚合 `peTTM`/`pbMRQ` 取中位数，构建指数层级 PE/PB 序列（`_get_constituent_valuation_series`），再由 `_latest_and_percentile` 取序列末值与真实分位；序列缺失时才降级为 `None`，下游按「无估值分位」走 `hold`/「无数据」展示。
+   - `_resolve_lookback_range` 抽取成分股序列与价格分位共用的回溯区间算法，避免两处漂移。
+3. 回退方案（`_fallback_index_kline`）本就是真实估值序列；实现中其 `price_percentile` 取真实价格分位（非 `None`），与主子方案输出结构对齐。
 4. 下游消费者：`temperature.py:124` 取 `pe_percentile` 计算温度不变；`etf_recommend.py:141` 取 `pe_percentile` 无则 `hold`（已有该分支）；`daily_report.py` 展示独立 `price_percentile`（若保留）。`SYSTEM_PROMPT`/`ANALYSIS_PROMPT_TEMPLATE` 中的「PE 分位」措辞不变，但数据来源保证真实。
 
 **配置变更**（`distill_changying/scripts/advisor/config.yaml`）：`data_source` 增加 `use_real_valuation_percentile: true`（true=只输出真实估值分位、价格分位独立成 `price_percentile`；false=保留旧近似，但必须独立标注 `price_percentile`，二者不再共享字段）。
@@ -348,8 +349,9 @@ index_filter:
 **数据/DB 变更**：无。
 
 **验证方式**：
-- 单元测试：给定已知收盘价序列，断言 `price_percentile` 与 `pe_percentile`/`pb_percentile` 明确分离，价格分位不再赋值到估值字段。
+- 单元测试：给定已知收盘价序列，断言 `price_percentile` 与 `pe_percentile`/`pb_percentile` 明确分离，价格分位不再赋值到估值字段。（**遗留：该单元测试尚未新增**，当前以容器内真实数据探针作为等价验证。）
 - 字段语义测试：估值判断只消费 `pe_percentile`；`pe_percentile is None` 时下游走 `hold`/「无数据」。
+- **实测（2026-10-15，容器内真实数据）**：6/6 指数有效，PE 分位均值 39.48% → 温度「正常」（此前恒为「未知 0.0%」），总耗时约 155s（`scan_timeout=1200s`）。
 
 ---
 

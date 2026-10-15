@@ -151,6 +151,13 @@ P2：R11 / R12 / R14 / R15 / R16 / R17 / R18 / R22 / R23（独立排期，可分
 - **涉及文件**：`distill_changying/scripts/advisor/market_data.py`、`temperature.py`、`etf_recommend.py`、`daily_report.py` 及投顾 `config.yaml`（阈值/字段开关）。
 - **依赖关系**：无强依赖；结果口径需用户拍板（见 D-2）。
 - **风险**：改动影响投顾输出口径，ET 阈值/温度计的判定结果会变化，需业务确认口径。
+- **实现状态（2026-10-15，commit `e7d0886` 已部署验证）**：用户拍板选 D-2 方案 B（自建真实 PE/PB 历史序列），以「方案 S」落地：
+  - `market_data.py` 将成分股查询由「近 3 天取最新值」改为回溯 `percentile_lookback_years` 年，按交易日取中位数构建指数层级 PE/PB 序列（`_get_constituent_valuation_series`）；
+  - 新增 `_latest_and_percentile` 由序列计算真实 `pe_percentile`/`pb_percentile`（`use_real_valuation_percentile=true` 时不再返回 None），`price_percentile` 保持独立字段；
+  - 抽出 `_resolve_lookback_range` 统一成分股序列与价格分位的回溯区间算法；
+  - 投顾 `config.yaml` 的 `data_source` 显式补 `use_real_valuation_percentile: true`。
+  - 容器内真实数据验证：6/6 指数有效，PE 分位均值 39.48% → 温度「正常」（此前恒为「未知 0.0%」），总耗时约 155s（预算 1200s）。
+  - 遗留：验收标准第 3 条要求的 `market_data.py` 单元测试尚未新增（当前以容器内真实数据探针作为等价验证）。
 
 ---
 
@@ -429,7 +436,7 @@ P2：R11 / R12 / R14 / R15 / R16 / R17 / R18 / R22 / R23（独立排期，可分
 | 编号 | 决策项 | 冲突/现状描述 | 待选方案 | 影响范围 |
 |------|--------|--------------|---------|---------|
 | D-1 | R10 飞书凭据轮换方式 | 源码/镜像含明文 webhook，需立即轮换 | A. 改环境变量注入 + 手动在飞书后台轮换 + 更新 secret；B. 同时清理 git 历史中的明文 webhook；C. 只轮换不清历史 | 安全、部署、成本 |
-| D-2 | R01「价格分位作估值近似」是否接受 | 代码注释表明该近似为有意为之 | A. 接受近似，改用独立 `price_percentile` 字段/标签，估值判断仍用真实估值分位；B. 不接受，需真实 PE/PB 时间序列（依赖数据源提供 PE/PB） | 投顾输出口径、数据依赖 |
+| D-2 | R01「价格分位作估值近似」是否接受 | 代码注释表明该近似为有意为之 | ~~A. 接受近似…；B. 不接受，需真实 PE/PB 时间序列…~~ **已决策（2026-10-15）：选 B**，自建真实 PE/PB 历史序列，见 R01「实现状态」 | 投顾输出口径、数据依赖 |
 | D-3 | R06 指数数据缺失时的降级策略 | 需明确"缺失/过期"时行为 | A. 显式失败（中止当日风控并告警）；B. 用最近 N 日（`config` 键位）做降级；C. 该日判定为"风控数据不可用"并跳过相关开仓 | 信号风控安全边界 |
 | D-4 | R17 无法满足边界时的兜底策略 | LLM 输出无法同时满足总和与上下界时 | A. 拒绝该建议并回退规则引擎；B. 返回 `hold`；C. 用保守下限裁剪 | 投顾输出质量、硬约束一致性 |
 | D-5 | 硬约束「LLM 必须 thinking 模式 reasoning_effort="high"」是否仍有效 | 复核发现：代码当前 LLM 模型已配置为 deepseek-chat，且 `llm_utils.py:214-215` 注释称 reasoning_effort/thinking 是"早期误引入的 V4 Pro 幻觉参数已移除" | A. 硬约束已失效，更新项目记忆/规则，deepseek-chat 标准调用为正确形态；B. 硬约束仍有效，代码回退错误，需恢复 thinking 模式并回退模型 | 项目记忆、`config`、`llm_utils.py`、所有 LLM 调用点 |
