@@ -43,10 +43,21 @@ logger = get_logger()
 # =====================================================================
 # 模块级常量：filter_reason 语义标识
 # =====================================================================
-# 当 scan_daily_signals 返回 raw_candidate_count > 0 且 selected_count == 0
-# 且 blocked_market=False 时，说明所有候选被评分/冷却/年度额度/截断等
-# 非市场风控拦截。这种情况必须判为 blocked_market 状态（不是 completed_zero），
-# 否则会发送误导性的"完整扫描后未发现形态"通知（修复 B-3 状态机闭环）
+# 裁决约定（2026-10-18 B-3 状态机闭环）：
+#   - selected_count > 0 → completed_with_signals
+#   - raw_candidate_count > 0 且 selected_count == 0 → 一律判 blocked_market
+#       * 市场层面拦截：filter_reason = trend_filter_reason
+#         （来自 risk_controller.check_market_trend / index_filter /
+#          market_context_unavailable）
+#       * 个股层面拦截：filter_reason = RISK_CONTROLS_FILTERED_ALL
+#         （候选被评分/冷却期/年度额度/每日 TopN 截断全部筛掉，非市场风控）
+#   - raw_candidate_count == 0 → completed_zero
+#
+# 个股层面为何仍用 blocked_market 状态：本次确实完成了原始扫描且有原始候选，
+# 若改判 completed_zero 会退回误导性的"完整扫描后未发现形态"（修复 B-3 的旧 bug）。
+# 因此通知端（scripts/feishu_push.py 的 build_scan_summary_message）必须按
+# filter_reason 区分市场层面与个股层面文案，并以 RISK_CONTROLS_FILTERED_ALL
+# 作为个股层面的判别标识，且不得把该内部常量字符串原样展示给用户。
 RISK_CONTROLS_FILTERED_ALL = "risk_controls_filtered_all_candidates"
 
 

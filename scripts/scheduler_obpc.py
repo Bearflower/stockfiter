@@ -12,6 +12,11 @@ OBPC 超跌反弹策略调度器
   - 重扫幂等：同数据版本已完成的 rescan 不再重扫
   - 启动扫描前 mark_stale_scan_runs_failed 收敛卡死 running
   - 推送幂等从 DB 读 has_pushed / save_push_history，进程内变量仅作查询优化
+
+2026-10-19 R-02 同源修复：
+  - 三处信号日期（22:15 初扫 / 07:30 重扫 / 08:10 推送）统一来自
+    utils.trade_calendar.nearest_trading_date，与 scheduler_kline 写 task_status 的
+    target_date 同源（不再读指数表最新日期），消除「一处指数表、一处交易日历」的日期错配。
 """
 import os
 import sys
@@ -21,8 +26,6 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from zoneinfo import ZoneInfo
-
-import yaml
 
 TZ = ZoneInfo("Asia/Shanghai")
 
@@ -47,7 +50,7 @@ logger = logging.getLogger("obpc_scheduler")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.trade_calendar import is_trading_day
+from utils.trade_calendar import is_trading_day, nearest_trading_date
 
 
 # =====================================================================
@@ -98,7 +101,7 @@ def should_rescan_target(
 
     注意：now_date 保留签名（调用方传入），但判定核心在 target_date，
     这样周六 07:30 可以重扫周五数据，周日不会错误重扫更早日期
-    （因为 get_signal_target_date() 已返回最近一个交易日）。
+    （因为调用方用 nearest_trading_date(now, inclusive=False) 已返回最近一个交易日）。
 
     Args:
         now_date: 自然日（保留签名，内部 del）
@@ -319,41 +322,6 @@ def record_scan_blocked(signal_date: Optional[str], status: str, reason: str) ->
         logger.error("record_scan_blocked 写库失败：%s（不影响阻断语义）", e)
 
 
-def _load_index_code(config_path: str = "config/config.yaml") -> str:
-    """从配置读取大盘指数代码，禁止硬编码"""
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            cfg = yaml.safe_load(f) or {}
-        return (
-            ((cfg.get("strategies") or {}).get("oversold_bounce") or {})
-            .get("params", {})
-            .get("index_filter", {})
-            .get("index_code", "")
-        ) or ""
-    except Exception as e:
-        logger.warning("读取配置 index_code 失败：%s", e)
-        return ""
-
-
-def get_signal_target_date() -> Optional[str]:
-    """取最近一个已完成交易日作为重扫/推送的信号日期基准。"""
-    from data.database import DatabaseManager
-
-    index_code = _load_index_code()
-    if not index_code:
-        return None
-
-    db = DatabaseManager()
-    try:
-        df = db.get_index_kline(index_code, days=1)
-        if df is None or df.empty:
-            return None
-        last = df["date"].iloc[-1]
-        return last.strftime("%Y-%m-%d") if hasattr(last, "strftime") else str(last)[:10]
-    finally:
-        db.close()
-
-
 # =====================================================================
 # 飞书汇总推送幂等（Task 6 Step 3 / 第 9.4 N-3）
 # =====================================================================
@@ -496,7 +464,11 @@ def main() -> None:
                 continue
 
             last_run_scan = today
-            target_date = get_signal_target_date()
+            # 22:15 初扫的信号日期必须与 kline 侧 22:00 写入的 task_status.target_date 同源：
+            # 上方守卫已确认 today 是交易日，22:00 K 线更新计算的 target_date 就是今天
+            # （compute_target_date_for(now) = 最近一个 ≤ today 的交易日 = today），
+            # 因此这里直接用 today，不再读指数表（指数表可能因更新失败而滞后）。
+            target_date = today
             logger.info("=== 22:15 初扫：target_date=%s ===", target_date)
 
             if not target_date or not wait_for_kline_update(target_date):
@@ -537,10 +509,17 @@ def main() -> None:
             last_run_rescan = today
             logger.info("=== 07:30 重扫分支：now_date=%s ===", today)
 
-            # 拿信号基准日期（= 指数最新日期，前一交易日）
-            signal_date = get_signal_target_date()
+            # 拿信号基准日期：07:30 是盘前时段，当天 K 线尚未生成，
+            # 只能重扫「最近一个已收盘交易日」= nearest_trading_date(now, inclusive=False)，
+            # 与 kline 侧 07:00 补全写 task_status 的 target_date 同源（都来自交易日历）。
+            signal_date, date_degraded = nearest_trading_date(now, inclusive=False)
+            logger.info(
+                "07:30 重扫信号日期：%s（交易日历可信度：%s）",
+                signal_date,
+                "weekday 降级" if date_degraded else "Baostock 已验证",
+            )
             if not signal_date:
-                logger.warning("指数最新日期缺失，无法确定重扫信号日期，跳过重扫")
+                logger.warning("交易日历未能确定重扫信号日期（回溯窗口内无交易日），安全跳过重扫")
                 time.sleep(LOOP_INTERVAL)
                 continue
 
@@ -617,12 +596,18 @@ def main() -> None:
                 time.sleep(LOOP_INTERVAL)
                 continue
 
-            # 推送的信号日期 = 前一交易日（= 指数最新日期），与重扫保持一致的语义；
-            # 当天指数数据 22:00 才生成，用当天会找不到 signals_{当天}.json。
-            # 取不到日期时安全跳过，禁止回退「当天」，否则会复现找不到信号文件的问题
-            push_date = get_signal_target_date()
+            # 推送的信号日期 = 「最近一个已收盘交易日」= nearest_trading_date(now, inclusive=False)，
+            # 与 07:30 重扫、kline 侧 07:00 补全保持同一日期语义（同源，保证 signals_{date}.json 找得到）；
+            # 当天数据 22:00 才生成，用当天会找不到 signals_{当天}.json。
+            # 取不到日期时安全跳过，禁止回退「当天」，否则会复现找不到信号文件的问题。
+            push_date, push_degraded = nearest_trading_date(now, inclusive=False)
+            logger.info(
+                "08:10 推送信号日期：%s（交易日历可信度：%s）",
+                push_date,
+                "weekday 降级" if push_degraded else "Baostock 已验证",
+            )
             if not push_date:
-                logger.warning("指数最新日期缺失，无法确定推送信号日期，跳过飞书推送")
+                logger.warning("交易日历未能确定推送信号日期（回溯窗口内无交易日），安全跳过飞书推送")
                 time.sleep(LOOP_INTERVAL)
                 continue
 

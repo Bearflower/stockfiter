@@ -35,6 +35,9 @@ logger = logging.getLogger("kline_scheduler")
 # sys.path 注入放到模块级，但其他初始化（DB 建表、全局 import）收进 main()
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 交易日历：模块级导入以便单测 monkeypatch 该接缝（该模块自身很轻，Baostock 在其内部延迟导入）
+from utils.trade_calendar import nearest_trading_date  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # 可被单测直接调用的纯函数（B3.2：将守卫判断抽离）
@@ -76,6 +79,43 @@ def compute_target_date_for(today: datetime) -> tuple[str | None, bool]:
     """
     from scripts.data.update_kline_daily import DailyKlineUpdater
     return DailyKlineUpdater._compute_target_date(today.date())
+
+
+def compute_backfill_target_date(now: datetime) -> tuple[str | None, bool]:
+    """计算 07:00 历史补全的目标交易日 = 最近一个「已收盘」的交易日（纯函数）。
+
+    与 22:00 K 线更新分支的区别（R-02 日期错配修复）：
+      - 22:00 分支用 compute_target_date_for(now)，语义是「最近一个 ≤ today 的交易日」，
+        因为当日收盘后要采集的正是当天 K 线，target_date 应等于当天（today）。
+      - 07:00 补全分支发生在次日早晨，当天 K 线尚未生成，能被补全的只能是
+        「最近一个已收盘的交易日」——即严格早于 today 的最近交易日。
+
+    为什么必须严格早于 today：
+      07:00 时 today 本身若为交易日，用 compute_target_date_for(now) 会把 target_date
+      写成当天，而当天数据尚不存在，与 OBPC 07:30 侧取用的「最近已收盘交易日」
+      （= 最近一个已收盘交易日，通常是前一交易日）语义不一致。OBPC 的
+      task_status_allows_run 要求 target_date 完全相等，错配会导致 07:30 等 1800s
+      超时后把 backfill_status 强制成 "not_ready" 并跳过重扫。
+
+    实现直接委托 utils.trade_calendar.nearest_trading_date(now, inclusive=False)，
+    与 OBPC 07:30 重扫 / 08:10 推送取用的日期**同一实现、同一回溯窗口**，
+    从根上消除「两处用不同来源算同一天」的错配（R-02）。
+
+    为什么不复用 compute_target_date_for(now - 1 天)：那条路径内部走
+    DailyKlineUpdater._compute_target_date 的 max_backtrack=7，与 trade_calendar 的
+    MAX_LOOKBACK_DAYS=30 不一致——遇到超过 7 天不交易的连续长假（如春节 + 周末）时，
+    它可能返回 None，而 OBPC 侧仍能算出假期前的交易日，于是 target_date 又对不上、
+    07:30 重扫被 fail-closed 阻断。现在两侧共用同一函数，长假期也不分叉。
+
+    Args:
+        now: datetime（带 tzinfo），通常为 07:00 触发时刻
+
+    Returns:
+        tuple[str | None, bool]: (target_date, is_degraded)
+            target_date 为「最近已收盘交易日」，可能为 None（回溯窗口内无交易日）
+            is_degraded=True 表示 is_trading_day 走了 weekday 启发式降级
+    """
+    return nearest_trading_date(now, inclusive=False)
 
 
 # ---------------------------------------------------------------------------
@@ -316,9 +356,15 @@ def main() -> None:
             last_run_backfill = today
             logger.info("=== 执行历史数据补全（07:00 北京）===")
 
-            # 计算目标交易日（与 kline_update 规则一致）
-            target_date, _td_deg = compute_target_date_for(now)
-            logger.info("目标交易日：%s", target_date)
+            # R-02 修复：07:00 补全的目标日 = 最近一个「已收盘」的交易日（严格早于 today），
+            # 与 OBPC 07:30 重扫/08:10 推送取用的「最近已收盘交易日」是同源实现；不再用当天
+            # （当天 K 线尚未生成），也不用指数表最新日期（指数更新失败时会漂移）。
+            target_date, td_deg = compute_backfill_target_date(now)
+            logger.info(
+                "历史补全目标日（最近已收盘交易日）：%s（is_trading_day 可信度：%s）",
+                target_date,
+                "weekday 降级" if td_deg else "Baostock 已验证",
+            )
 
             try:
                 # 同样不 capture_output，让补全日志实时输出到 docker logs

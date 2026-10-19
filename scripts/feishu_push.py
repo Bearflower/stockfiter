@@ -196,7 +196,8 @@ def build_scan_summary_message(
     六态全覆盖：
       - completed_with_signals → 返回 None（走信号卡片流程）
       - completed_zero → "完整扫描后未发现形态"
-      - blocked_market → "发现 N 个原始形态候选，被市场风控拦截"
+      - blocked_market → 按 filter_reason 分流："发现 N 个原始形态候选，被市场风控拦截"
+        （市场层面），或"均未通过个股级筛选，并非市场层面的风控拦截"（个股层面）
       - blocked_data → "数据不完整，本次扫描已阻断"
       - failed → "扫描任务失败，请检查日志"
       - running → 异常语义文本，不抛异常
@@ -230,6 +231,23 @@ def build_scan_summary_message(
         if status == "blocked_market":
             raw_count = run.get("raw_candidate_count", 0)
             reason = run.get("filter_reason") or "未记录原因"
+            # 个股层面（评分/冷却期/年度额度/每日 TopN 截断）筛掉全部候选时，
+            # filter_reason 用 RISK_CONTROLS_FILTERED_ALL 标识，不能推成"市场风控拦截"。
+            # 延迟 import 该常量避免定义漂移；导入失败时回退为同值字面量。
+            try:
+                from scripts.daily_scan import (
+                    RISK_CONTROLS_FILTERED_ALL as _all_filtered_reason,
+                )
+            except Exception:
+                _all_filtered_reason = "risk_controls_filtered_all_candidates"
+            if reason == _all_filtered_reason:
+                return (
+                    header
+                    + f"发现 {raw_count} 个原始形态候选，"
+                    + "均未通过个股级筛选（评分/冷却期/年度额度/每日截断），"
+                    + "并非市场层面的风控拦截。"
+                )
+            # 市场层面拦截（来自 risk_controller 的市场硬过滤）
             return (
                 header
                 + f"发现 {raw_count} 个原始形态候选，但被市场风控拦截：{reason}。"
@@ -337,6 +355,15 @@ def main() -> None:
     if summary_text is None:
         # completed_with_signals → 走信号卡片
         signals = load_signals(signal_date=signal_date)
+        if not signals:
+            # 扫描状态说有信号，但信号文件缺失或为空：属于异常，不能当作推送成功
+            # （否则调度器会误写 push_history，导致该信号日永不重试）
+            print(
+                f"\n错误：扫描状态为 completed_with_signals（有信号），"
+                f"但信号文件缺失/为空（signals/signals_{signal_date}.json）。"
+                f"扫描结果与信号文件不一致，本次推送标记为失败以便下次重试。"
+            )
+            sys.exit(1)
         print(f"\n发现 {len(signals)} 个买入信号（走卡片）")
         for idx, sig in enumerate(signals, 1):
             print(
@@ -354,7 +381,10 @@ def main() -> None:
     if success:
         print("\n推送完成！")
     else:
+        # 推送失败必须以非零退出码结束：调度器用 check=True 判定成功，
+        # 退出码 0 会被误判为已推送并写入 push_history，导致永不重试
         print("\n推送失败，请检查配置")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

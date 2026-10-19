@@ -305,6 +305,11 @@ else:
     run_scan(target_date)
 ```
 
+> **2026-10-19 R-02 同源修复更新**：上述 `get_signal_target_date()`（读指数表最新日期）已废弃。
+> 三处信号日期（22:15 初扫 / 07:30 重扫 / 08:10 推送）统一改由
+> `utils.trade_calendar.nearest_trading_date` 提供，与 `scheduler_kline` 写入 `task_status` 的
+> `target_date` 同源；22:15 分支因已确认当天是交易日，直接取 `today`。上段代码为历史写法，保留以对照。
+
 `main.run_all()` 必须在 `is_complete()` 为 False 时返回非零状态或抛出明确异常，禁止继续调用扫描和推送。
 
 - [ ] **Step 6: 运行测试**

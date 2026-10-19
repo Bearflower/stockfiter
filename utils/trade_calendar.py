@@ -9,10 +9,14 @@
 R-2 修复：缓存改存 (result, degraded_flag) 元组，
 新增 is_trading_day_with_confidence 函数让调用方可靠获知是否走了降级。
 is_trading_day 保持原返回类型 bool 不变（向后兼容）。
+
+R-02 修复：新增 nearest_trading_date，作为流水线「信号日期 / target_date」的
+唯一日期语义实现，供 scheduler_kline 与 scheduler_obpc 两个调度器共用，消除
+「一处靠指数表、一处靠交易日历」的日期错配。
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 logger = logging.getLogger("trade_calendar")
@@ -21,6 +25,11 @@ logger = logging.getLogger("trade_calendar")
 #   degraded=False → Baostock 已确认
 #   degraded=True  → weekday 启发式降级（可信度不足）
 _cache: dict = {}
+
+# 回溯搜索上限（天数）。这只是「回溯搜索上限」这一技术边界，不是可调业务参数：
+# 它仅用于兜住「连续长假 + 周末」的最坏情况，保证 nearest_trading_date 在有限步内收敛；
+# 默认 30 天足以覆盖 A 股最长假期组合（国庆 + 中秋等），远超通常实际需要的 1-3 步。
+MAX_LOOKBACK_DAYS = 30
 
 
 def _query_via_baostock(date_str: str) -> Optional[bool]:
@@ -146,3 +155,66 @@ def is_trading_day_with_confidence(date=None) -> Tuple[bool, bool]:
         date_str = date
 
     return _resolve_with_confidence(date_str)
+
+
+def nearest_trading_date(
+    date=None,
+    inclusive: bool = True,
+    max_lookback_days: int = MAX_LOOKBACK_DAYS,
+) -> Tuple[Optional[str], bool]:
+    """最近交易日（流水线「信号日期 / target_date」的唯一日期语义实现）。
+
+    两个调度器共用本函数，保证同一交易日不会出现两处不同来源：
+      - scheduler_kline：22:00 K 线更新与 07:00 补全写 task_status.target_date
+      - scheduler_obpc：22:15 初扫 / 07:30 重扫 / 08:10 推送取 signal_date
+
+    inclusive 决定「是否包含起点日」，对应流水线的两个时段：
+      - inclusive=True  → 最近一个「≤ date」的交易日（收盘后时段用：当天数据已生成）。
+        对应 scheduler_kline 22:00 K 线更新的 target_date、OBPC 22:15 初扫。
+      - inclusive=False → 严格早于 date 的最近交易日（盘前时段用：当天数据尚未生成，
+        等价于「最近一个已收盘交易日」）。对应 scheduler_kline 07:00 补全、
+        OBPC 07:30 重扫 / 08:10 推送。
+
+    实现：从起点日逐日回退，用 is_trading_day_with_confidence 判定，命中即返回。
+      任一被查日期走了 weekday 降级 → degraded=True（可信度不足要能上报给运维）。
+      超出 max_lookback_days 仍无交易日 → 返回 (None, degraded)（fail-closed，绝不猜日期）。
+
+    不变量（必须与 kline 侧写 task_status 的 target_date 语义一致）：
+      OBPC 重扫/推送使用的 signal_date 与 scheduler_kline 写入的 target_date 必须同源，
+      否则 task_status_allows_run 的「target_date 完全相等」校验会 fail-closed 阻断扫描。
+
+    Args:
+        date: 起点日期，格式同 is_trading_day（str / datetime / date / None=北京时间当天）
+        inclusive: True=含起点日；False=严格早于起点日
+        max_lookback_days: 回溯搜索上限（天数），默认模块常量 MAX_LOOKBACK_DAYS
+
+    Returns:
+        tuple[str | None, bool]: (日期字符串 或 None, is_degraded)
+            日期为 None 表示回溯窗口内无交易日（调用方必须 fail-closed 处理）
+    """
+    # 归一化起点日（datetime.date / str(date)[:10] 均形如 "YYYY-MM-DD"）
+    if date is None:
+        base_date = datetime.now().date()
+    elif isinstance(date, datetime):
+        base_date = date.date()
+    else:
+        base_date = datetime.strptime(str(date)[:10], "%Y-%m-%d").date()
+
+    # inclusive=False 时起点日必须严格早于 date，因此从 date-1 开始回退
+    start_date = base_date if inclusive else base_date - timedelta(days=1)
+
+    degraded = False
+    for offset in range(max_lookback_days):
+        candidate_str = (start_date - timedelta(days=offset)).strftime("%Y-%m-%d")
+        is_td, is_deg = is_trading_day_with_confidence(candidate_str)
+        # 任一被查日期走了降级都累积上报（可信度不足）
+        degraded = degraded or is_deg
+        if is_td:
+            return candidate_str, degraded
+
+    # 回溯窗口内无交易日：fail-closed，返回 None 交由调用方按 guard 语义处理
+    logger.warning(
+        "回溯 %d 天内未找到交易日（起点 %s，inclusive=%s）",
+        max_lookback_days, base_date, inclusive,
+    )
+    return None, degraded

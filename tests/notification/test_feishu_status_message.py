@@ -107,3 +107,40 @@ def test_run_dict_malformed_does_not_raise():
     # 直接测试 status 缺键
     message = build_scan_summary_message("2026-10-16", {})
     assert message is not None
+
+
+# 通知语义修复（P1）：blocked_market 按 filter_reason 区分市场层面 / 个股层面
+
+
+def test_blocked_market_individual_level_not_market_interception():
+    """个股层面筛掉全部候选（RISK_CONTROLS_FILTERED_ALL）不能说"市场风控拦截"，
+    且不能把内部常量字符串原样展示给用户"""
+    from scripts.daily_scan import RISK_CONTROLS_FILTERED_ALL
+
+    run = {
+        "status": "blocked_market",
+        "raw_candidate_count": 4,
+        "selected_count": 0,
+        "filter_reason": RISK_CONTROLS_FILTERED_ALL,
+    }
+    message = build_scan_summary_message("2026-10-16", run)
+    assert message is not None
+    assert "4 个原始形态候选" in message
+    assert "市场风控拦截" not in message
+    assert RISK_CONTROLS_FILTERED_ALL not in message
+    assert "个股级筛选" in message
+
+
+def test_blocked_market_market_level_keeps_market_wording():
+    """市场层面拦截（filter_reason 非个股全筛标识）必须出现"市场风控拦截" """
+    run = {
+        "status": "blocked_market",
+        "raw_candidate_count": 7,
+        "selected_count": 0,
+        "filter_reason": "MACD DIF < 0",
+    }
+    message = build_scan_summary_message("2026-10-16", run)
+    assert message is not None
+    assert "7 个原始形态候选" in message
+    assert "市场风控拦截" in message
+    assert "MACD DIF < 0" in message

@@ -6,6 +6,16 @@ version: '3.8'
 # 镜像来自 GHCR：ghcr.io/bearflower/stockfilter-xxx:latest
 # 配置文件 config.yaml 通过 volume 挂载，不进镜像
 # 改配置 → 重启容器生效，无需重新构建
+#
+# ⚠️ 禁止挂载宿主机的 ./data 到容器内 /app/data（历史事故：曾用 `./data:/app/data:ro`）
+#   原因：两个 Dockerfile 都是 `COPY . /app/`，镜像内 /app/data 已包含 database.py、
+#   fetcher.py 等全部 Python 代码。挂载宿主机 ./data 会把服务器上的旧版代码覆盖到容器，
+#   导致生产容器跑旧数据库模块（task_status 缺列、scan_runs 表不存在等）。
+#   容器内运行的脚本（scheduler_kline.py / scheduler_obpc.py / daily_scan.py /
+#   feishu_push.py / update_kline_daily.py / quick_backfill.py / advisor）都不读
+#   /app/data 下的本地文件；配置里的股票池路径是 /app/main_board_stocks.csv（镜像根目录）。
+#   若将来确有子目录数据需求，只挂载必要子路径（如 ./data/backtest:/app/data/backtest:ro），
+#   绝不整体挂载 ./data。
 # ============================================================
 
 services:
@@ -25,7 +35,6 @@ services:
       - PYTHONPATH=/app
     volumes:
       - ./logs:/app/logs
-      - ./data:/app/data:ro
       - ./config/config.yaml:/app/config/config.yaml:ro
     restart: unless-stopped
     networks:
@@ -63,7 +72,6 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./output:/app/output
-      - ./data:/app/data:ro
       - ./signals:/app/signals              # R05：OBPC 信号目录持久化（容器重启后不丢失）
       - ./config/config.yaml:/app/config/config.yaml:ro
     restart: unless-stopped

@@ -150,6 +150,10 @@ class BacktestConfig:
     scheme_description: str = ""
     """回测方案描述（用于报告 meta）"""
 
+    # CSV 数据源（可选，用于无 DB 环境下的本地回测）
+    csv_data_dir: Optional[str] = None
+    """本地 CSV 数据目录（含 stocks_mainboard.csv / klines_mainboard.csv / hs300_index.csv）；None 时走 DB 路径"""
+
     def __post_init__(self):
         """H：统一兜底交易参数，禁止字段级硬编码。
 
@@ -446,35 +450,77 @@ class BacktestDataLoader:
     """
     回测数据加载器
 
-    负责从数据库加载股票列表、K 线数据和指数数据
+    支持两种数据源：
+        - 默认：DatabaseManager（PostgreSQL），生产路径
+        - CSV 分支：传入 csv_dir 后从本地 CSV 读（用于 DB 不可达时的本地回测）
+
+    两种路径返回的 DataFrame 列契约必须完全一致，确保上层回测引擎无感知。
     """
 
-    def __init__(self, db: DatabaseManager, config: BacktestConfig):
+    # CSV 文件名常量：CSV 数据源分支的固定文件名（本地回测专用，非业务参数）
+    _CSV_STOCKS_FILE = "stocks_mainboard.csv"
+    _CSV_KLINES_FILE = "klines_mainboard.csv"
+    _CSV_INDEX_FILE = "hs300_index.csv"
+
+    def __init__(
+        self,
+        config: BacktestConfig,
+        db: Optional[DatabaseManager] = None,
+        csv_dir: Optional[str] = None,
+    ):
         """
         初始化数据加载器
 
         Args:
-            db: 数据库管理器
             config: 回测配置
+            db: 数据库管理器（DB 路径必填，CSV 路径传 None）
+            csv_dir: 本地 CSV 数据目录（CSV 路径必填，DB 路径传 None）
+
+        Raises:
+            ValueError: db 和 csv_dir 同时为 None 或同时有值时抛出
         """
+        # 数据源互斥校验（二选一，避免歧义）
+        if db is None and csv_dir is None and config.csv_data_dir is None:
+            raise ValueError(
+                "BacktestDataLoader 必须指定 db 或 csv_dir（或 config.csv_data_dir）之一"
+            )
+        if db is not None and csv_dir is not None:
+            raise ValueError("BacktestDataLoader 只能使用一种数据源：db 或 csv_dir，不可同时指定")
+
         self.db = db
+        # 显式传参优先；否则从 config.csv_data_dir 读取（CLI --data-dir 注入到 config）
+        self.csv_dir = csv_dir or config.csv_data_dir
         self.config = config
-        # K 线缓存：回测区间内所有股票的日线，首次 load_kline_data 时从 DB 批量加载
+        # K 线缓存：回测区间内所有股票的日线，首次 load_kline_data 时批量加载
         self._klines_cache: Optional[pd.DataFrame] = None
+
+        if self.csv_dir:
+            logger.info(f"数据加载器：CSV 模式，目录 = {self.csv_dir}")
+        else:
+            logger.info("数据加载器：DB 模式")
+
+    # ==================== 股票列表 ====================
 
     def load_stock_list(self) -> pd.DataFrame:
         """
         加载主板股票列表
 
+        DB 路径：db.get_stock_list() 后复用项目标准 filter_stock_list 过滤
+        CSV 路径：读 stocks_mainboard.csv 后同样复用 filter_stock_list 过滤
+
         Returns:
-            pd.DataFrame: 股票列表，包含 code, name 列
+            pd.DataFrame: 股票列表，包含 code, name 列（过滤后）
         """
-        df = self.db.get_stock_list()
+        if self.csv_dir is not None:
+            df = self._load_stocks_from_csv()
+        else:
+            df = self.db.get_stock_list()
+
         if df is None or df.empty:
-            logger.error("数据库中无股票列表数据")
+            logger.error("无股票列表数据")
             return pd.DataFrame()
 
-        # 应用项目标准的股票池过滤
+        # 应用项目标准的股票池过滤（CSV/DB 共用同一过滤管线）
         filtered_df = filter_stock_list(df, self.config.stock_filter)
         logger.info(f"过滤后待回测股票数：{len(filtered_df)} 只")
 
@@ -485,14 +531,71 @@ class BacktestDataLoader:
 
         return filtered_df
 
-    def _ensure_klines_cache(self) -> None:
-        """懒加载 K 线缓存：一次性从 DB 批量拉取回测区间内所有股票的日线
+    def _load_stocks_from_csv(self) -> pd.DataFrame:
+        """CSV 路径加载股票列表（返回原始 DataFrame，后续统一过 filter_stock_list）"""
+        import os
+        path = os.path.join(self.csv_dir, self._CSV_STOCKS_FILE)
+        if not os.path.exists(path):
+            logger.error(f"CSV 股票列表文件不存在：{path}")
+            return pd.DataFrame()
+        df = pd.read_csv(path, dtype={"code": str})
+        logger.info(f"CSV 股票列表：{len(df)} 行，列 = {list(df.columns)}")
+        return df
 
-        单次大查询替代逐股票小查询，显著减少 PostgreSQL 往返开销。
-        回测区间内约 80 万行，内存占用 < 100MB。
+    # ==================== K 线缓存 ====================
+
+    def _ensure_klines_cache(self) -> None:
+        """懒加载 K 线缓存：一次性批量拉取回测区间内所有股票的日线
+
+        CSV 路径：读 klines_mainboard.csv 后按 config.start_date/end_date 过滤
+        DB 路径：原有 pd.read_sql_query 批量查询
+
+        两种路径都保证缓存 DataFrame 的列契约为 [code, date, open, high, low, close, volume, amount]
+        且 date 为 datetime64，排序为 (code, date) ASC。
         """
         if self._klines_cache is not None:
             return
+
+        if self.csv_dir is not None:
+            self._ensure_klines_cache_csv()
+        else:
+            self._ensure_klines_cache_db()
+
+    def _ensure_klines_cache_csv(self) -> None:
+        """CSV 路径批量加载 K 线缓存"""
+        import os
+        path = os.path.join(self.csv_dir, self._CSV_KLINES_FILE)
+        if not os.path.exists(path):
+            logger.error(f"CSV K 线文件不存在：{path}")
+            self._klines_cache = pd.DataFrame()
+            return
+
+        logger.info(
+            f"CSV 批量加载回测区间 K 线：{self.config.start_date} ~ {self.config.end_date}"
+        )
+        df = pd.read_csv(path, dtype={"code": str})
+        df["date"] = pd.to_datetime(df["date"])
+
+        # 按回测时间区间过滤
+        start_ts = pd.to_datetime(self.config.start_date)
+        end_ts = pd.to_datetime(self.config.end_date)
+        df = df[(df["date"] >= start_ts) & (df["date"] <= end_ts)]
+
+        if df.empty:
+            logger.warning(f"CSV K 线按 {self.config.start_date} ~ {self.config.end_date} 过滤后为空")
+            self._klines_cache = pd.DataFrame()
+            return
+
+        df = df.sort_values(["code", "date"]).reset_index(drop=True)
+        self._klines_cache = df
+        logger.info(
+            f"CSV K 线缓存加载完成：{len(df)} 行，"
+            f"{df['code'].nunique()} 只股票，"
+            f"日期范围 {df['date'].min().date()} ~ {df['date'].max().date()}"
+        )
+
+    def _ensure_klines_cache_db(self) -> None:
+        """DB 路径批量加载 K 线缓存（原有逻辑，不变）"""
         query = """
             SELECT code, date, open, high, low, close, volume, amount
             FROM klines
@@ -525,13 +628,11 @@ class BacktestDataLoader:
         """
         加载单只股票的完整 K 线数据（回测区间内）
 
-        优先从缓存读取（_ensure_klines_cache 懒加载），缓存不可用时回退到逐股票 SQL 查询。
-
-        Args:
-            code: 股票代码
+        CSV 路径：只读缓存，无逐股票 SQL 回退（CSV 全量加载已包含全部股票）
+        DB 路径：优先缓存，缓存不可用时回退到逐股票 SQL 查询
 
         Returns:
-            Optional[pd.DataFrame]: K 线数据，包含 date, open, high, low, close, volume, amount
+            Optional[pd.DataFrame]: K 线数据，包含 date, open, high, low, close, volume, amount（已去掉 code 列，与 DB 路径一致）
         """
         self._ensure_klines_cache()
         if self._klines_cache is not None and not self._klines_cache.empty:
@@ -541,7 +642,11 @@ class BacktestDataLoader:
             df = df.drop(columns=["code"]).reset_index(drop=True)
             return df
 
-        # 回退路径：逐股票 SQL 查询
+        # 回退路径：仅 DB 模式下可用的逐股票 SQL 查询
+        if self.csv_dir is not None:
+            # CSV 模式下缓存为空即意味着该 code 不在数据集中，不再尝试其它路径
+            return None
+
         query = """
             SELECT date, open, high, low, close, volume, amount
             FROM klines
@@ -563,13 +668,22 @@ class BacktestDataLoader:
             logger.warning(f"加载 {code} K 线数据失败：{e}")
             return None
 
+    # ==================== 指数数据 ====================
+
     def load_index_data(self) -> Optional[pd.DataFrame]:
         """
         加载大盘指数数据（用于大盘过滤）
 
+        CSV 路径：读 hs300_index.csv，按 start_date/end_date 过滤
+        DB 路径：原有 pd.read_sql_query
+
         Returns:
-            Optional[pd.DataFrame]: 指数 K 线数据
+            Optional[pd.DataFrame]: 指数 K 线数据，包含 date, open, high, low, close, volume, amount（与 DB 路径列契约完全一致）
         """
+        if self.csv_dir is not None:
+            return self._load_index_from_csv()
+
+        # DB 路径（原有逻辑，不变）
         # 将 000300.SH 转为数据库中的代码格式
         index_code = self.config.index_code.replace(".SH", "").replace(".SZ", "")
         query = """
@@ -594,6 +708,40 @@ class BacktestDataLoader:
         except Exception as e:
             logger.warning(f"加载指数数据失败：{e}")
             return None
+
+    def _load_index_from_csv(self) -> Optional[pd.DataFrame]:
+        """CSV 路径加载沪深 300 指数数据
+
+        CSV 列：code,frequency,date,open,high,low,close,volume,amount
+        DB 路径返回列：date,open,high,low,close,volume,amount
+        所以这里读完后去掉 code 和 frequency 列，保持与 DB 路径列契约一致。
+        """
+        import os
+        path = os.path.join(self.csv_dir, self._CSV_INDEX_FILE)
+        if not os.path.exists(path):
+            logger.error(f"CSV 指数文件不存在：{path}")
+            return None
+
+        df = pd.read_csv(path)
+        df["date"] = pd.to_datetime(df["date"])
+
+        # 按回测时间区间过滤
+        start_ts = pd.to_datetime(self.config.start_date)
+        end_ts = pd.to_datetime(self.config.end_date)
+        df = df[(df["date"] >= start_ts) & (df["date"] <= end_ts)]
+
+        if df.empty:
+            logger.warning(
+                f"CSV 指数按 {self.config.start_date} ~ {self.config.end_date} 过滤后为空，"
+                f"大盘过滤将失效"
+            )
+            return None
+
+        # 去掉 CSV 独有的 code / frequency 列，保持与 DB 路径返回的列契约完全一致
+        df = df.drop(columns=["code", "frequency"], errors="ignore")
+        df = df.sort_values("date").reset_index(drop=True)
+        logger.info(f"CSV 指数 {self.config.index_code} 数据：{len(df)} 条")
+        return df
 
     def build_index_ma_filter(self, index_df: Optional[pd.DataFrame]) -> Dict:
         """
@@ -1154,13 +1302,9 @@ class BacktestEngine:
                     elif risk_result.filter_rule == "score_adjustment":
                         self.stats["skipped_score_adjustment"] += 1
 
-                    logger.info(
-                        f"[风控过滤] code={code} name={name} "
-                        f"rule={risk_result.filter_rule} "
-                        f"reason={risk_result.filter_reason} "
-                        f"score={signal.score:.2f} "
-                        f"signal_date={signal_date}"
-                    )
+                    # 注意：风控拦截的逐条日志已移除（原 logger.info），避免回测高频 IO 拖慢速度
+                    # 过滤规则命中统计已在上方累加到 stats（skipped_macd_filter 等），
+                    # 回测结束后的汇总报告会展示各规则的拦截笔数，无需逐条记录
                     continue
 
             last_signal_idx = i
@@ -1614,8 +1758,8 @@ def _process_stock_worker(task: Dict) -> List[Dict]:
     """
     子进程工作函数：处理单只股票的回测
 
-    每只股票创建独立的数据库连接，处理完成后关闭
-    避免多进程共享连接导致的状态问题
+    DB 模式：每只股票创建独立的数据库连接，处理完成后关闭
+    CSV 模式：跳过 DB 连接，DataLoader 自动走 CSV 分支
 
     Args:
         task: 包含 code, name 的任务字典
@@ -1628,10 +1772,11 @@ def _process_stock_worker(task: Dict) -> List[Dict]:
     code = task["code"]
     name = task.get("name", code)
 
-    # 每只股票创建独立的数据库连接
-    db = DatabaseManager()
+    # CSV 模式下跳过 DB 连接
+    csv_mode = _WORKER_CONFIG is not None and _WORKER_CONFIG.csv_data_dir is not None
+    db = None if csv_mode else DatabaseManager()
     try:
-        data_loader = BacktestDataLoader(db, _WORKER_CONFIG)
+        data_loader = BacktestDataLoader(_WORKER_CONFIG, db=db)
         engine = BacktestEngine(
             _WORKER_CONFIG, _WORKER_STRATEGY, data_loader, _WORKER_SIMULATOR
         )
@@ -1643,7 +1788,8 @@ def _process_stock_worker(task: Dict) -> List[Dict]:
         logger.error(f"回测 {code} 异常：{e}")
         return []
     finally:
-        db.close()
+        if db is not None:
+            db.close()
 
 
 def main():
@@ -1683,6 +1829,14 @@ def main():
         "--scheme", type=int, default=None, choices=[1, 2, 3, 4, 5, 6],
         help="V2.1 回测方案编号（1/2/3/4/5/6），不指定则使用 config.yaml 默认配置"
     )
+    parser.add_argument(
+        "--data-dir", default=None,
+        help=(
+            "本地 CSV 数据目录（含 stocks_mainboard.csv / klines_mainboard.csv / "
+            "hs300_index.csv），传入后走 CSV 数据源，不连接生产 PostgreSQL。"
+            "默认不传即走 DB 路径（零回归）。"
+        )
+    )
     args = parser.parse_args()
 
     # 加载回测配置
@@ -1695,6 +1849,14 @@ def main():
     )
     # 覆盖滑动步长
     config.step_days = args.step
+
+    # CSV 数据源：--data-dir 传入后走本地 CSV，不连 DB
+    # 默认不传 = None，保持原 DB 路径零回归
+    config.csv_data_dir = args.data_dir
+    if args.data_dir is not None:
+        logger.info(f"数据源：CSV 模式，目录 = {args.data_dir}（跳过 PostgreSQL 连接）")
+    else:
+        logger.info("数据源：DB 模式（默认）")
 
     # V2.1 新增：应用回测方案配置覆盖
     if args.scheme is not None and config.risk_control_config is not None:
@@ -1745,8 +1907,10 @@ def main():
         if risk_enabled:
             # ===== 单进程回测（启用风控时） =====
             # 使用 BacktestEngine.run 方法，确保风控控制器的单月计数器准确
-            db = DatabaseManager()
-            data_loader = BacktestDataLoader(db, config)
+            # CSV 模式下跳过 DB 连接，db=None；DataLoader 自动走 CSV 分支
+            csv_mode = config.csv_data_dir is not None
+            db = None if csv_mode else DatabaseManager()
+            data_loader = BacktestDataLoader(config, db=db)
             strategy = OversoldBounceStrategy(params=config.strategy_params)
             trade_simulator = TradeSimulator(config)
             engine = BacktestEngine(config, strategy, data_loader, trade_simulator)
@@ -1759,7 +1923,8 @@ def main():
             if engine.risk_controller is not None:
                 risk_control_stats = engine.risk_controller.get_stats()
 
-            db.close()
+            if db is not None:
+                db.close()
 
             # 生成并输出报告
             report = reporter.generate_report(trades, stats, risk_control_stats)
@@ -1768,9 +1933,10 @@ def main():
 
         else:
             # ===== 多进程回测（未启用风控时，保持原有逻辑） =====
-            # 主进程加载数据库连接，用于获取股票列表和指数数据
-            db = DatabaseManager()
-            data_loader = BacktestDataLoader(db, config)
+            # CSV 模式下跳过 DB 连接，DataLoader 自动走 CSV 分支
+            csv_mode = config.csv_data_dir is not None
+            db = None if csv_mode else DatabaseManager()
+            data_loader = BacktestDataLoader(config, db=db)
 
             # 加载股票列表
             stock_df = data_loader.load_stock_list()
@@ -1791,7 +1957,8 @@ def main():
                         logger.warning("大盘过滤字典为空，自动关闭大盘过滤")
                         config.index_filter_enabled = False
 
-            db.close()
+            if db is not None:
+                db.close()
 
             # 构建任务列表
             tasks = [
