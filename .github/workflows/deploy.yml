@@ -139,6 +139,19 @@ jobs:
           echo "📥 下载 docker-compose.yml..."
           curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/main/docker-compose.yml" -o docker-compose.yml
 
+          # 1b. 同步 config/config.yaml（CI 不打包 config，靠 volume 挂载注入）：
+          #     与服务器现有文件比对，有变化才替换，并置 NEED_RESTART=1 供步骤 4b 重启加载
+          echo "📥 下载 config/config.yaml..."
+          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/main/config/config.yaml" -o /tmp/config.yaml.new
+          if ! cmp -s /tmp/config.yaml.new config/config.yaml; then
+            echo "♻️  config.yaml 有变化，已更新（将重启容器以生效）"
+            mv /tmp/config.yaml.new config/config.yaml
+            NEED_RESTART=1
+          else
+            echo "✅ config.yaml 无变化"
+            rm -f /tmp/config.yaml.new
+          fi
+
           # 2. GHCR 认证
           echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u bearflower --password-stdin
 
@@ -149,6 +162,13 @@ jobs:
           # 4. 更新所有容器
           echo "🔄 docker compose up -d..."
           docker compose up -d --remove-orphans
+
+          # 4b. config.yaml 有变化时重启容器：config 走 volume 挂载，
+          #     若镜像未变则 up -d 不会重建容器、进程不会重读配置，必须 restart 才生效
+          if [ "\$NEED_RESTART" = "1" ]; then
+            echo "🔄 重启容器以加载新 config.yaml..."
+            docker compose restart
+          fi
 
           # 5. 等就绪
           echo "⏳ 等待 15s..."
