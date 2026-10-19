@@ -5,15 +5,21 @@
 策略：优先使用 Baostock 交易日历（含法定节假日），
       Baostock 不可用时降级为 weekday 启发式（周一至周五）。
       结果按日期字符串 YYYY-MM-DD 做进程级缓存，避免重复请求。
+
+R-2 修复：缓存改存 (result, degraded_flag) 元组，
+新增 is_trading_day_with_confidence 函数让调用方可靠获知是否走了降级。
+is_trading_day 保持原返回类型 bool 不变（向后兼容）。
 """
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 
 logger = logging.getLogger("trade_calendar")
 
-# 日级缓存：key="YYYY-MM-DD", value=True/False
+# 日级缓存：key="YYYY-MM-DD", value=(result: bool, degraded: bool)
+#   degraded=False → Baostock 已确认
+#   degraded=True  → weekday 启发式降级（可信度不足）
 _cache: dict = {}
 
 
@@ -64,8 +70,36 @@ def _fallback_weekday(date_str: str) -> bool:
     return dt.weekday() < 5
 
 
-def is_trading_day(date=None):
-    """判断指定日期是否为 A 股交易日。
+def _resolve_with_confidence(date_str: str) -> Tuple[bool, bool]:
+    """内部统一解析：返回 (是否交易日, 是否降级)。
+
+    供 is_trading_day 和 is_trading_day_with_confidence 共用。
+    命中缓存直接返回，否则查询 Baostock、失败则 weekday 降级。
+    """
+    # 命中缓存直接返回元组
+    if date_str in _cache:
+        return _cache[date_str]
+
+    # 优先走 Baostock
+    result = _query_via_baostock(date_str)
+    if result is not None:
+        _cache[date_str] = (result, False)
+        logger.info("交易日判断 [%s] = %s (Baostock)", date_str, "交易日" if result else "非交易日")
+        return result, False
+
+    # 降级：weekday 启发式
+    fallback_result = _fallback_weekday(date_str)
+    _cache[date_str] = (fallback_result, True)
+    logger.info(
+        "交易日判断 [%s] = %s (weekday 降级)",
+        date_str,
+        "交易日" if fallback_result else "非交易日",
+    )
+    return fallback_result, True
+
+
+def is_trading_day(date=None) -> bool:
+    """判断指定日期是否为 A 股交易日（R-2 保持原签名不变）。
 
     Args:
         date: 日期，支持以下格式
@@ -84,23 +118,31 @@ def is_trading_day(date=None):
     else:
         date_str = date
 
-    # 命中缓存直接返回
-    if date_str in _cache:
-        return _cache[date_str]
-
-    # 优先走 Baostock
-    result = _query_via_baostock(date_str)
-    if result is not None:
-        _cache[date_str] = result
-        logger.info("交易日判断 [%s] = %s (Baostock)", date_str, "交易日" if result else "非交易日")
-        return result
-
-    # 降级：weekday 启发式
-    result = _fallback_weekday(date_str)
-    _cache[date_str] = result
-    logger.info(
-        "交易日判断 [%s] = %s (weekday 降级)",
-        date_str,
-        "交易日" if result else "非交易日",
-    )
+    result, _ = _resolve_with_confidence(date_str)
     return result
+
+
+def is_trading_day_with_confidence(date=None) -> Tuple[bool, bool]:
+    """R-2 新增：判断交易日并同时返回可信度。
+
+    与 is_trading_day 共用同一缓存，不增加额外请求；
+    让调用方（如 update_kline_daily._compute_target_date）
+    可靠获知是否走了 weekday 降级。
+
+    Args:
+        date: 同 is_trading_day
+
+    Returns:
+        tuple[bool, bool]: (is_trading_day, is_degraded)
+            is_degraded=False → Baostock 已确认，可信度高
+            is_degraded=True  → weekday 启发式降级，可信度不足
+    """
+    # 统一转换为日期字符串
+    if date is None:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+    elif isinstance(date, datetime):
+        date_str = date.strftime("%Y-%m-%d")
+    else:
+        date_str = date
+
+    return _resolve_with_confidence(date_str)

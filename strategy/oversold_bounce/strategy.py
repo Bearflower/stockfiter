@@ -146,24 +146,109 @@ class OversoldBounceStrategy(BaseStrategy):
 
         return signal
 
-    def _detect_pattern(
-        self, df: pd.DataFrame, code: str
-    ) -> Optional[Dict]:
+    def analyze_candidates(
+        self,
+        code: str,
+        data: Dict[str, pd.DataFrame],
+        max_candidates: Optional[int] = None,
+    ) -> List[Signal]:
         """
-        检测形态（遍历所有大跌，返回第一个完整走通大跌→缩量→放量→回踩→流动性的形态）
+        返回该股票上**所有完整形态**对应的信号，按回踩日**新→旧**排序。
+
+        用于 daily_scan.py 的 N-2 窗口回退：当最新候选落在信号窗口外时，
+        可以继续向更早候选评估，直到命中窗口内候选或耗尽。
+        ``analyze()`` 保持返回**最新一个**完整形态，本接口返回完整列表。
 
         Args:
-            df: K 线数据
+            code: 股票代码
+            data: K 线数据字典，key='d' 对应日线 DataFrame
+            max_candidates: 最多返回多少个候选。None 表示不设上限；
+                设定上限可避免在超长历史数据上遍历爆炸。
+
+        Returns:
+            List[Signal]: 按回踩日期降序（新→旧）排列的完整形态信号列表。
+                空列表表示没有任何完整形态。已对每个候选计算评分。
+        """
+        df = data.get('d')
+        if df is None or len(df) < 60:
+            logger.debug(f"{code} 数据不足60天，跳过 analyze_candidates")
+            return []
+
+        df = df.copy()
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date').reset_index(drop=True)
+
+        # 收集所有完整形态的原始 dict
+        raw_patterns = self._detect_all_patterns(df, code)
+
+        signals: List[Signal] = []
+        for pattern in raw_patterns:
+            retrace_date = pattern.get('retrace_date')
+            if isinstance(retrace_date, pd.Timestamp):
+                retrace_date = retrace_date.strftime('%Y-%m-%d')
+            elif isinstance(retrace_date, datetime):
+                retrace_date = retrace_date.strftime('%Y-%m-%d')
+
+            signal = Signal(
+                code=code,
+                signal_type='buy',
+                signal_date=str(retrace_date) if retrace_date else "",
+                strategy_name=self.name,
+                strategy_version=self.version,
+                detail={
+                    'support_level': pattern.get('support_level', 0),
+                    'surge_date': str(pattern.get('surge_date', '')),
+                    'surge_close': pattern.get('surge_close', 0),
+                    'surge_pct': pattern.get('surge_pct', 0),
+                    'surge_volume_ratio': pattern.get('surge_volume_ratio', 0),
+                    'drop_rate': pattern.get('drop_rate', 0),
+                    'retrace_date': str(retrace_date) if retrace_date else "",
+                    'retrace_close': pattern.get('retrace_close', 0),
+                    'retrace_low': pattern.get('retrace_low', 0),
+                    'drop_change': pattern.get('drop_change', 0),
+                    'drop_start_date': str(pattern.get('drop_start_date', '')),
+                    'drop_end_date': str(pattern.get('drop_end_date', '')),
+                    'shrink_date': str(pattern.get('shrink_date', '')),
+                    'shrink_ratio': pattern.get('shrink_ratio', 0.6),
+                },
+                backtest_params=self.get_backtest_params(),
+            )
+            signal.score = self.score(signal)
+            signals.append(signal)
+
+        # 按回踩日期降序排列（新→旧）
+        signals.sort(key=lambda s: s.detail.get('retrace_date', ''), reverse=True)
+
+        if max_candidates is not None and max_candidates > 0:
+            signals = signals[:max_candidates]
+
+        return signals
+
+    def _detect_all_patterns(
+        self, df: pd.DataFrame, code: str
+    ) -> List[Dict]:
+        """
+        检测该股票上**所有**完整形态（反向遍历，收集全部命中）
+
+        复用 ``_detect_pattern`` 的反向 drop 窗口评估逻辑，
+        但在 ``_try_complete_pattern`` 命中时不立即返回，而是收集到列表中。
+        由 ``analyze()`` 取最新一个、``analyze_candidates()`` 返回完整列表。
+
+        Args:
+            df: K 线数据（已按 date 升序）
             code: 股票代码
 
         Returns:
-            Optional[Dict]: 匹配的形态信息
+            List[Dict]: 所有完整形态的原始信息 dict，drop 窗口评估顺序为新→旧，
+                但列表中元素顺序取决于各个 drop 窗口内的放量/回踩位置，
+                最终需按 retrace_date 降序重新排列。
         """
         p = self.params
         drop_window = p.get('drop_window', 20)
+        collected: List[Dict] = []
 
-        # 1. 遍历所有大跌窗口，每个都尝试走完整流程
-        for i in range(drop_window, len(df)):
+        # 反向遍历所有大跌窗口（从新到旧）
+        for i in range(len(df) - 1, drop_window - 1, -1):
             window_df = df.iloc[i - drop_window:i + 1]
             high_price = window_df['high'].max()
             low_price = window_df['low'].min()
@@ -181,14 +266,40 @@ class OversoldBounceStrategy(BaseStrategy):
             drop_start_idx = high_idx
             drop_end_idx = low_idx
 
-            # 2. 从这个大跌开始，尝试检测缩量→放量→回踩→流动性
+            # 从这个大跌开始，尝试检测缩量→放量→回踩→流动性
             result = self._try_complete_pattern(
                 df, code, p, drop_start_idx, drop_end_idx
             )
             if result is not None:
-                return result
+                collected.append(result)
 
-        return None
+        return collected
+
+    def _detect_pattern(
+        self, df: pd.DataFrame, code: str
+    ) -> Optional[Dict]:
+        """
+        检测形态：返回**最新**完整形态的原始 dict（按 retrace_date 降序取第一个）
+
+        本方法是 ``analyze()`` 的核心入口，委托给 ``_detect_all_patterns`` 后
+        按回踩日期取最新一个，避免与 ``analyze_candidates`` 的遍历逻辑分叉。
+
+        Args:
+            df: K 线数据（已按 date 升序）
+            code: 股票代码
+
+        Returns:
+            Optional[Dict]: 最新完整形态信息；无任何完整形态时返回 None
+        """
+        all_patterns = self._detect_all_patterns(df, code)
+        if not all_patterns:
+            return None
+        # 按 retrace_date 降序取最新一个
+        all_patterns.sort(
+            key=lambda p: str(p.get('retrace_date', '')),
+            reverse=True,
+        )
+        return all_patterns[0]
 
     def _try_complete_pattern(
         self, df: pd.DataFrame, code: str, p: Dict,

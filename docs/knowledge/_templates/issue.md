@@ -1,7 +1,7 @@
 ---
 id: <项目>-<YYYYMMDD>-<slug>
 类型: issue
-项目: <项目名>
+项目: stockfilter_v3
 标题: <一句话描述问题>
 日期: <YYYY-MM-DD>
 标签: [<类型如 bug/优化/配置>, <模块>]

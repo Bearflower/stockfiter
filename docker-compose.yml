@@ -20,7 +20,7 @@ services:
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-stockfilter}
       - DB_USER=${DB_USER:-stockfilter_user}
-      - DB_PASSWORD=${DB_PASSWORD:-Stock@2024}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
       - PYTHONPATH=/app
     volumes:
@@ -55,7 +55,7 @@ services:
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-stockfilter}
       - DB_USER=${DB_USER:-stockfilter_user}
-      - DB_PASSWORD=${DB_PASSWORD:-Stock@2024}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
       - PYTHONPATH=/app
       - KLINE_WAIT_TIMEOUT=1800

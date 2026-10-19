@@ -164,6 +164,12 @@ jobs:
           DEPLOY_TIME="\$(date '+%Y-%m-%d %H:%M:%S')"
           echo "[\${DEPLOY_TIME}] DEPLOY_SUCCESS commit=${{ github.sha }}" >> "deploy_logs/\$(date '+%Y%m%d').log"
 
+          # 8. 清理悬空镜像（pull 新 latest 后旧镜像残留，防磁盘堆积打满）
+          #    只删未被任何容器使用的悬空镜像，保留被 stopped 容器占用的旧版本镜像，
+          #    失败不阻断部署结果
+          echo "🧹 清理悬空镜像..."
+          docker image prune -f || true
+
           echo ""
           echo "🎉 stockfilter_v3 CI/CD 部署完成！"
           REMOTE

@@ -27,6 +27,28 @@ global:
     exclude_new_stocks: true        # 剔除次新股
     new_stock_cutoff_date: "2025-01-01"
     main_board_only: true           # 只保留主板（深000/001/002 沪600/601/603/605）
+    # ---- 以下前缀/关键词列表可覆盖 data.database.filter_stock_pool 的默认值 ----
+    # 北交所代码前缀列表（含 920 开关的新代码段；430xxx 由新三板规则覆盖）
+    beijing_prefixes: ["83", "87", "920"]
+    # 新三板代码前缀列表（仅 43xxx，8xx 已被北交所覆盖）
+    new_third_board_prefixes: ["43"]
+    # 主板仅保留的代码前缀（深 000/001/002，沪 600/601/603/605）
+    main_board_prefixes: ["000", "001", "002", "600", "601", "603", "605"]
+    # 指数/ETF/基金名称关键词（用于 name 列模糊匹配取并集，避免"原来被排除、现在被保留"的回归）
+    exclude_index_keywords:
+      - "指数"
+      - "ETF"
+      - "基金"
+      - "B股"
+      - "上证"
+      - "深证"
+      - "中证"
+      - "全指"
+      - "等权"
+      - "基本"
+      - "新兴"
+      - "国企"
+      - "海外"
 
   # 通知配置
   notification:
@@ -55,11 +77,14 @@ global:
     days_to_update: 5              # C-1：更新最近多少天的数据（防止遗漏）
     request_timeout_seconds: 15    # 单股抓取超时（秒）
     request_interval_seconds: 0.05 # M-2：每次请求后休眠时间（秒），限流防止触发 Baostock API
+    target_date_max_backtrack: 7   # P1：计算目标交易日时最多回溯的自然日数（覆盖周末+常见节假日；春节例外时兜底到库内最新交易日）
     failure_rate_threshold: 0.7    # 滑动窗口失败率熔断阈值
     failure_window_size: 100       # 滑动窗口大小（最近 N 次请求）
     failure_window_min_samples: 50 # 熔断判定最小样本数
     total_failure_limit: 200       # 累计失败硬上限（单股 15s × 200 = 3000s ≈ 50min，在 3h 超时前熔断）
     min_success_rate: 0.9         # 完整性：成功率红线（成功/(成功+失败)）
+    min_coverage_rate: 0.98        # 完整性：处理覆盖率红线（熔断后未遍历股票计入分母，禁止大面积漏处理）
+    skipped_ratio_guard: 0.95      # 休市日 guard 阈值：仅当 target_date 为非交易日时，skipped_ratio ≥ 此值才放行（is_complete 第 3 条）
 
   # 日志配置
   logging:
@@ -78,6 +103,10 @@ strategies:
       # K线数据获取参数
       kline_history_days: 120          # 获取历史K线的天数
       min_kline_length: 60             # 最小有效K线数量（不足则跳过）
+
+      # 窗口回退（N-2）：retrace_date 距 signal_date 的最大允许偏移日数
+      # 默认 1 = 覆盖信号日及前一日两个交易日（周末/节假日自然跳过）
+      signal_window_fallback_days: 1
 
       # 大跌检测
       drop_threshold: 0.15
@@ -127,7 +156,7 @@ strategies:
         long_ma_filter_enabled: true     # 60日均线过滤开关（新增）
 
         # ===== V2.1 新增：MACD 动量过滤 =====
-        method: 'macd'                   # 过滤方法：'ma_position'（V2.0 均线位置）或 'macd'（V2.1 动量）
+        method: 'ma_position'            # 过滤方法：'ma_position'（V2.0 均线位置）或 'macd'（V2.1 动量）
         macd_fast: 12                    # MACD 快线周期（method='macd' 时生效）
         macd_slow: 26                    # MACD 慢线周期（method='macd' 时生效）
         macd_signal: 9                   # MACD 信号线周期（method='macd' 时生效）

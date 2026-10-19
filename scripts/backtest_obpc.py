@@ -182,14 +182,16 @@ class SchemeConfigurator:
     """
     V2.1 新增：回测方案配置器
 
-    封装 4 个回测方案的配置覆盖逻辑，根据方案编号修改 RiskControlConfig。
-    4 个方案通过配置组合实现，无需 4 套代码。
+    封装 6 个回测方案的配置覆盖逻辑，根据方案编号修改 RiskControlConfig。
+    6 个方案通过配置组合实现，无需 6 套代码。
 
     方案定义：
         - 方案一：大盘 MACD DIF > 0（method='macd'）
         - 方案二：大盘收盘价 > MA20 且 MA20 斜率 > 0（ma_position + slope_ma20）
         - 方案三：方案一 + 方案二（MACD + MA20 斜率双重确认）
         - 方案四：大盘 MA60 向上（ma_position + slope_ma60，斜率替代位置）
+        - 方案五：ma_position 硬过滤 + 市场评分调整（弱势缩小、极弱归零）
+        - 方案六：不做大盘硬过滤，仅评分阈值 + 市场评分调整
     """
 
     # 方案定义表：方案编号 -> {描述, 配置覆盖项}
@@ -231,6 +233,22 @@ class SchemeConfigurator:
                 "score_adjustment_enabled": False,
             },
         },
+        5: {
+            "description": "方案五：ma_position 硬过滤 + 市场评分调整（弱势缩小、极弱归零）",
+            "config": {
+                "index_filter_method": "ma_position",
+                "slope_filter_enabled": False,
+                "score_adjustment_enabled": True,
+            },
+        },
+        6: {
+            "description": "方案六：不做大盘硬过滤，仅评分阈值 + 市场评分调整",
+            "config": {
+                "index_filter_enabled": False,
+                "slope_filter_enabled": False,
+                "score_adjustment_enabled": True,
+            },
+        },
     }
 
     @classmethod
@@ -254,7 +272,7 @@ class SchemeConfigurator:
         """
         if scheme not in cls.SCHEME_DEFINITIONS:
             raise ValueError(
-                f"不支持的方案编号：{scheme}，支持 1/2/3/4"
+                f"不支持的方案编号：{scheme}，支持 1/2/3/4/5/6"
             )
 
         scheme_def = cls.SCHEME_DEFINITIONS[scheme]
@@ -441,6 +459,8 @@ class BacktestDataLoader:
         """
         self.db = db
         self.config = config
+        # K 线缓存：回测区间内所有股票的日线，首次 load_kline_data 时从 DB 批量加载
+        self._klines_cache: Optional[pd.DataFrame] = None
 
     def load_stock_list(self) -> pd.DataFrame:
         """
@@ -465,9 +485,47 @@ class BacktestDataLoader:
 
         return filtered_df
 
+    def _ensure_klines_cache(self) -> None:
+        """懒加载 K 线缓存：一次性从 DB 批量拉取回测区间内所有股票的日线
+
+        单次大查询替代逐股票小查询，显著减少 PostgreSQL 往返开销。
+        回测区间内约 80 万行，内存占用 < 100MB。
+        """
+        if self._klines_cache is not None:
+            return
+        query = """
+            SELECT code, date, open, high, low, close, volume, amount
+            FROM klines
+            WHERE frequency = 'd'
+              AND date >= %s AND date <= %s
+            ORDER BY code, date ASC
+        """
+        logger.info(
+            f"批量加载回测区间内所有 K 线："
+            f"{self.config.start_date} ~ {self.config.end_date}，首次查询 DB..."
+        )
+        try:
+            df = pd.read_sql_query(
+                query, self.db.conn,
+                params=(self.config.start_date, self.config.end_date)
+            )
+            df["date"] = pd.to_datetime(df["date"])
+            df = df.sort_values(["code", "date"]).reset_index(drop=True)
+            self._klines_cache = df
+            logger.info(
+                f"K 线缓存加载完成：{len(df)} 行，"
+                f"{df['code'].nunique()} 只股票，"
+                f"日期范围 {df['date'].min().date()} ~ {df['date'].max().date()}"
+            )
+        except Exception as e:
+            logger.warning(f"批量加载 K 线缓存失败：{e}，回退到逐股票查询")
+            self._klines_cache = pd.DataFrame()
+
     def load_kline_data(self, code: str) -> Optional[pd.DataFrame]:
         """
         加载单只股票的完整 K 线数据（回测区间内）
+
+        优先从缓存读取（_ensure_klines_cache 懒加载），缓存不可用时回退到逐股票 SQL 查询。
 
         Args:
             code: 股票代码
@@ -475,6 +533,15 @@ class BacktestDataLoader:
         Returns:
             Optional[pd.DataFrame]: K 线数据，包含 date, open, high, low, close, volume, amount
         """
+        self._ensure_klines_cache()
+        if self._klines_cache is not None and not self._klines_cache.empty:
+            df = self._klines_cache[self._klines_cache["code"] == code].copy()
+            if df.empty:
+                return None
+            df = df.drop(columns=["code"]).reset_index(drop=True)
+            return df
+
+        # 回退路径：逐股票 SQL 查询
         query = """
             SELECT date, open, high, low, close, volume, amount
             FROM klines
@@ -1613,8 +1680,8 @@ def main():
         help="配置文件路径（默认 config/config.yaml）"
     )
     parser.add_argument(
-        "--scheme", type=int, default=None, choices=[1, 2, 3, 4],
-        help="V2.1 回测方案编号（1/2/3/4），不指定则使用 config.yaml 默认配置"
+        "--scheme", type=int, default=None, choices=[1, 2, 3, 4, 5, 6],
+        help="V2.1 回测方案编号（1/2/3/4/5/6），不指定则使用 config.yaml 默认配置"
     )
     args = parser.parse_args()
 
@@ -1635,6 +1702,9 @@ def main():
             config.risk_control_config, args.scheme
         )
         config.risk_control_config = new_risk_config
+        # 同步 BacktestConfig 与 RiskControlConfig 的大盘过滤开关
+        # 两者独立定义但语义相同，必须同时修改才生效
+        config.index_filter_enabled = new_risk_config.index_filter_enabled
         config.scheme = args.scheme
         config.scheme_description = scheme_desc
         logger.info(f"已应用 V2.1 回测方案：方案{args.scheme} - {scheme_desc}")

@@ -107,6 +107,9 @@ class RiskControlConfig:
     max_signals_per_month: int = 12
     """单月信号数上限（新增）"""
 
+    max_daily_signals: int = 0
+    """每日信号数上限（R02/R21 新增，默认 0 表示不启用日限额）"""
+
     # ===== 风控3：动态评分阈值 =====
     score_filter_enabled: bool = True
     """评分过滤总开关（新增）"""
@@ -248,6 +251,7 @@ class RiskControlConfig:
             index_ma_period_long=index_filter.get("index_ma_period_long", 60),
             long_ma_filter_enabled=index_filter.get("long_ma_filter_enabled", True),
             max_signals_per_month=params.get("max_signals_per_month", 12),
+            max_daily_signals=params.get("max_daily_signals", 0),
             score_filter_enabled=score_filter.get("enabled", True),
             score_threshold=score_filter.get("score_threshold", 60),
             score_threshold_weak=score_filter.get("score_threshold_weak", 75),

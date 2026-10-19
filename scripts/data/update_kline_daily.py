@@ -54,10 +54,16 @@ def _load_kline_update_config(config_path: str = 'config/config.yaml') -> dict:
         'failure_rate_threshold': cfg.get('failure_rate_threshold', 0.7),
         'failure_window_size': cfg.get('failure_window_size', 100),
         'failure_window_min_samples': cfg.get('failure_window_min_samples', 50),
-        'total_failure_limit': cfg.get('total_failure_limit', 500),
+        # 兜底值与 config/config.yaml 默认值保持一致（配置管理设计.md §8.4：不得凭空另设数字）
+        'total_failure_limit': cfg.get('total_failure_limit', 200),
         'min_success_rate': cfg.get('min_success_rate', 0.9),
+        'min_coverage_rate': cfg.get('min_coverage_rate', 0.98),
         # M-2：限流间隔（请求后休眠时间，防止触发 Baostock API 限流）
         'request_interval_seconds': cfg.get('request_interval_seconds', 0.05),
+        # P1：目标交易日回溯窗口（替代原硬编码 max_backtrack=7）
+        'target_date_max_backtrack': cfg.get('target_date_max_backtrack', 7),
+        # B2：休市日 guard 阈值（替代原硬编码 0.95）
+        'skipped_ratio_guard': cfg.get('skipped_ratio_guard', 0.95),
     }
 
 
@@ -65,7 +71,7 @@ def _load_kline_update_config(config_path: str = 'config/config.yaml') -> dict:
 
 @dataclass
 class UpdateResult:
-    """K 线更新结果数据类（R13 新增）。
+    """K 线更新结果数据类（R13 + R-01 完整覆盖率改造 + B2 非交易日语义修复）。
 
     替代原脚本 `update_all_klines()` 的 None 返回值，
     让 scheduler 和下游可精确判定「数据完整性」。
@@ -77,13 +83,50 @@ class UpdateResult:
     skipped: int = 0
     """跳过的股票数（已有最新数据或无新数据）"""
     total: int = 0
-    """遍历的股票总数"""
+    """股票池总数（熔断后未遍历的股票也计入分母）"""
     latest_trade_date: Optional[str] = None
     """数据库中最新交易日期（YYYY-MM-DD），用于完整性校验"""
+    target_date: Optional[str] = None
+    """本次任务的目标交易日（最近一个 ≤ 当前时间的交易日）"""
+    target_date_success: int = 0
+    """target_date 当天数据库中已有/本次写入 K 线数据的股票数"""
+    is_trading_day_degraded: Optional[bool] = None
+    """is_trading_day 是否走了 weekday 降级推断（Baostock 不可用）。
+    None 表示未做推断或结果不确定；True=降级推断，False=Baostock 验证过。
+    仅供运维观测与交接记录，判定层不消费。"""
+    target_date_inferred_non_trading: bool = False
+    """结合 degraded_flag + 库内数据推断出 target_date 大概率非交易日。
+    仅供运维观测与交接记录，判定层不消费（判定层严格走 4 步顺序，无此字段短路）。"""
+
+    @property
+    def processed_count(self) -> int:
+        """实际处理过的股票数（success + failed + skipped）。
+
+        熔断后未遍历的股票不计入此值，但其影响体现在 coverage_rate 的分母中。
+        """
+        return self.success + self.failed + self.skipped
+
+    @property
+    def coverage_rate(self) -> float:
+        """处理覆盖率 = processed_count / total；total <= 0 返回 0.0"""
+        if self.total <= 0:
+            return 0.0
+        return self.processed_count / self.total
+
+    @property
+    def target_date_coverage_rate(self) -> float:
+        """目标交易日覆盖率 = target_date_success / total；total <= 0 返回 0.0"""
+        if self.total <= 0:
+            return 0.0
+        return self.target_date_success / self.total
 
     @property
     def total_processed(self) -> int:
-        """参与成功/失败计数的股票数（用于计算成功率）"""
+        """参与成功/失败计数的股票数（用于计算成功率）。
+
+        注意：此属性与 processed_count 语义不同——processed_count 含 skipped，
+        而 total_processed 供 success_rate 使用，**不得合并**。
+        """
         return self.success + self.failed
 
     @property
@@ -100,28 +143,63 @@ class UpdateResult:
             return 0.0
         return self.skipped / self.total
 
-    def is_complete(self, min_success_rate: float, total_failure_limit: int) -> bool:
-        """判定本次更新是否完整。
+    def is_complete(
+        self,
+        min_success_rate: float,
+        total_failure_limit: int,
+        min_coverage_rate: float,
+        target_date: Optional[str] = None,
+        skipped_ratio_guard: float = 0.95,
+    ) -> bool:
+        """判定本次更新是否完整（严格对齐第 9.2 节 4 条顺序）。
 
-        完整性条件（R13 设计文档 + 休市日 guard）：
-            1. 休市日 guard：skipped / total >= 95% → 绝大多数股票已有最新数据
-               （说明数据库已覆盖到最近交易日，今日休市或已提前更新完），
-               此时少量停牌/退市股的"空数据"不代表 Baostock 故障，直接 PASS。
-            2. 正常交易日：success_rate >= min_success_rate 且 failed <= total_failure_limit。
+        判定顺序（禁止调换，后一条不得被前一条短路绕过）：
+            1. total<=0 或 coverage_rate<min_coverage_rate → False（硬红线）
+            2. target_date 为交易日且 target_date_coverage_rate<min_coverage_rate → False
+               （必须在休市日 guard 之前，防止 skipped_ratio guard 短路绕过）
+            3. 仅当 target_date 非交易日 且 skipped_ratio>=skipped_ratio_guard → True（休市日 guard）
+            4. 其余按 success_rate>=min_success_rate 且 failed<=total_failure_limit
+
+        禁止硬编码阈值：skipped_ratio_guard 必须由调用方从 config 传入。
 
         Args:
             min_success_rate: 成功率红线（0.0 - 1.0）
             total_failure_limit: 累计失败硬上限
+            min_coverage_rate: 处理覆盖率红线（同时用于 target_date 覆盖率）
+            target_date: 本次任务的目标交易日（YYYY-MM-DD 字符串）
+            skipped_ratio_guard: 休市日 guard 阈值（从 config.yaml 读取，禁止硬编码 0.95）
 
         Returns:
-            bool: True 表示数据完整，下游可放行；False 表示应阻断后续扫描
+            bool: True=数据完整，下游可放行；False=应阻断后续扫描
         """
-        # 休市日 guard：95%+ 股票已有最新数据 → 直接 PASS
-        # 覆盖场景：国庆/春节等长假、周末、或前序任务已提前跑完今日更新
-        if self.skipped_ratio >= 0.95:
-            return True
+        # 第 1 条：硬红线 —— total<=0 或 coverage 不足必须 FAIL
+        if self.total <= 0 or self.coverage_rate < min_coverage_rate:
+            return False
 
-        # 正常交易日判定
+        # 第 2 条：target_date 为交易日 → target_date_coverage_rate 硬红线
+        # （必须在 skipped_ratio guard 之前，禁止被其短路绕过）
+        if target_date:
+            try:
+                from utils.trade_calendar import is_trading_day
+                is_tr_day = is_trading_day(target_date)
+            except Exception:
+                is_tr_day = False
+            if is_tr_day and self.target_date_coverage_rate < min_coverage_rate:
+                return False
+
+        # 第 3 条：仅当 target_date 非交易日，允许 skipped_ratio guard 放行
+        # （交易日绝不能被 skipped_ratio 短路放行，必须走第 2/4 条）
+        if target_date:
+            try:
+                from utils.trade_calendar import is_trading_day
+                is_tr_day = is_trading_day(target_date)
+            except Exception:
+                is_tr_day = False
+            # 非交易日 + skipped_ratio >= skipped_ratio_guard → PASS
+            if not is_tr_day and self.skipped_ratio >= skipped_ratio_guard:
+                return True
+
+        # 第 4 条：正常交易日成功率 + 失败数
         return (
             self.success_rate >= min_success_rate
             and self.failed <= total_failure_limit
@@ -246,6 +324,32 @@ class DailyKlineUpdater:
         parsed = DailyKlineUpdater._parse_latest_date(latest_data, fallback_date)
         return dt_class.combine(parsed, dt_class.min.time())
 
+    @staticmethod
+    def _compute_target_date(today_date, max_backtrack: int = 7):
+        """计算目标交易日 = 最近一个 ≤ today_date 的交易日。
+
+        从 today_date 往回逐日检查，直到命中交易日。
+        R-2 修复：用 is_trading_day_with_confidence 可靠获取 degraded_flag，
+        不再靠 try/except（is_trading_day 永不抛异常，原 degraded 恒为 False）。
+
+        Returns:
+            tuple[str | None, bool]: (目标交易日, degraded_flag)
+                degraded_flag=True  → weekday 启发式降级（Baostock 不可用）
+                degraded_flag=False → Baostock 已确认
+        """
+        from utils.trade_calendar import is_trading_day_with_confidence
+
+        degraded = False
+        for offset in range(max_backtrack):
+            candidate = today_date - timedelta(days=offset)
+            candidate_str = candidate.strftime("%Y-%m-%d")
+            is_tr, degraded = is_trading_day_with_confidence(candidate_str)
+            if is_tr:
+                return candidate_str, degraded
+
+        # 全回溯无结果：返回 None + 最后一次的 degraded 状态
+        return None, degraded
+
     def update_all_klines(self) -> UpdateResult:
         """更新所有股票的 K 线数据（R13：返回 UpdateResult，禁止硬编码）。"""
         # 容错：绕过 __init__ 的实例（如 reproduce.py 用 __new__ 构造）
@@ -284,14 +388,78 @@ class DailyKlineUpdater:
             logger.info(f"沪深主板股票总数：{len(stocks_df)} 只")
         else:
             stocks_df = self.db.get_stock_list()
+            if stocks_df is None or getattr(stocks_df, 'empty', False):
+                logger.error("股票列表为空：get_stock_list 返回 None 或空 DataFrame")
+                # P1：直接返回空结果，total=0 → is_complete 硬红线自动 FAIL，
+                # 不会让判定层误放行空股票池
+                self.db.close()
+                return UpdateResult(total=0)
             logger.info(f"使用动态股票列表：{len(stocks_df)} 只")
 
         total = len(stocks_df)
         logger.info(f"总股票数：{total} 只")
 
+        # 非交易日守卫（AC-2 红线修复：调用方没守卫时这里兜底）。
+        # 在 stocks_df 加载完拿到 total 后检查，保证返回的 PASS 语义 UpdateResult
+        # 有正确的 total 让 skipped_ratio 和 coverage_rate 满足 is_complete 红线。
+        # scheduler_kline 已有守卫（should_skip_kline_update），不会进入此路径；
+        # main.py run_kline_update 未来也会加守卫；这里是双保险兜底。
+        from utils.trade_calendar import is_trading_day
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        try:
+            if not is_trading_day(today_str):
+                logger.info(
+                    f"今日 {today_str} 非交易日（is_trading_day=False），"
+                    f"跳过 K 线采集循环，直接返回 PASS 语义结果"
+                )
+                self.db.close()
+                return UpdateResult(
+                    success=0,
+                    failed=0,
+                    skipped=total,
+                    total=total,
+                    target_date_inferred_non_trading=True,
+                )
+        except Exception as e:
+            logger.warning(f"非交易日守卫 is_trading_day 异常：{e}，保守继续执行采集")
+
         today = datetime.now()
         start_date = today - timedelta(days=self.days_to_update + 10)
         today_date = today.date()
+
+        # 计算目标交易日 = 最近一个 ≤ 今天的交易日（R-01 第二支柱 + B2 语义修复）
+        td_max_backtrack = self.cfg.get('target_date_max_backtrack', 7)
+        target_date, is_td_degraded = self._compute_target_date(
+            today_date, max_backtrack=td_max_backtrack,
+        )
+        if target_date is None:
+            logger.warning(
+                f"最多回溯 {td_max_backtrack} 天仍未找到有效交易日，"
+                f"target_date=None（trade_calendar 可能完全不可用）"
+            )
+        logger.info(
+            f"目标交易日：{target_date}（今日 {today_date}，"
+            f"is_trading_day 可信度：{'weekday 降级' if is_td_degraded else 'Baostock 已验证'}）"
+        )
+
+        # B2：推断 target_date 是否大概率非交易日
+        # 规则：is_trading_day 走了 weekday 降级 且 库内 target_date 无数据 → 视为非交易日
+        target_date_inferred_non_trading = False
+        if target_date and is_td_degraded:
+            try:
+                df_check = pd.read_sql_query(
+                    "SELECT COUNT(*) as cnt FROM klines WHERE date = %s",
+                    self.db.conn, params=[target_date],
+                )
+                cnt = int(df_check['cnt'].iloc[0]) if not df_check.empty else 0
+                if cnt == 0:
+                    logger.info(
+                        f"B2 推断：target_date={target_date} 无库内数据 且 "
+                        f"is_trading_day 已降级 → 视作非交易日"
+                    )
+                    target_date_inferred_non_trading = True
+            except Exception as e:
+                logger.warning(f"B2 推断库内数据失败：{e}，保守起见不设置 inferred_non_trading")
 
         logger.info(
             f"更新日期：{start_date.strftime('%Y-%m-%d')} "
@@ -452,16 +620,38 @@ class DailyKlineUpdater:
         except Exception as e:
             logger.warning(f"查询最新交易日失败：{e}")
 
+        # R-01：统计 target_date 当天数据库中有数据的股票数（复用本地 DB 查询，非远端请求）
+        target_date_success = 0
+        try:
+            df_td = pd.read_sql_query(
+                "SELECT COUNT(DISTINCT code) as cnt FROM klines WHERE date = %s",
+                self.db.conn,
+                params=[target_date],
+            )
+            if not df_td.empty:
+                target_date_success = int(df_td['cnt'].iloc[0])
+        except Exception as e:
+            logger.warning(f"查询目标交易日 {target_date} 覆盖数失败：{e}")
+
+        coverage_pct = (target_date_success / total * 100) if total > 0 else 0
+        logger.info(
+            f"目标交易日 {target_date} 覆盖：{target_date_success}/{total}（{coverage_pct:.2f}%）"
+        )
+
         self._verify_database()
         self.db.close()
 
-        # R13：返回 UpdateResult，让 main() 和 scheduler 可精确判定完整性
+        # R13 + R-01 + B2：返回 UpdateResult，携带完整覆盖率指标 + 非交易日推断标记
         return UpdateResult(
             success=success,
             failed=failed,
             skipped=skipped,
             total=total,
             latest_trade_date=latest_trade_date,
+            target_date=target_date,
+            target_date_success=target_date_success,
+            is_trading_day_degraded=is_td_degraded,
+            target_date_inferred_non_trading=target_date_inferred_non_trading,
         )
 
     def _verify_database(self) -> None:
@@ -528,13 +718,19 @@ def run_update(days: Optional[int] = None, cfg: Optional[dict] = None) -> Update
     complete = result.is_complete(
         updater.cfg['min_success_rate'],
         updater.cfg['total_failure_limit'],
+        updater.cfg['min_coverage_rate'],
+        target_date=result.target_date,
+        skipped_ratio_guard=updater.cfg['skipped_ratio_guard'],
     )
+    coverage_pct = result.coverage_rate * 100
+    td_pct = result.target_date_coverage_rate * 100
+    verdict = "PASS（可放行后续扫描）" if complete else "FAIL（建议阻断后续扫描）"
     logger.info(
-        "更新完整性判定：success_rate=%.2f, skipped_ratio=%.2f, "
-        "failed=%d, total_limit=%d → %s",
-        result.success_rate, result.skipped_ratio, result.failed,
-        updater.cfg['total_failure_limit'],
-        "PASS（可放行后续扫描）" if complete else "FAIL（建议阻断后续扫描）",
+        f"更新完整性判定：处理 {result.processed_count}/{result.total}、"
+        f"覆盖 {coverage_pct:.2f}%、target_date 覆盖 {td_pct:.2f}%、"
+        f"success_rate={result.success_rate:.2f}、"
+        f"skipped_ratio={result.skipped_ratio:.2f}、"
+        f"failed={result.failed} → {verdict}"
     )
 
     # 业务入口只返回、不 sys.exit，保证调用方（main.py --all）能继续执行后续步骤
@@ -544,10 +740,16 @@ def run_update(days: Optional[int] = None, cfg: Optional[dict] = None) -> Update
 def main() -> None:
     """CLI 入口：解析参数后调 run_update，再按完整性判定设置退出码（C-1）。"""
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(description='每日 K 线数据更新脚本')
     parser.add_argument(
-        '--days', type=int, default=5, help='更新最近多少天的数据'
+        '--days', type=int, default=None,
+        help='更新最近多少天的数据（默认从 config.yaml global.kline_update.days_to_update 读取）'
+    )
+    parser.add_argument(
+        '--result-json', type=str, default=None,
+        help='非空时把 UpdateResult 序列化（JSON）写入该路径，供 scheduler 读取',
     )
 
     args = parser.parse_args()
@@ -555,12 +757,41 @@ def main() -> None:
     result = run_update(days=args.days)
 
     # CLI 入口保留退出码语义：完整性 PASS 则 exit 0，否则 exit 1
-    # 兜底兜底值（必须与 config.yaml 的 global.kline_update 节同步，禁止硬编码独立漂移）
+    # 兜底值（必须与 config.yaml 的 global.kline_update 节同步，禁止硬编码独立漂移）
     default_cfg = _load_kline_update_config()
     complete = result.is_complete(
         default_cfg['min_success_rate'],
         default_cfg['total_failure_limit'],
+        default_cfg['min_coverage_rate'],
+        target_date=result.target_date,
+        skipped_ratio_guard=default_cfg['skipped_ratio_guard'],
     )
+
+    # --result-json：供 scheduler_kline 子进程隔离模式读取 details
+    if args.result_json:
+        try:
+            result_dict = {
+                'success': result.success,
+                'failed': result.failed,
+                'skipped': result.skipped,
+                'total': result.total,
+                'processed_count': result.processed_count,
+                'coverage_rate': round(result.coverage_rate, 6),
+                'target_date': result.target_date,
+                'target_date_success': result.target_date_success,
+                'target_date_coverage_rate': round(result.target_date_coverage_rate, 6),
+                'latest_trade_date': result.latest_trade_date,
+                'success_rate': round(result.success_rate, 6),
+                'skipped_ratio': round(result.skipped_ratio, 6),
+                # B2：非交易日推断相关（供 scheduler / 下游诊断用）
+                'is_trading_day_degraded': result.is_trading_day_degraded,
+                'target_date_inferred_non_trading': result.target_date_inferred_non_trading,
+            }
+            with open(args.result_json, 'w', encoding='utf-8') as f:
+                json.dump(result_dict, f, ensure_ascii=False, indent=2)
+            logger.info(f"UpdateResult 已写入 {args.result_json}")
+        except Exception as e:
+            logger.error(f"写入 result-json 失败：{e}")
 
     # Baostock C 扩展可能残留无法终止的后台线程，concurrent.futures 的 atexit 会阻塞解释器退出，
     # 故用 os._exit 强制退出（与 quick_backfill.py 一致）

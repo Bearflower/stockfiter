@@ -58,10 +58,11 @@ docs/
 **阅读对象**：DBA、后端开发者
 
 **内容概要**：
-- 完整表结构（5 张表）
+- 完整表结构（6 张表）
 - klines 表的 V3 变更（新增 frequency 字段）
 - 频率字段说明（d/w/m）
 - 沿用 V2 的表说明（scan_results/push_history/positions/stocks）
+- 新增表 scan_runs、task_status 扩展列（2026-10-18 扫描可靠性改造）
 - ER 图
 - 数据库连接方式
 
@@ -106,6 +107,23 @@ docs/
 
 如果需要了解完整的项目需求，请查看 `requirements/` 目录下的需求文档（如有）。
 
+### 2026-10-18 Task 9：OBPC 扫描可靠性整改交付索引
+
+本轮整改引入的新文件与更新点：
+
+| 类别 | 路径 | 说明 |
+|------|------|------|
+| **新增** | `tests/integration/test_obpc_daily_pipeline.py` | 4 条端到端场景测试（FakeDB + 真实生产代码路径） |
+| **新增** | `tests/integration/conftest.py` | FakeDB / FakeCursor / Pipeline fixture |
+| **新增** | `scripts/verify_obpc_pipeline.py` | 只读验收脚本（输出 JSON，覆盖率阈值从 config 读取） |
+| **扩展** | `scripts/monitor.sh` | 新增 6 类 OBPC 可靠性告警（覆盖率、task_status、scan_runs 缺失/卡死/阻断、推送缺失） |
+| **更新** | `docs/designs/OBPC策略说明文档.md` | 新增 scan_runs 六态语义、股票池主板限定、零信号四象限区分 |
+| **更新** | `docs/designs/配置管理设计.md` | 新增 global.kline_update 完整性配置节、禁止硬编码约束、scheduler 环境变量 |
+| **更新** | `docs/designs/数据库设计.md` | ER 图补入 scan_runs 与 task_status 扩展列 |
+| 计划 | `docs/superpowers/plans/2026-10-18-obpc-scan-reliability-remediation.md` | Task 1~9 完整整改计划与验收标准 |
+
+验收标准：全部 pytest 通过、覆盖率告警阈值来自 config、scan_runs 六态不混淆、推送幂等。
+
 ### 代码审查与修复（2026-09-29）
 
 本轮对全仓执行了 open-code-review-delegate 代码审查（覆盖率 89.43%），产出 23 项可行动缺陷（P1=10 / P2=13）。P0+P1 批次（含 22 项）已全部修复并通过隔离复现断言翻转验证（16 PASS / 5 SKIP / 0 FAIL）；P2 批次（11 项）排期处理。
@@ -118,5 +136,5 @@ docs/
 
 ---
 
-**文档版本**：V1.2（2026-09-29 代码审查修复批次文档索引）
-**最后更新**：2026-09-29
+**文档版本**：V1.3（2026-10-18 Task 9：新增 OBPC 扫描可靠性整改交付索引，索引数据库表数量由 5 更正为 6）
+**最后更新**：2026-10-18

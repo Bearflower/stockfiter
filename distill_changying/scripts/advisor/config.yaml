@@ -58,6 +58,20 @@ valuation:
       bond: 35
       cash: 60
 
+# 仓位上下界 —— 仓位归一化算法和 LLM prompt 共用，禁止硬编码
+# 三项之和 >= 100（各下界之和）是算法可满足的前提；
+# 若 LLM 输出无法在保持上下界的同时凑出总和 100，归一化返回 None。
+position_bounds:
+  stock_pct:
+    min: 5
+    max: 80
+  bond_pct:
+    min: 10
+    max: 50
+  cash_pct:
+    min: 10
+    max: 60
+
 # 指数列表
 indices:
   - code: "000001"

@@ -34,84 +34,48 @@ def filter_stock_list(
     df: pd.DataFrame, config: Optional[Dict] = None
 ) -> pd.DataFrame:
     """
-    过滤股票列表
+    过滤股票列表（委托 data.database.filter_stock_pool 统一实现）。
+
+    本函数保留公开签名 (df, config=None) 不变，内部委托给模块级纯函数
+    filter_stock_pool，确保 DB 写入路径（sync_stock_list_to_db）与扫描路径
+   （daily_scan / backtest_*）使用完全相同的过滤语义。
 
     Args:
         df: 原始股票列表
-        config: 过滤配置
+        config: 过滤配置（缺省视为空 dict，全部开关按默认值生效）
 
     Returns:
         DataFrame: 过滤后的股票列表
     """
+    from data.database import filter_stock_pool
+
     if config is None:
         config = {}
 
     original_count = len(df)
-    logger.info(f"原始股票数量：{original_count}")
+    logger.info("原始股票数量：%d", original_count)
 
-    # 1. 剔除 ST 股票
-    if config.get('exclude_st', True):
-        df = df[~df['name'].str.contains('ST', na=False)]
-        logger.info(f"剔除 ST 股票后：{len(df)} 只")
+    result = filter_stock_pool(df, config)
 
-    # 2. 剔除退市股票
-    if config.get('exclude_delisting', True):
-        df = df[~df['name'].str.contains('退', na=False)]
-        logger.info(f"剔除退市股票后：{len(df)} 只")
-
-    # 3. 剔除北交所股票
-    if config.get('exclude_beijing', True):
-        df = df[~df['code'].str.match('^(920|83|87)')]
-        logger.info(f"剔除北交所后：{len(df)} 只")
-
-    # 4. 剔除科创板股票
-    if config.get('exclude_star_market', True):
-        df = df[~df['code'].str.match('^(688|689)')]
-        logger.info(f"剔除科创板后：{len(df)} 只")
-
-    # 5. 剔除创业板股票
-    if config.get('exclude_chi_next', True):
-        df = df[~df['code'].str.match('^(300|301)')]
-        logger.info(f"剔除创业板后：{len(df)} 只")
-
-    # 6. 剔除新三板股票
-    if config.get('exclude_new_third_board', True):
-        df = df[~df['code'].str.startswith('43')]
-        logger.info(f"剔除新三板后：{len(df)} 只")
-
-    # 7. 剔除次新股
-    if config.get('exclude_new_stocks', True) and 'list_date' in df.columns:
-        cutoff_date = config.get('new_stock_cutoff_date', '2025-01-01')
-        df['list_date'] = pd.to_datetime(df['list_date'], errors='coerce')
-        df = df[(df['list_date'].isna()) | (df['list_date'] < cutoff_date)]
-        logger.info(f"剔除次新股（{cutoff_date}后上市）后：{len(df)} 只")
-
-    # 8. 只保留主板股票
-    if config.get('main_board_only', True):
-        df = df[df['code'].str.match('^(000|001|002|600|601|603|605)')]
-        logger.info(f"只保留主板股票后：{len(df)} 只")
-
-        sz_main = len(df[df['code'].str.match('^(000|001|002)')])
-        sh_main = len(df[df['code'].str.match('^(600|601|603|605)')])
-        logger.info(f"主板分布：深市主板 {sz_main} 只，沪市主板 {sh_main} 只")
-
-    # 9. 剔除指数
-    if config.get('exclude_index', True):
-        index_keywords = [
-            '指数', '上证', '深证', '中证', '全指',
-            '等权', '基本', '新兴', '国企', '海外'
-        ]
-        pattern = '|'.join(index_keywords)
-        df = df[~df['name'].str.contains(pattern, na=False)]
-        logger.info(f"剔除指数后：{len(df)} 只")
-
-    filtered_count = len(df)
+    filtered_count = len(result)
     logger.info(
-        f"过滤后股票数量：{filtered_count} 只"
-        f"（剔除 {original_count - filtered_count} 只）"
+        "过滤后股票数量：%d 只（剔除 %d 只）",
+        filtered_count, original_count - filtered_count,
     )
 
-    return df
+    # 主板分布统计（仅当 main_board_only=True 且有结果时输出）
+    if config.get("main_board_only", True) and filtered_count > 0:
+        sz_main = len(result[
+            result["code"].astype(str).str.startswith(("000", "001", "002"))
+        ])
+        sh_main = len(result[
+            result["code"].astype(str).str.startswith(("600", "601", "603", "605"))
+        ])
+        logger.info(
+            "主板分布：深市主板 %d 只，沪市主板 %d 只", sz_main, sh_main
+        )
+
+    return result
 
 
 def sync_stock_list_to_db(

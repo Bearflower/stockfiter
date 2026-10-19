@@ -1,7 +1,7 @@
 ---
 id: <项目>-<YYYYMMDD>-<slug>
 类型: decision
-项目: <项目名>
+项目: stockfilter_v3
 标题: <决策标题>
 日期: <YYYY-MM-DD>
 标签: [<模块>]

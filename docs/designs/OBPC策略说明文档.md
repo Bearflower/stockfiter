@@ -8,7 +8,7 @@
 | 策略类型 | 右侧反转策略（波段交易） |
 | 适用市场 | A股主板（沪市60xxxx、深市00xxxx） |
 | 数据频率 | 日线（后复权） |
-| 版本 | V2.1（代码版本 v25） |
+| 版本 | V2.2（代码版本 v25） |
 
 OBPC 策略通过识别"大跌→缩量→放量启动→缩量走平→回踩确认"的五段式形态结构，捕捉超跌反弹后的低吸机会。策略属于右侧交易，等待放量启动信号出现后，在回踩支撑位时介入，以严格的风控条件控制下行风险。
 
@@ -285,19 +285,58 @@ V2.1 新增配置参数全部位于 `config/config.yaml` 的 `strategies.oversol
 | 方案3 | `macd` | `true` | `20` | - | `false` |
 | 方案4 | `ma_position` | `true` | `60` | `false` | `false` |
 
-## 13. 相关文件
+## 13. scan_runs 状态语义（2026-10-18 新增）
+
+### 13.1 股票池范围
+
+OBPC 策略只扫描 A 股**主板**股票，不覆盖创业板和科创板。配置见 `config/config.yaml`：
+
+```yaml
+global:
+  stock_pool:
+    main_board_only: true        # 只保留主板
+    exclude_chi_next: true        # 剔除创业板（300/301 开头）
+    exclude_star_market: true     # 剔除科创板（688/689 开头）
+```
+
+主板股票代码前缀：深市 `000`/`001`/`002`，沪市 `600`/`601`/`603`/`605`。
+
+### 13.2 六种扫描状态（scan_runs.status）
+
+| 状态 | 含义 | 推送文案 | 触发条件 |
+|------|------|---------|---------|
+| `completed_with_signals` | 完整扫描后发现形态 | 走**信号卡片**（卡片文案由 `scripts/feishu_push.py` 动态生成） | `selected_count > 0` |
+| `completed_zero` | 完整扫描后**零形态** | "完整扫描后未发现形态" | 完整扫描结束，`raw_candidate_count == 0`，无任何形态候选 |
+| `blocked_market` | 存在形态候选但**被市场风控过滤** | "发现 N 个原始形态候选，但被市场风控拦截：{reason}" | 完整扫描结束，有 `raw_candidate_count > 0` 但全部被市场风控拦截；必须展示**原始候选数**和**具体规则**（如 MACD 动量不足、均线斜率向下等） |
+| `blocked_data` | 数据不完整**未扫描** | "数据不完整，本次扫描已阻断" | K 线覆盖率低于 98% 阈值、或 task_status 未完成、或数据源异常时由调度器直接阻断 |
+| `failed` | 任务异常（进程崩溃 / 未收敛 / 写入失败） | "扫描任务失败，请检查日志" | 进程被 SIGKILL、扫描异常、或 `mark_stale_scan_runs_failed` 收敛超时卡死的 running 记录 |
+| `running` | 扫描进程存活中 | "扫描尚未结束或未收敛，请检查调度" | 进程启动时写入；进程正常结束后会被 `persist_scan_outcome` 覆盖为上述终态之一 |
+
+### 13.3 四种零信号的区别
+
+实际运维中最容易混淆的是「零信号」与「被拦截」：
+
+| 场景 | scan_status | 真实语义 | 推送文案 | 通知级别 |
+|------|------------|---------|---------|---------|
+| 股票形态都不符合策略条件（真·零形态） | `completed_zero` | 完整扫描跑完了，确实没有形态 | "完整扫描后未发现形态" | INFO |
+| 形态候选存在但被市场风控拦截 | `blocked_market` | **有形态**但大盘环境差，被策略主动放弃 | "发现 N 个原始形态候选，但被市场风控拦截" | INFO（应配市场趋势日志） |
+| 数据没齐，根本没跑扫描 | `blocked_data` | **未扫描**，不是真零形态 | "数据不完整，本次扫描已阻断" | WARNING（触发监控告警） |
+| 进程异常退出或卡死 | `failed` | **扫描异常**，结果不可信 | "扫描任务失败，请检查日志" | CRITICAL（触发监控告警） |
+
+> **通知准确性要求**（Task 4 验收标准）：只有 `completed_zero` 才能发送"完整扫描后未发现形态"。`blocked_data` 和 `failed` 绝对不能被误报为零形态。
+
+### 13.4 相关文件
 
 | 文件 | 说明 |
 |------|------|
-| [strategy/oversold_bounce/strategy.py](file:///Users/yl/vscode/stockfilter_v3/strategy/oversold_bounce/strategy.py) | 策略核心逻辑 |
-| [strategy/oversold_bounce/risk_control.py](file:///Users/yl/vscode/stockfilter_v3/strategy/oversold_bounce/risk_control.py) | 公共风控模块（三层风控） |
-| [config/config.yaml](file:///Users/yl/vscode/stockfilter_v3/config/config.yaml) | 参数配置 |
-| [scripts/daily_scan.py](file:///Users/yl/vscode/stockfilter_v3/scripts/daily_scan.py) | 每日扫描脚本 |
-| [scripts/feishu_push.py](file:///Users/yl/vscode/stockfilter_v3/scripts/feishu_push.py) | 飞书推送脚本 |
-| [scripts/scheduler_obpc.py](file:///Users/yl/vscode/stockfilter_v3/scripts/scheduler_obpc.py) | 调度器 |
-| [data/database.py](file:///Users/yl/vscode/stockfilter_v3/data/database.py) | 数据库管理 |
+| [scripts/daily_scan.py](file:///Users/yl/vscode/stockfilter_v3/scripts/daily_scan.py) | 每日扫描脚本 + `persist_scan_outcome` 状态收敛 |
+| [scripts/scheduler_obpc.py](file:///Users/yl/vscode/stockfilter_v3/scripts/scheduler_obpc.py) | 调度器 + `record_scan_blocked` 数据阻断记录 + `push_daily_summary_once` 推送幂等 |
+| [scripts/feishu_push.py](file:///Users/yl/vscode/stockfilter_v3/scripts/feishu_push.py) | 飞书推送 + `build_scan_summary_message` 六态文案映射 |
+| [data/database.py](file:///Users/yl/vscode/stockfilter_v3/data/database.py) | DatabaseManager（含 `scan_runs`、`task_status`、`push_history` 表操作） |
+| [scripts/verify_obpc_pipeline.py](file:///Users/yl/vscode/stockfilter_v3/scripts/verify_obpc_pipeline.py) | 只读验收脚本（输出 JSON，检查覆盖率/状态/推送） |
+| [scripts/monitor.sh](file:///Users/yl/vscode/stockfilter_v3/scripts/monitor.sh) | 扩展了 6 类 OBPC 可靠性告警 |
 
 ---
 
-**版本**：V2.1（新增 V2.1 市场状态识别增强、4 方案回测验证结果、V2.1 配置参数说明）
-**最后更新**：2026-06-24
+**版本**：V2.2（2026-10-18 Task 9：新增 scan_runs 状态语义、股票池范围、零信号四象限区分、验收与监控文件）
+**最后更新**：2026-10-18

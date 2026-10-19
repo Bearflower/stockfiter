@@ -267,6 +267,139 @@ def call_llm_analysis(
         return None
 
 
+def _load_position_bounds(config: dict[str, Any]) -> dict[str, dict[str, int]] | None:
+    """从 advisor 配置读取仓位上下界。
+
+    Returns:
+        dict | None: 形如 {"stock_pct": {"min": 5, "max": 80}, ...}；
+                     配置缺失或格式错误时返回 None（禁止硬编码 fallback）
+    """
+    bounds = config.get("position_bounds")
+    if not isinstance(bounds, dict):
+        logger.error("缺少 position_bounds 配置节，无法进行仓位归一化")
+        return None
+    required = ("stock_pct", "bond_pct", "cash_pct")
+    parsed: dict[str, dict[str, int]] = {}
+    for key in required:
+        entry = bounds.get(key)
+        if not isinstance(entry, dict):
+            logger.error("position_bounds 缺少 %s 条目", key)
+            return None
+        mn, mx = entry.get("min"), entry.get("max")
+        if not isinstance(mn, (int, float)) or not isinstance(mx, (int, float)):
+            logger.error("position_bounds.%s 的 min/max 必须是数字: min=%s max=%s", key, mn, mx)
+            return None
+        mn, mx = int(mn), int(mx)
+        if mn > mx:
+            logger.error("position_bounds.%s 的 min=%d 不能大于 max=%d", key, mn, mx)
+            return None
+        parsed[key] = {"min": mn, "max": mx}
+    # 三项下界之和必须 <= 100，否则算法根本不可能凑出总和 100
+    lower_sum = sum(v["min"] for v in parsed.values())
+    upper_sum = sum(v["max"] for v in parsed.values())
+    if lower_sum > 100:
+        logger.error("仓位下界之和 %d > 100，无法满足总和约束", lower_sum)
+        return None
+    if upper_sum < 100:
+        logger.error("仓位上界之和 %d < 100，无法满足总和约束", upper_sum)
+        return None
+    return parsed
+
+
+def _normalize_position_with_bounds(
+    raw: dict[str, float],
+    bounds: dict[str, dict[str, int]],
+) -> dict[str, int] | None:
+    """有上下界约束的总和归一化。
+
+    算法：先把每项 clamp 到各自下界；之后每轮计算当前总和与 100 的差值，
+    只把剩余差额按比例分配给尚未触及上/下界的类别。最多迭代若干轮防死循环。
+
+    Args:
+        raw: LLM 原始输出的仓位比例字典（键为 stock_pct / bond_pct / cash_pct）
+        bounds: _load_position_bounds 返回的上下界配置
+
+    Returns:
+        dict | None: 成功返回 int 类型的归一化结果（总和精确 100 且各项在界内）；
+                     无法满足约束时返回 None（禁止输出越界结果）
+    """
+    keys = ("stock_pct", "bond_pct", "cash_pct")
+    # 初始值：同时 clamp 到各自上下界（先把明显越界的拉回来）
+    vals: dict[str, float] = {}
+    for k in keys:
+        try:
+            raw_val = float(raw.get(k, 0))
+        except (TypeError, ValueError):
+            logger.error("仓位比例 %s 不是数字: %r", k, raw.get(k))
+            return None
+        vals[k] = max(bounds[k]["min"], min(bounds[k]["max"], raw_val))
+
+    max_iter = 30  # 足够收敛，防死循环
+    for _ in range(max_iter):
+        total = sum(vals.values())
+        diff = 100 - total
+        if diff == 0:
+            break
+
+        if diff > 0:
+            # 需要加：找还有上界空间的类别
+            candidates = [
+                (k, bounds[k]["max"] - vals[k])
+                for k in keys
+                if vals[k] < bounds[k]["max"]
+            ]
+            if not candidates:
+                logger.error("仓位无法归一化到 100: 还需 +%.1f 但所有类别都已触及上界", diff)
+                return None
+            capacity = sum(c for _, c in candidates)
+            for k, cap in candidates:
+                add = min(cap, diff * cap / capacity)
+                vals[k] += add
+        else:
+            # 需要减：找还有下界空间的类别
+            candidates = [
+                (k, vals[k] - bounds[k]["min"])
+                for k in keys
+                if vals[k] > bounds[k]["min"]
+            ]
+            if not candidates:
+                logger.error("仓位无法归一化到 100: 还需 %.1f 但所有类别都已触及下界", diff)
+                return None
+            reducible = sum(r for _, r in candidates)
+            for k, r in candidates:
+                sub = min(r, (-diff) * r / reducible)
+                vals[k] -= sub
+    else:
+        logger.error("仓位归一化超过最大迭代次数仍未收敛")
+        return None
+
+    # 收尾：四舍五入为整数，同时再次校验总和和上下界
+    result = {k: int(round(vals[k])) for k in keys}
+    final_total = sum(result.values())
+    if final_total != 100:
+        # 用差值修正最大一项（整数四舍五入导致的 ±1~2 误差）
+        delta = 100 - final_total
+        # 找剩余容量最大的方向（加或减）
+        if delta > 0:
+            pick = max(keys, key=lambda k: bounds[k]["max"] - result[k])
+        else:
+            pick = max(keys, key=lambda k: result[k] - bounds[k]["min"])
+        result[pick] += delta
+
+    # 最终硬性断言
+    if sum(result.values()) != 100:
+        logger.error("仓位归一化后总和仍为 %d，放弃输出", sum(result.values()))
+        return None
+    for k in keys:
+        if not (bounds[k]["min"] <= result[k] <= bounds[k]["max"]):
+            logger.error(
+                "仓位归一化后 %s=%d 越界 [%d,%d]，放弃输出",
+                k, result[k], bounds[k]["min"], bounds[k]["max"],
+            )
+            return None
+    return result
+
+
 def _validate_and_normalize(
     result: Any,
     config: dict[str, Any],
@@ -275,17 +408,26 @@ def _validate_and_normalize(
     """验证并规范化 LLM 返回的分析结果。
 
     确保结果包含有效的 position_advice、etf_recommendations 和 market_commentary。
-    对 ETF 推荐列表应用 max_shares 约束修正。
+    仓位处理使用「有上下界的总和归一化」，禁止输出越界结果；
+    上下界从 config.position_bounds 读取。
+    ETF 推荐列表应用 max_shares 约束修正。
 
     Args:
         result: LLM 返回的原始 JSON 对象
-        config: 配置字典（用于获取 ETF max_shares 约束）
+        config: 配置字典（读取 position_bounds 和 etf_pool）
+        temperature: 市场温度计算结果（兜底 temperature_label 用）
 
     Returns:
-        dict | None: 规范化后的结果
+        dict | None: 规范化后的结果；关键约束无法满足时返回 None
     """
     if not isinstance(result, dict):
         logger.warning("LLM 返回非 dict 类型: %s", type(result).__name__)
+        return None
+
+    # 加载仓位上下界（只从 config 读，缺失直接失败）
+    bounds = _load_position_bounds(config)
+    if bounds is None:
+        logger.error("仓位上下界加载失败，拒绝本次 LLM 输出")
         return None
 
     # 仓位建议验证
@@ -302,28 +444,20 @@ def _validate_and_normalize(
         logger.warning("仓位比例类型错误: stock=%s bond=%s cash=%s", type(stock), type(bond), type(cash))
         return None
 
-    stock, bond, cash = int(stock), int(bond), int(cash)
+    normalized = _normalize_position_with_bounds(
+        {"stock_pct": float(stock), "bond_pct": float(bond), "cash_pct": float(cash)},
+        bounds,
+    )
+    if normalized is None:
+        logger.error(
+            "仓位比例 stock=%s bond=%s cash=%s 无法在约束内归一化，放弃输出",
+            stock, bond, cash,
+        )
+        return None
 
-    # 范围约束
-    if not (5 <= stock <= 80):
-        logger.warning("stock_pct=%d 超出范围 [5,80]，已修正", stock)
-        stock = max(5, min(80, stock))
-    if not (10 <= bond <= 50):
-        logger.warning("bond_pct=%d 超出范围 [10,50]，已修正", bond)
-        bond = max(10, min(50, bond))
-    if not (10 <= cash <= 60):
-        logger.warning("cash_pct=%d 超出范围 [10,60]，已修正", cash)
-        cash = max(10, min(60, cash))
-
-    # 总和修正为 100
-    total = stock + bond + cash
-    if total != 100:
-        diff = 100 - total
-        # 按权重分配差值
-        stock += int(diff * stock / max(total, 1))
-        bond += int(diff * bond / max(total, 1))
-        cash = 100 - stock - bond
-        logger.info("仓位比例之和=%d，已自动修正为 stock=%d bond=%d cash=%d", total, stock, bond, cash)
+    stock, bond, cash = normalized["stock_pct"], normalized["bond_pct"], normalized["cash_pct"]
+    logger.info("仓位归一化完成: stock=%d bond=%d cash=%d (原始 LLM: stock=%s bond=%s cash=%s)",
+                stock, bond, cash, stock, bond, cash)
 
     # ETF 推荐验证
     etf_recs = result.get("etf_recommendations", [])

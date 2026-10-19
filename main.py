@@ -63,34 +63,75 @@ def init_strategies(config: Dict) -> None:
 
 
 def run_kline_update() -> None:
-    """执行 K 线数据更新（C-1：所有阈值从 config.yaml 读取，禁止硬编码）"""
+    """执行 K 线数据更新（C-1 + R-01：所有阈值从 config.yaml 读取，禁止硬编码）
+
+    AC-2 修复：入口处先查 is_trading_day，非交易日直接跳过不采集、不抛异常，
+    保证 main.py --update 路径（不经 scheduler 守卫）不会因非交易日误判 FAIL。
+    """
     logger.info("=" * 50)
     logger.info("开始执行 K 线数据更新...")
     logger.info("=" * 50)
 
+    # C-1：加载 config.yaml，所有参数从配置读取，禁止硬编码
+    config_path = os.path.join(os.path.dirname(__file__), 'config/config.yaml')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        cfg = yaml.safe_load(f) or {}
+    kline_cfg = (cfg.get('global') or {}).get('kline_update') or {}
+
+    # AC-2：非交易日守卫——main.py --update 不经 scheduler 守卫，
+    # 这里兜底：非交易日跳过采集循环，记 INFO 不 raise，让后续扫描/推送正常执行。
     try:
-        # C-1：加载 config.yaml，所有参数从配置读取，禁止硬编码
-        config_path = os.path.join(os.path.dirname(__file__), 'config/config.yaml')
-        with open(config_path, 'r', encoding='utf-8') as f:
-            cfg = yaml.safe_load(f) or {}
-        kline_cfg = (cfg.get('global') or {}).get('kline_update') or {}
+        from utils.trade_calendar import is_trading_day
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_is_trading = is_trading_day(today_str)
+    except Exception:
+        today_is_trading = True  # trade_calendar 异常时保守：按交易日处理
 
-        # C-1：不再调 updater.main()（后者抛 SystemExit 会被 except Exception 漏掉）
-        # 改为调 run_update 业务函数，正常 return UpdateResult，流水线可继续
-        from scripts.data.update_kline_daily import run_update as kline_run_update
-        # C-1 + H-1：days 和 cfg 都从 config 读取，统一由 updater.cfg 单点管理
-        result = kline_run_update(cfg=kline_cfg)
-
-        # C-1：完整性阈值从同一 config 读取，禁止字面量
-        min_success_rate = kline_cfg.get('min_success_rate', 0.9)
-        total_failure_limit = kline_cfg.get('total_failure_limit', 500)
+    if not today_is_trading:
         logger.info(
-            "K 线数据更新完成：success=%d, failed=%d, skipped=%d, completeness=%s",
-            result.success, result.failed, result.skipped,
-            "PASS" if result.is_complete(min_success_rate, total_failure_limit) else "FAIL",
+            "今日 %s 非交易日（is_trading_day=False），跳过 K 线采集循环，"
+            "后续扫描/推送正常执行（AC-2 非交易日守卫）",
+            today_str,
         )
-    except Exception as e:
-        logger.error(f"K 线数据更新失败: {e}")
+        return
+
+    # C-1 + R-01：完整性阈值从同一 config 读取，禁止字面量
+    min_success_rate = kline_cfg.get('min_success_rate', 0.9)
+    # 兜底值与 config/config.yaml 默认值保持一致（配置管理设计.md §8.4：不得凭空另设数字）
+    total_failure_limit = kline_cfg.get('total_failure_limit', 200)
+    min_coverage_rate = kline_cfg.get('min_coverage_rate', 0.98)
+
+    # C-1：不再调 updater.main()（后者抛 SystemExit 会被 except Exception 漏掉）
+    # 改为调 run_update 业务函数，正常 return UpdateResult，流水线可继续
+    from scripts.data.update_kline_daily import run_update as kline_run_update
+    # C-1 + H-1：cfg 从 config 读取，统一由 updater.cfg 单点管理
+    result = kline_run_update(cfg=kline_cfg)
+
+    # R-01 + B2：完整性判定（严格对齐第 9.2 节 4 条顺序）
+    skipped_ratio_guard = kline_cfg.get('skipped_ratio_guard', 0.95)
+    complete = result.is_complete(
+        min_success_rate, total_failure_limit, min_coverage_rate,
+        target_date=result.target_date,
+        skipped_ratio_guard=skipped_ratio_guard,
+    )
+    coverage_pct = result.coverage_rate * 100
+    td_pct = result.target_date_coverage_rate * 100
+    logger.info(
+        f"K 线数据更新：success={result.success}, failed={result.failed}, "
+        f"skipped={result.skipped}, processed={result.processed_count}/{result.total}, "
+        f"coverage={coverage_pct:.2f}%, target_date={result.target_date}, "
+        f"target_date_coverage={td_pct:.2f}% → "
+        f"{'PASS' if complete else 'FAIL'}"
+    )
+
+    # R-01：数据不完整时向上抛异常，阻断 run_all 中的后续扫描与推送
+    if not complete:
+        raise RuntimeError(
+            f"K 线数据完整性 FAIL：处理 {result.processed_count}/{result.total} "
+            f"（覆盖 {result.coverage_rate * 100:.2f}%），"
+            f"目标交易日 {result.target_date} 覆盖 {result.target_date_coverage_rate * 100:.2f}%。"
+            f"下游扫描与推送已阻断。"
+        )
 
 
 def run_daily_scan() -> None:
@@ -137,11 +178,21 @@ def run_backfill() -> None:
 
 def run_all() -> None:
     """一次性执行完整流程：K线更新 -> 形态扫描 -> 飞书推送"""
+    import sys
+
     logger.info("=" * 60)
     logger.info("开始执行完整流程...")
     logger.info("=" * 60)
 
-    run_kline_update()
+    # R-5：run_kline_update 可能抛 RuntimeError（数据完整性 FAIL），
+    # 捕获后记 ERROR 日志 + 非零退出码干净退出，让 CI/监控能检测到失败。
+    # 不静默吞掉，也不打印 traceback（可读性差）。
+    try:
+        run_kline_update()
+    except RuntimeError as e:
+        logger.error(f"完整流程中止：K 线数据完整性 FAIL，后续扫描/推送已跳过。原因：{e}")
+        sys.exit(1)
+
     run_daily_scan()
     run_feishu_push()
 
@@ -203,7 +254,13 @@ def main() -> None:
     elif args.push:
         run_feishu_push()
     elif args.update:
-        run_kline_update()
+        try:
+            run_kline_update()
+        except RuntimeError as e:
+            # R-01：数据完整性 FAIL → 以非零退出码表达失败
+            logger.error(f"K 线数据更新完整性 FAIL：{e}")
+            import sys
+            sys.exit(1)
     elif args.backfill:
         run_backfill()
     elif args.schedule:
