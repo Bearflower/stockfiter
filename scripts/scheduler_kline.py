@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("Asia/Shanghai")
 
 # 可配置参数（通过环境变量覆盖，默认值合理无需配置）
-SCHEDULE_KLINE_UPDATE = os.environ.get("SCHEDULE_KLINE_UPDATE", "22:00")
+SCHEDULE_KLINE_UPDATE = os.environ.get("SCHEDULE_KLINE_UPDATE", "23:00")   # 2026-10-20 错峰：避开 Baostock 晚间高峰期（原 22:00）
 SCHEDULE_BACKFILL = os.environ.get("SCHEDULE_BACKFILL", "07:00")
 KLINE_UPDATE_TIMEOUT = int(os.environ.get("KLINE_UPDATE_TIMEOUT", "10800"))  # 3小时
 BACKFILL_TIMEOUT = int(os.environ.get("BACKFILL_TIMEOUT", "7200"))  # 2小时
@@ -239,7 +239,7 @@ def main() -> None:
     # 注：is_trading_day 由 should_skip_kline_update 内部延迟导入，main() 不直接引用
 
     logger.info("K线数据服务调度器启动（当前时间: %s）", datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"))
-    logger.info("定时任务：22:00 K线更新 / 07:00 历史补全（均为北京时间）")
+    logger.info("定时任务：23:00 K线更新（错峰 Baostock 晚间高峰）/ 07:00 历史补全（均为北京时间）")
 
     _ensure_task_status_table()
 
@@ -261,11 +261,11 @@ def main() -> None:
 
             # 非交易日守卫：纯函数调用（B3.2 抽出，便于单测）
             if should_skip_kline_update(now=now, today_str=today):
-                logger.info("=== %s 非交易日，跳过 K 线数据更新（22:00 北京）===", today)
+                logger.info("=== %s 非交易日，跳过 K 线数据更新（23:00 北京）===", today)
                 time.sleep(LOOP_INTERVAL)
                 continue
 
-            logger.info("=== 执行 K 线数据更新（22:00 北京）===")
+            logger.info("=== 执行 K 线数据更新（23:00 北京）===")
 
             # R13 新增：指数更新前置，独立 try/except，失败记日志但不阻断 K 线更新
             try:

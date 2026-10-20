@@ -1,20 +1,20 @@
 """
 OBPC 超跌反弹策略调度器
-每天 22:15(北京) 形态扫描（等待K线更新完成），07:30 补全后重扫，08:10 飞书推送
+每天 23:15(北京) 形态扫描（等待23:00 K线更新完成，错峰避开 Baostock 晚间高峰），07:30 补全后重扫，08:10 飞书推送
 使用明确的 Asia/Shanghai 时区，防止 Docker 容器时区漂移
 
 2026-10-18 改造：
   - 所有模块级副作用收进 main()，避免测试 `import` 时卡死
   - task_status_allows_run 纯函数，status + target_date + 新鲜度三重校验
   - wait_for_kline_update / wait_for_backfill 按 status / target_date / last_completed_at 判定
-  - 22:15 未就绪时记录 blocked_data，绝不启动 daily_scan
+  - 23:15 未就绪时记录 blocked_data，绝不启动 daily_scan
   - 07:30 重扫按目标交易日判断（已删除 is_trading_day(today) 提前跳过）
   - 重扫幂等：同数据版本已完成的 rescan 不再重扫
   - 启动扫描前 mark_stale_scan_runs_failed 收敛卡死 running
   - 推送幂等从 DB 读 has_pushed / save_push_history，进程内变量仅作查询优化
 
 2026-10-19 R-02 同源修复：
-  - 三处信号日期（22:15 初扫 / 07:30 重扫 / 08:10 推送）统一来自
+  - 三处信号日期（23:15 初扫 / 07:30 重扫 / 08:10 推送）统一来自
     utils.trade_calendar.nearest_trading_date，与 scheduler_kline 写 task_status 的
     target_date 同源（不再读指数表最新日期），消除「一处指数表、一处交易日历」的日期错配。
 """
@@ -30,7 +30,7 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("Asia/Shanghai")
 
 # 可配置参数（通过环境变量覆盖，默认值合理无需配置）
-SCHEDULE_SCAN = os.environ.get("SCHEDULE_SCAN", "22:15")
+SCHEDULE_SCAN = os.environ.get("SCHEDULE_SCAN", "23:15")    # 2026-10-20 错峰：与 K 线更新 23:00 保持 15 分钟间隔
 SCHEDULE_RESCAN = os.environ.get("SCHEDULE_RESCAN", "07:30")
 SCHEDULE_PUSH = os.environ.get("SCHEDULE_PUSH", "08:10")
 SCAN_TIMEOUT = int(os.environ.get("SCAN_TIMEOUT", "3600"))  # 1小时
@@ -424,7 +424,7 @@ def main() -> None:
     避免 `from scripts.scheduler_obpc import task_status_allows_run` 时卡死。
     """
     logger.info("OBPC 策略调度器启动（当前时间: %s）", datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"))
-    logger.info("定时任务：22:15 形态扫描 / 07:30 补全后重扫 / 08:10 飞书推送（均为北京时间）")
+    logger.info("定时任务：23:15 形态扫描 / 07:30 补全后重扫 / 08:10 飞书推送（均为北京时间，K线更新 23:00 错峰）")
     logger.info("K线等待超时：%ds，轮询间隔：%ds", KLINE_WAIT_TIMEOUT, KLINE_WAIT_INTERVAL)
 
     # 各时段「当天已触发」守卫（值为自然日，防止同一分钟循环重复进入）
@@ -442,7 +442,7 @@ def main() -> None:
         hm = now.strftime("%H:%M")
 
         # ---------------------------------------------------------------
-        # 22:15 初扫分支：严格等待数据，未就绪记录 blocked_data，绝不启动 daily_scan
+        # 23:15 初扫分支：严格等待数据，未就绪记录 blocked_data，绝不启动 daily_scan
         # ---------------------------------------------------------------
         if hm == SCHEDULE_SCAN and last_run_scan != today:
             # 先收敛上一轮可能卡死的 running 记录（必修 6）
@@ -464,17 +464,17 @@ def main() -> None:
                 continue
 
             last_run_scan = today
-            # 22:15 初扫的信号日期必须与 kline 侧 22:00 写入的 task_status.target_date 同源：
-            # 上方守卫已确认 today 是交易日，22:00 K 线更新计算的 target_date 就是今天
+            # 23:15 初扫的信号日期必须与 kline 侧 23:00 写入的 task_status.target_date 同源：
+            # 上方守卫已确认 today 是交易日，23:00 K 线更新计算的 target_date 就是今天
             # （compute_target_date_for(now) = 最近一个 ≤ today 的交易日 = today），
             # 因此这里直接用 today，不再读指数表（指数表可能因更新失败而滞后）。
             target_date = today
-            logger.info("=== 22:15 初扫：target_date=%s ===", target_date)
+            logger.info("=== 23:15 初扫：target_date=%s ===", target_date)
 
             if not target_date or not wait_for_kline_update(target_date):
                 record_scan_blocked(target_date, "blocked_data", "kline_not_ready")
             else:
-                logger.info("=== 执行形态扫描（22:15 北京，target_date=%s）===", target_date)
+                logger.info("=== 执行形态扫描（23:15 北京，target_date=%s）===", target_date)
                 try:
                     subprocess.run(
                         [sys.executable, "scripts/daily_scan.py",
@@ -590,7 +590,7 @@ def main() -> None:
             # 按自然日守卫：本时段当天只进入一次，避免同一分钟循环重复判定
             last_run_push = today
             # 推送时段：当天或前一天任一为交易日都放行
-            # 覆盖周五 22:15 扫描 → 周六 08:10 推送的场景
+            # 覆盖周五 23:15 扫描 → 周六 08:10 推送的场景
             if not is_trading_day(today) and not is_trading_day(yesterday):
                 logger.info("=== %s 和 %s 均为非交易日，跳过飞书推送 ===", yesterday, today)
                 time.sleep(LOOP_INTERVAL)
@@ -598,7 +598,7 @@ def main() -> None:
 
             # 推送的信号日期 = 「最近一个已收盘交易日」= nearest_trading_date(now, inclusive=False)，
             # 与 07:30 重扫、kline 侧 07:00 补全保持同一日期语义（同源，保证 signals_{date}.json 找得到）；
-            # 当天数据 22:00 才生成，用当天会找不到 signals_{当天}.json。
+            # 当天数据 23:00 K 线更新才完成，用当天会找不到 signals_{当天}.json。
             # 取不到日期时安全跳过，禁止回退「当天」，否则会复现找不到信号文件的问题。
             push_date, push_degraded = nearest_trading_date(now, inclusive=False)
             logger.info(

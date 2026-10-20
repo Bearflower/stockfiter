@@ -301,9 +301,12 @@ class TestCircuitBreakerControlFlow:
                             updater.update_all_klines()
 
         # 熔断在第一次循环第 5 次失败后触发（5/5=100% > 50%）→ 第一次循环只处理了 5 只；
-        # retry 循环再处理 5 只失败的 → 总共 5+5=10 次 fetch。
-        # 断言 call_count <= 10（小于 15 就说明熔断提前终止了第一次循环）
-        assert call_count[0] <= 10, f"滑动窗口熔断应在第一次循环触发，call_count 不应超过 10，实际 {call_count[0]}"
+        # 方案 B（2026-10-20）：熔断后补抓剩余 5 只 → 补抓 5 次 fetch；
+        # retry 循环再处理 5 只失败的 → 重试 5 次 fetch；
+        # 总计：主循环 5 + 补抓 5 + 重试 5 = 15 次。
+        # 关键验证：主循环在 break 点（第 5 只）确实提前终止，而不是遍历完全部 10 只。
+        # 如果主循环没 break，总调用会是 10 + 10（补抓不会触发因为 normal_complete） + 10（重试）= 30。
+        assert call_count[0] <= 20, f"滑动窗口熔断应在第一次循环第 5 只后触发（含补抓+重试最多 15，<=20 即说明熔断有效），实际 {call_count[0]}"
 
     def test_hard_limit_break_on_total_failure(self):
         """累计失败达到硬上限时应提前 break。"""
@@ -327,9 +330,13 @@ class TestCircuitBreakerControlFlow:
                                    return_value=_MockDf()):
                             updater.update_all_klines()
 
-        # 硬上限 3 次失败 → 最多处理 3 只（第 4 次检测到 break）
-        # 但重试会再调 3 次 fetch → call_count 最多 3+3=6
-        assert call_count[0] <= 6, f"硬上限应让循环在第 3 次失败后终止（含重试最多 6），实际 {call_count[0]}"
+        # 硬上限 3 次失败 → 主循环处理 3 只后 break（idx=2 处触发）；
+        # 方案 B（2026-10-20）：补抓 range(3, 10) = 7 只；
+        # retry 循环再重试 3 只失败的；
+        # 总计：主循环 3 + 补抓 7 + 重试 3 = 13 次 fetch。
+        # 关键验证：主循环在 break 点（第 3 只）确实提前终止，而不是遍历完全部 10 只。
+        # 如果主循环没 break，补抓不会触发，总调用会是 10 + 10（重试）= 20。
+        assert call_count[0] <= 15, f"硬上限应让主循环在第 3 次失败后 break（含补抓+重试最多 13，<=15 即说明熔断有效），实际 {call_count[0]}"
 
 
 # =====================================================================

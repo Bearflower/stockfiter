@@ -55,7 +55,7 @@ def _load_kline_update_config(config_path: str = 'config/config.yaml') -> dict:
         'failure_window_size': cfg.get('failure_window_size', 100),
         'failure_window_min_samples': cfg.get('failure_window_min_samples', 50),
         # 兜底值与 config/config.yaml 默认值保持一致（配置管理设计.md §8.4：不得凭空另设数字）
-        'total_failure_limit': cfg.get('total_failure_limit', 200),
+        'total_failure_limit': cfg.get('total_failure_limit', 400),
         'min_success_rate': cfg.get('min_success_rate', 0.9),
         'min_coverage_rate': cfg.get('min_coverage_rate', 0.98),
         # M-2：限流间隔（请求后休眠时间，防止触发 Baostock API 限流）
@@ -565,6 +565,73 @@ class DailyKlineUpdater:
 
                 # M-2：每次请求后短暂休眠，限流间隔从 config 读取（默认 0.05s，必须与 config.yaml global.kline_update.request_interval_seconds 同步）
                 time.sleep(self.cfg['request_interval_seconds'])
+
+        # ================================================================
+        # 方案 B：熔断后补抓未遍历股票（2026-10-20 新增）
+        # 主循环被 break 时（滑动窗口熔断 或 累计失败硬上限），
+        # 补抓未遍历的剩余股票。补抓阶段不检查熔断条件（已熔断过一次），
+        # 单次尝试，成功计入 success 提升覆盖率；失败只记日志，让次日 backfill 兜底。
+        # 配合方案 A 调高 total_failure_limit 到 400 双重保险
+        # ================================================================
+        normal_complete = (idx >= total - 1)
+        if not normal_complete and total > 0:
+            remaining_count = total - 1 - idx
+            if remaining_count > 0:
+                logger.warning(
+                    f"主循环在 {idx + 1}/{total} 处被熔断，补抓剩余 {remaining_count} 只未遍历股票..."
+                )
+                catchup_success = 0
+                catchup_fail = 0
+                catchup_skip = 0
+                # 补抓用新的 Baostock 会话（原会话可能因熔断时的解压错误处于不稳定状态）
+                with BaostockSession() as catchup_session:
+                    for cidx in range(idx + 1, total):
+                        crow = stocks_df.iloc[cidx]
+                        code = crow['code']
+                        symbol = crow['symbol']
+
+                        latest_data = self.db.get_latest_kline_date(code)
+                        latest_date_obj = self._parse_latest_date(latest_data, today_date)
+
+                        if latest_date_obj == today_date:
+                            catchup_skip += 1
+                            skipped += 1
+                            continue
+
+                        try:
+                            kline_df = self._fetch_with_timeout(
+                                catchup_session, symbol, days=120
+                            )
+
+                            if kline_df is not None and len(kline_df) > 0:
+                                if latest_data is not None:
+                                    latest_dt = self._latest_to_datetime(latest_data, today_date)
+                                    kline_df = kline_df[
+                                        pd.to_datetime(kline_df['date']) > latest_dt
+                                    ]
+
+                                if len(kline_df) > 0:
+                                    self.db.save_kline_history(code, kline_df)
+                                    catchup_success += 1
+                                    success += 1
+                                else:
+                                    catchup_skip += 1
+                                    skipped += 1
+                            else:
+                                catchup_fail += 1
+                                failed += 1
+
+                        except Exception as e:
+                            catchup_fail += 1
+                            failed += 1
+                            logger.debug(f"补抓 {code} 异常：{e}")
+
+                        # 限流间隔从 config 读取，与主循环一致（禁止硬编码）
+                        time.sleep(self.cfg['request_interval_seconds'])
+
+                logger.info(
+                    f"补抓结果：成功 {catchup_success}，失败 {catchup_fail}，跳过 {catchup_skip}"
+                )
 
         logger.info("=" * 80)
         logger.info("每日 K 线数据更新完成")
