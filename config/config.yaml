@@ -173,6 +173,31 @@ strategies:
         freshness_strategy: "skip"       # fail | stale_days | skip：指数数据不新鲜时的降级策略
         freshness_stale_days: 3          # strategy=stale_days 时允许的最近 N 交易日
 
+      # ===== V3 新增：分级市场风控（默认 hard_filter，与现网行为完全一致） =====
+      # 生产启用 graded 必须经过本地回测和影子运行，并单独授权
+      #
+      # mode 取值：
+      #   - hard_filter：现有行为（MA20/MA60/斜率三重硬过滤 + 评分调整）
+      #   - graded：分级裁决（强市正常 / 弱市高分+RS+低仓位 / 极弱硬阻断）
+      #   - shadow：影子模式——主流程仍走 hard_filter（正式信号不变），
+      #       额外独立计算 graded 裁决并写入 scan_runs.data_metrics 供审计，
+      #       不改变 signals_*.json 和飞书推送的任何内容
+      market_regime_policy:
+        mode: hard_filter
+        base_position_pct: 0.10
+        weak:
+          allow_entry: false
+          position_multiplier: 0.0
+          score_threshold: 0.0
+          daily_signal_limit: 0
+          require_relative_strength: true
+          relative_strength_lookback: 20
+          relative_strength_min: 0.0
+        extreme_weak:
+          allow_entry: false
+          position_multiplier: 0.0
+          daily_signal_limit: 0
+
       # 信号间隔控制
       signal_cooldown_days: 60           # 信号冷却期（交易日）
       max_signals_per_year: 2            # 单股票年度限制

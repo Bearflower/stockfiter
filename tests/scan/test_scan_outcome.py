@@ -36,7 +36,6 @@ class TestPersistScanOutcome:
                 run_kind="initial",
                 raw_candidate_count=5,
                 selected_count=3,
-                blocked_market=False,
                 trend_filter_reason=None,
                 stock_pool_count=2900,
                 scanned_count=2890,
@@ -49,15 +48,38 @@ class TestPersistScanOutcome:
             assert call_args[1]["selected_count"] == 3
             assert call_args[1]["filter_reason"] is None
 
+    def test_data_metrics_is_forwarded_to_upsert(self):
+        """修复 issue 1：persist_scan_outcome 必须把 data_metrics 透传给 upsert_scan_run。
+
+        修复前 data_metrics 未接收、未传参 → scan_runs.data_metrics 永远为 {}，
+        验收/监控读不到分级数据。
+        """
+        with mock.patch("scripts.daily_scan.DatabaseManager") as MockDB:
+            dm = {"policy_mode": "graded", "market_regime": "weak"}
+            persist_scan_outcome(
+                signal_date="2026-10-16",
+                run_kind="initial",
+                raw_candidate_count=5,
+                selected_count=3,
+                trend_filter_reason=None,
+                stock_pool_count=2900,
+                scanned_count=2890,
+                data_version=None,
+                data_metrics=dm,
+            )
+            upsert = MockDB.return_value.upsert_scan_run
+            call_args = upsert.call_args
+            # 核心契约：data_metrics 必须出现在 upsert_scan_run 的实参中
+            assert call_args[1]["data_metrics"] == dm
+
     def test_blocked_market(self):
-        """blocked_market=True 且有原始候选 → blocked_market"""
+        """raw_candidate_count > 0 且 selected_count == 0 → blocked_market"""
         with mock.patch("scripts.daily_scan.DatabaseManager") as MockDB:
             persist_scan_outcome(
                 signal_date="2026-10-16",
                 run_kind="initial",
                 raw_candidate_count=10,
                 selected_count=0,
-                blocked_market=True,
                 trend_filter_reason="沪深300 DIF <= 0",
                 stock_pool_count=2900,
                 scanned_count=2890,
@@ -70,6 +92,29 @@ class TestPersistScanOutcome:
             assert call_args[1]["selected_count"] == 0
             assert call_args[1]["filter_reason"] == "沪深300 DIF <= 0"
 
+    def test_forced_failure_reason_writes_failed(self):
+        """P2-1：forced_failure_reason 非空 → 一律写 failed。
+
+        修复前配置加载失败/异常路径传 raw=0，被状态机误判为 completed_zero，
+        监控只查 failed/blocked_data 时漏报。
+        """
+        with mock.patch("scripts.daily_scan.DatabaseManager") as MockDB:
+            persist_scan_outcome(
+                signal_date="2026-10-16",
+                run_kind="initial",
+                raw_candidate_count=0,
+                selected_count=0,
+                trend_filter_reason=None,
+                stock_pool_count=0,
+                scanned_count=0,
+                data_version=None,
+                forced_failure_reason="config_load_failed: boom",
+            )
+            upsert = MockDB.return_value.upsert_scan_run
+            call_args = upsert.call_args
+            assert call_args[1]["status"] == "failed"
+            assert call_args[1]["filter_reason"] == "config_load_failed: boom"
+
     def test_completed_zero_no_raw(self):
         """raw_candidate_count == 0 → completed_zero"""
         with mock.patch("scripts.daily_scan.DatabaseManager") as MockDB:
@@ -78,7 +123,6 @@ class TestPersistScanOutcome:
                 run_kind="initial",
                 raw_candidate_count=0,
                 selected_count=0,
-                blocked_market=False,
                 trend_filter_reason=None,
                 stock_pool_count=2900,
                 scanned_count=2890,
@@ -102,7 +146,6 @@ class TestPersistScanOutcome:
                 run_kind="initial",
                 raw_candidate_count=2,
                 selected_count=0,
-                blocked_market=False,
                 trend_filter_reason=None,
                 stock_pool_count=2900,
                 scanned_count=2890,
@@ -122,7 +165,6 @@ class TestPersistScanOutcome:
                 run_kind="rescan",
                 raw_candidate_count=0,
                 selected_count=0,
-                blocked_market=False,
                 trend_filter_reason=None,
                 stock_pool_count=2900,
                 scanned_count=2890,

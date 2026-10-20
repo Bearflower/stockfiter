@@ -18,7 +18,8 @@ OBPC 超跌反弹策略 - 公共风控模块
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
+import math
 from typing import Dict, Optional, Tuple
 
 import pandas as pd
@@ -74,7 +75,320 @@ def determine_market_strength(
     return "weak"
 
 
+# ==================== V3 新增：个股相对强度纯函数 ====================
+
+
+def _normalize_trading_date_index(series: "pd.Series") -> Optional["pd.Series"]:
+    """把 Series 索引统一规范化为 'YYYY-MM-DD' 交易日字符串（P2-4 加固）。
+
+    相对强度必须按**交易日期**对齐，按位置对齐会在停牌 / 缺日时静默错位。
+    因此这里统一规范化，任何无法表达交易日的索引一律 fail-closed：
+
+        - RangeIndex / 整数 / 浮点 / 布尔索引 → 拒绝（只有位置语义）
+          （不拒绝的话两个 RangeIndex 会被 pandas 按位置 inner join，
+            得到"看起来对齐"的错误结果）
+        - 无法解析为日期的字符串 / 对象索引 → 拒绝（errors="coerce" 得到 NaT）
+        - 同一交易日重复出现 → 拒绝（无法确定保留哪一行）
+
+    Returns:
+        Optional[pd.Series]: 索引为 'YYYY-MM-DD' 的 Series；索引非法时返回 None
+    """
+    idx = series.index
+    # 无日期语义的索引一律拒绝：RangeIndex（默认位置索引）、整数、浮点、布尔
+    if isinstance(idx, pd.RangeIndex):
+        return None
+    if (
+        pd.api.types.is_bool_dtype(idx)
+        or pd.api.types.is_integer_dtype(idx)
+        or pd.api.types.is_float_dtype(idx)
+    ):
+        return None
+    try:
+        parsed = pd.to_datetime(pd.Index(idx), errors="coerce")
+    except Exception:
+        return None
+    if not isinstance(parsed, pd.DatetimeIndex):
+        return None
+    if bool(parsed.isna().any()):
+        return None  # 存在不可解析的日期
+    labels = parsed.strftime("%Y-%m-%d")
+    if bool(labels.duplicated().any()):
+        return None  # 重复交易日
+    return pd.Series(series.to_numpy(), index=labels, name=series.name)
+
+
+def calculate_relative_strength(
+    stock_closes: "pd.Series",
+    index_closes: "pd.Series",
+    lookback: int,
+) -> Optional[float]:
+    """计算个股相对强度（V3 新增，按交易日期对齐）。
+
+    个股相对强度 = 个股 N 日收益 - 指数 N 日收益。
+    正表示个股跑赢指数，负表示个股跑输指数。
+
+    核心规则（2026-10-20 修复：按交易日期对齐，替代原按位置截取）：
+        - stock_closes 与 index_closes 必须是 pd.Series，**索引为交易日**
+          （'YYYY-MM-DD' 字符串索引或 DatetimeIndex），按时间升序排列，末尾为 T 日
+        - P2-4 加固：两侧索引先统一规范化为 'YYYY-MM-DD' 交易日字符串，
+          拒绝 RangeIndex / 整数 / 浮点 / 布尔等无日期语义的索引，拒绝不可解析的
+          日期与重复交易日（这些情况下按位置对齐会静默错位，必须 fail-closed）
+        - 计算前先对两条序列做**按交易日期 inner join**，只保留两者都存在的交易日，
+          从而消除个股停牌 / 指数缺少交易日导致的窗口错位
+        - 不做全局 dropna（会把窗口内的脏行整行删掉使窗口静默前移，反而掩盖异常）
+        - 对齐后长度必须 >= lookback + 1（含 T 日和 T-lookback 日），否则返回 None
+          （不冒充中性 0）
+        - 取对齐后末尾 lookback+1 个点；窗口内价格必须全部为有限正数
+          （NaN / Inf / 0 / 负数一律 None，只看首尾会漏掉中间异常价格，如 [100, 0, 110]）
+
+    Args:
+        stock_closes: 个股收盘价 Series（索引为交易日，升序，末尾为 T 日）
+        index_closes: 指数收盘价 Series（索引为交易日，升序，末尾为 T 日）
+        lookback: 回看交易日数（如 20）
+
+    Returns:
+        Optional[float]: 相对强度（如 0.05 表示个股跑赢指数 5%），
+        数据不可用时返回 None
+    """
+    if lookback <= 0:
+        return None
+    # 契约强制：必须是带交易日索引的 pd.Series；传 list / 位置索引会静默错位，故 fail-closed
+    if not isinstance(stock_closes, pd.Series) or not isinstance(index_closes, pd.Series):
+        return None
+    if stock_closes.empty or index_closes.empty:
+        return None
+
+    # P2-4：两侧索引统一规范化为交易日字符串；拒绝无日期索引 / 不可解析 / 重复交易日
+    stock_norm = _normalize_trading_date_index(stock_closes)
+    index_norm = _normalize_trading_date_index(index_closes)
+    if stock_norm is None or index_norm is None:
+        return None
+
+    # 按交易日期 inner join：只保留两者都存在的交易日，消除停牌/缺日错位。
+    # 注意：这里**不做**全局 dropna —— dropna 会把含 NaN 的行整行删除，
+    # 使窗口静默前移并掩盖窗口内的脏数据；非法值改为在下面显式校验。
+    try:
+        aligned = pd.concat(
+            [stock_norm.rename("stock"), index_norm.rename("index")],
+            axis=1,
+            join="inner",
+        ).sort_index()
+    except Exception:
+        return None
+
+    # 对齐后必须至少有 lookback + 1 个共同交易日（含 T 日和 T-lookback 日）
+    if len(aligned) < lookback + 1:
+        return None
+
+    # 取对齐后末尾 lookback+1 个点（升序 → 最后一个是 T 日，第一个是 T-lookback 日）
+    window = aligned.iloc[-(lookback + 1):]
+
+    # 窗口内价格必须全部为有限正数：NaN / Inf / 0 / 负数一律 fail-closed
+    # （只看首尾会漏掉中间异常价格，如 [100, 0, 110]；Inf 会产生无限相对强度）
+    try:
+        stock_values = [float(v) for v in window["stock"]]
+        index_values = [float(v) for v in window["index"]]
+    except (TypeError, ValueError):
+        return None
+    for v in stock_values + index_values:
+        if not math.isfinite(v) or v <= 0:
+            return None
+
+    # N 日收益率 = 末值 / 初值 - 1.0
+    stock_return = stock_values[-1] / stock_values[0] - 1.0
+    index_return = index_values[-1] / index_values[0] - 1.0
+
+    return stock_return - index_return
+
+
 # ==================== 数据类定义 ====================
+
+# ==================== V3 新增：分级市场风控配置 ====================
+
+
+@dataclass(frozen=True)
+class MarketRegimePolicyConfig:
+    """分级市场风控配置（V3 新增）。
+
+    所有风险参数必须来自 config.yaml，不在 Python 中隐式提供默认值。
+    缺少 market_regime_policy 分节时，RiskControlConfig.from_params()
+    自动构造 mode='hard_filter' 的兼容对象，不得凭代码默认值启用分级行为。
+    """
+
+    mode: str  # hard_filter | graded | shadow
+    base_position_pct: float
+    # weak 状态参数
+    weak_allow_entry: bool
+    weak_position_multiplier: float
+    weak_score_threshold: float
+    weak_daily_signal_limit: int
+    weak_require_relative_strength: bool
+    relative_strength_lookback: int
+    relative_strength_min: float
+    # extreme_weak 状态参数
+    extreme_weak_allow_entry: bool
+    extreme_weak_position_multiplier: float
+    extreme_weak_daily_signal_limit: int
+
+    def __post_init__(self) -> None:
+        """配置合法性校验（fail-fast）。
+
+        P1-2 修复（2026-10-20）：补齐类型 / 有限性 / 范围校验。
+        修复前 score_threshold、relative_strength_min 无任何校验：
+        字符串会在运行时抛 TypeError，NaN 会让 `score >= threshold` 恒为 False
+        （`nan > 0` 为 False）从而静默绕过评分过滤。
+        """
+        # mode 必须是合法值
+        if self.mode not in ("hard_filter", "graded", "shadow"):
+            raise ValueError(
+                f"market_regime_policy.mode={self.mode} 不合法，"
+                f"仅支持 hard_filter | graded | shadow"
+            )
+
+        # ---- 类型校验：禁止 bool / 字符串混入数值字段 ----
+        _float_fields = {
+            "base_position_pct": self.base_position_pct,
+            "weak.position_multiplier": self.weak_position_multiplier,
+            "weak.score_threshold": self.weak_score_threshold,
+            "relative_strength_min": self.relative_strength_min,
+            "extreme_weak.position_multiplier": self.extreme_weak_position_multiplier,
+        }
+        for name, value in _float_fields.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(
+                    f"market_regime_policy.{name}={value!r} 类型不合法，必须为数值"
+                )
+            if not math.isfinite(float(value)):
+                raise ValueError(
+                    f"market_regime_policy.{name}={value} 不合法，必须为有限实数（禁止 NaN / Inf）"
+                )
+
+        _int_fields = {
+            "weak.daily_signal_limit": self.weak_daily_signal_limit,
+            "extreme_weak.daily_signal_limit": self.extreme_weak_daily_signal_limit,
+            "relative_strength_lookback": self.relative_strength_lookback,
+        }
+        for name, value in _int_fields.items():
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(
+                    f"market_regime_policy.{name}={value!r} 类型不合法，必须为整数"
+                )
+
+        _bool_fields = {
+            "weak.allow_entry": self.weak_allow_entry,
+            "weak.require_relative_strength": self.weak_require_relative_strength,
+            "extreme_weak.allow_entry": self.extreme_weak_allow_entry,
+        }
+        for name, value in _bool_fields.items():
+            if not isinstance(value, bool):
+                raise ValueError(
+                    f"market_regime_policy.{name}={value!r} 类型不合法，必须为布尔值"
+                )
+
+        # ---- 范围校验 ----
+        # 基础仓位必须在 (0, 1]
+        if not (0 < self.base_position_pct <= 1):
+            raise ValueError(
+                f"base_position_pct={self.base_position_pct} 不合法，"
+                f"必须在 (0, 1] 区间"
+            )
+        # 评分阈值必须在 [0, 100]（NaN 在上面已被拒绝）
+        if not (0 <= self.weak_score_threshold <= 100):
+            raise ValueError(
+                f"weak.score_threshold={self.weak_score_threshold} 不合法，"
+                f"必须在 [0, 100] 区间（0 表示不使用评分过滤）"
+            )
+        # 相对强度阈值必须在 [-1, 1]（N 日收益率差）
+        if not (-1 <= self.relative_strength_min <= 1):
+            raise ValueError(
+                f"relative_strength_min={self.relative_strength_min} 不合法，"
+                f"必须在 [-1, 1] 区间"
+            )
+        # 弱市仓位乘数必须在 [0, 1]
+        if not (0 <= self.weak_position_multiplier <= 1):
+            raise ValueError(
+                f"weak.position_multiplier={self.weak_position_multiplier} 不合法，"
+                f"必须在 [0, 1] 区间"
+            )
+        # 极弱仓位乘数必须在 [0, 1]
+        if not (0 <= self.extreme_weak_position_multiplier <= 1):
+            raise ValueError(
+                f"extreme_weak.position_multiplier={self.extreme_weak_position_multiplier} 不合法，"
+                f"必须在 [0, 1] 区间"
+            )
+        # 每日名额不得为负
+        if self.weak_daily_signal_limit < 0:
+            raise ValueError(
+                f"weak.daily_signal_limit={self.weak_daily_signal_limit} 不合法，不得为负"
+            )
+        if self.extreme_weak_daily_signal_limit < 0:
+            raise ValueError(
+                f"extreme_weak.daily_signal_limit={self.extreme_weak_daily_signal_limit} 不合法，不得为负"
+            )
+        # 相对强度回看周期必须为正整数
+        if self.relative_strength_lookback <= 0:
+            raise ValueError(
+                f"relative_strength_lookback={self.relative_strength_lookback} 不合法，必须为正整数"
+            )
+
+        # ---- 安全不变量：极弱市场必须硬阻断（P1-1，禁止被配置绕过）----
+        # 极弱状态（跌破 MA60 且 MA60 向下）允许开仓会直接违反「极弱市场最终
+        # 信号恒为 0」的安全不变量；range 校验只保证「值合法」，
+        # 这里强制「值必须是阻断值」，即 false / 0.0 / 0。
+        if self.extreme_weak_allow_entry is not False:
+            raise ValueError(
+                f"extreme_weak.allow_entry={self.extreme_weak_allow_entry!r} 不合法："
+                "极弱市场必须硬阻断，allow_entry 只能为 false"
+            )
+        if float(self.extreme_weak_position_multiplier) != 0.0:
+            raise ValueError(
+                f"extreme_weak.position_multiplier={self.extreme_weak_position_multiplier} 不合法："
+                "极弱市场必须硬阻断，position_multiplier 只能为 0"
+            )
+        if int(self.extreme_weak_daily_signal_limit) != 0:
+            raise ValueError(
+                f"extreme_weak.daily_signal_limit={self.extreme_weak_daily_signal_limit} 不合法："
+                "极弱市场必须硬阻断，daily_signal_limit 只能为 0"
+            )
+
+
+# P1-2 修复（2026-10-20）：graded/shadow 模式下的强制字段清单。
+# 修复前仅校验 weak/extreme_weak 分节是否存在，其余字段全部走 .get 默认值，
+# 最小配置即可启动并静默得到 position_multiplier=0 / score_threshold=0 /
+# daily_signal_limit=0 / lookback=20，等于用代码默认值悄悄改变准入行为。
+_GRADED_REQUIRED_TOP_FIELDS = ("base_position_pct",)
+_GRADED_REQUIRED_WEAK_FIELDS = (
+    "allow_entry",
+    "position_multiplier",
+    "score_threshold",
+    "daily_signal_limit",
+    "require_relative_strength",
+    "relative_strength_lookback",
+    "relative_strength_min",
+)
+_GRADED_REQUIRED_EXTREME_WEAK_FIELDS = (
+    "allow_entry",
+    "position_multiplier",
+    "daily_signal_limit",
+)
+
+
+# hard_filter 兼容路径：旧配置缺少 market_regime_policy 分节时使用
+_HARD_FILTER_COMPAT_CONFIG = MarketRegimePolicyConfig(
+    mode="hard_filter",
+    base_position_pct=0.10,
+    weak_allow_entry=False,
+    weak_position_multiplier=0.0,
+    weak_score_threshold=0.0,
+    weak_daily_signal_limit=0,
+    weak_require_relative_strength=False,
+    relative_strength_lookback=20,
+    relative_strength_min=0.0,
+    extreme_weak_allow_entry=False,
+    extreme_weak_position_multiplier=0.0,
+    extreme_weak_daily_signal_limit=0,
+)
+
 
 @dataclass
 class RiskControlConfig:
@@ -85,7 +399,13 @@ class RiskControlConfig:
     所有参数均有默认值，旧配置文件可正常运行（向后兼容）。
 
     V2.1 新增字段默认关闭相关功能，确保使用 V2.0 配置时行为完全一致。
+    V3 新增分级市场风控配置（market_regime_policy_config），默认 hard_filter。
     """
+
+    # ===== V3 新增：分级市场风控配置 =====
+    market_regime_policy_config: MarketRegimePolicyConfig = field(
+        default_factory=lambda: _HARD_FILTER_COMPAT_CONFIG
+    )
 
     # ===== 风控1：大盘趋势过滤（V2.0 原有） =====
     index_filter_enabled: bool = True
@@ -181,6 +501,15 @@ class RiskControlConfig:
     freshness_stale_days: int = 3
     """strategy=stale_days 时允许的最近 N 交易日（R06 新增）"""
 
+    @property
+    def market_regime_mode(self) -> str:
+        """分级市场风控模式（V3 新增）。
+
+        从 market_regime_policy_config.mode 读取，是 RiskController 判断
+        是否走 graded/shadow 路径的唯一入口。
+        """
+        return self.market_regime_policy_config.mode
+
     def __post_init__(self) -> None:
         """
         配置合法性校验（V2.1 新增，fail-fast）
@@ -191,6 +520,18 @@ class RiskControlConfig:
         Raises:
             ValueError: 当配置值不合法时抛出
         """
+        # V3：仅 graded 模式不得同时启用旧的 score_adjustment（双重惩罚风险）。
+        # shadow 模式的设计目标是「正式路径输出与 hard_filter 完全一致」，
+        # 因此 shadow 必须完整保留 hard_filter 配置（含 score_adjustment），
+        # 不得因 score_adjustment.enabled=true 而报错。
+        if self.market_regime_mode == "graded" and self.score_adjustment_enabled:
+            raise ValueError(
+                f"score_adjustment.enabled=true 与 market_regime_policy.mode="
+                f"{self.market_regime_mode} 互斥：graded 模式由"
+                f" MarketRegimeDecision 统一给出评分阈值与仓位，"
+                f"不能再叠加旧的评分调整系数，否则会重复惩罚弱市信号。"
+            )
+
         # 校验大盘过滤方法
         if self.index_filter_method not in ("ma_position", "macd"):
             raise ValueError(
@@ -233,6 +574,10 @@ class RiskControlConfig:
         V2.1 扩展：兼容 V2.0 配置文件，缺失的 V2.1 键使用默认值，
         确保使用 V2.0 配置时行为完全一致（向后兼容）。
 
+        V3 扩展：解析 market_regime_policy 分节。缺少该分节或 mode=hard_filter
+        时，使用 _HARD_FILTER_COMPAT_CONFIG 兼容路径，保持现网零回归。
+        graded/shadow 模式要求 weak 和 extreme_weak 两个子分节同时存在，否则报错。
+
         Args:
             params: config.yaml 中 strategies.oversold_bounce.params 字典
 
@@ -243,7 +588,12 @@ class RiskControlConfig:
         score_filter = params.get("score_filter", {}) or {}
         score_adjustment = params.get("score_adjustment", {}) or {}
 
+        # ===== V3 新增：解析分级市场风控配置 =====
+        market_regime_policy_config = cls._parse_market_regime_policy(params)
+
         return cls(
+            # ===== V3 新增：分级市场风控配置 =====
+            market_regime_policy_config=market_regime_policy_config,
             # ===== V2.0 原有字段（保持不变） =====
             index_filter_enabled=index_filter.get("enabled", True),
             index_code=index_filter.get("index_code", "000300.SH"),
@@ -284,6 +634,87 @@ class RiskControlConfig:
             # ===== R06 新增：指数数据新鲜度校验 =====
             freshness_strategy=index_filter.get("freshness_strategy", "skip"),
             freshness_stale_days=index_filter.get("freshness_stale_days", 3),
+        )
+
+    @classmethod
+    def _parse_market_regime_policy(cls, params: Dict) -> MarketRegimePolicyConfig:
+        """解析 market_regime_policy 分节，构造 MarketRegimePolicyConfig。
+
+        缺少分节时使用 _HARD_FILTER_COMPAT_CONFIG 兼容路径；
+        mode=hard_filter 也使用兼容对象，防止用户在 hard_filter 下
+        写错阈值却意外触发 graded 行为。
+        """
+        mrp = params.get("market_regime_policy")
+        if not mrp:
+            return _HARD_FILTER_COMPAT_CONFIG
+
+        mode = mrp.get("mode", "hard_filter")
+        if mode not in ("hard_filter", "graded", "shadow"):
+            raise ValueError(
+                f"market_regime_policy.mode={mode!r} 不合法，"
+                f"仅支持 hard_filter | graded | shadow"
+            )
+        if mode == "hard_filter":
+            return _HARD_FILTER_COMPAT_CONFIG
+
+        # ---- 以下仅 graded / shadow：所有风险参数必须显式配置 ----
+        weak = mrp.get("weak")
+        extreme_weak = mrp.get("extreme_weak")
+        if not weak:
+            raise ValueError(
+                f"market_regime_policy.mode={mode} 必须同时提供 weak 和 extreme_weak 分节，"
+                f"缺少 weak"
+            )
+        if not extreme_weak:
+            raise ValueError(
+                f"market_regime_policy.mode={mode} 必须同时提供 weak 和 extreme_weak 分节，"
+                f"缺少 extreme_weak"
+            )
+        # P1-2 修复：分级模式禁止用代码默认值补齐风险参数（fail-closed）。
+        # 缺少任一字段直接拒绝启动，避免仓位/阈值/名额被静默改变。
+        if not isinstance(weak, dict) or not isinstance(extreme_weak, dict):
+            raise ValueError(
+                f"market_regime_policy.mode={mode} 的 weak / extreme_weak 必须是映射（dict）"
+            )
+        missing = [
+            f"market_regime_policy.{k}"
+            for k in _GRADED_REQUIRED_TOP_FIELDS
+            if k not in mrp
+        ]
+        missing += [
+            f"market_regime_policy.weak.{k}"
+            for k in _GRADED_REQUIRED_WEAK_FIELDS
+            if k not in weak
+        ]
+        missing += [
+            f"market_regime_policy.extreme_weak.{k}"
+            for k in _GRADED_REQUIRED_EXTREME_WEAK_FIELDS
+            if k not in extreme_weak
+        ]
+        if missing:
+            raise ValueError(
+                f"market_regime_policy.mode={mode} 要求所有风险参数显式配置，"
+                f"缺少：{'、'.join(missing)}。"
+                f"禁止使用代码默认值补齐（否则仓位/评分阈值/每日名额会被静默改变）"
+            )
+
+        # 全部字段均已确认存在 → 直接取值，不再使用 .get 默认值
+        return MarketRegimePolicyConfig(
+            mode=mode,
+            base_position_pct=mrp["base_position_pct"],
+            weak_allow_entry=weak["allow_entry"],
+            weak_position_multiplier=weak["position_multiplier"],
+            weak_score_threshold=weak["score_threshold"],
+            weak_daily_signal_limit=weak["daily_signal_limit"],
+            weak_require_relative_strength=weak["require_relative_strength"],
+            # 配置契约：relative_strength_lookback/min 定义在 weak 子节下
+            # （与 config/config.yaml 的 market_regime_policy.weak 保持一致）。
+            # 早期版本误从 mrp 顶层读取，导致 YAML 中 weak 下的阈值被静默忽略。
+            relative_strength_lookback=weak["relative_strength_lookback"],
+            relative_strength_min=weak["relative_strength_min"],
+            extreme_weak_allow_entry=extreme_weak["allow_entry"],
+            extreme_weak_position_multiplier=extreme_weak["position_multiplier"],
+            extreme_weak_daily_signal_limit=extreme_weak["daily_signal_limit"],
         )
 
 
@@ -334,6 +765,20 @@ class MarketContext:
 
     market_strength: str = "unknown"
     """市场强度标签（V2.1 新增）：strong/weak/extreme_weak/unknown"""
+
+    # ===== V3 新增：用于个股相对强度计算的历史指数收盘价 =====
+    index_close_history: Optional[pd.Series] = field(default=None)
+    """历史指数收盘价序列（V3 新增）。
+
+    索引为交易日，值为收盘价；按时间升序排列（早→晚）。
+    由 Provider 在构建 MarketContext 时填充。
+    对于 RealtimeProvider，存最近 N 天（通常 >= 60，覆盖 MA60 和相对强度回看需求）；
+    对于 PreloadedProvider，存截至当前日期的完整历史（回测区间内所有交易日）。
+    为 None 时表示数据不可用（历史序列缺失，不代表当日 close 缺失）。
+
+    设计为 Optional[pd.Series] 并使用 field(default=None)，确保所有现有调用者
+    （包括测试里的 _make_context() helper）零感知——它们不需要传这个字段。
+    """
 
     @property
     def above_ma20(self) -> bool:
@@ -415,6 +860,24 @@ class RiskControlResult:
 
     effective_threshold: Optional[float] = None
     """当前生效的评分阈值（无论是否被过滤，都记录用于调试）"""
+
+
+@dataclass(frozen=True)
+class MarketRegimeDecision:
+    """分级市场裁决结果（V3 新增）。
+
+    是 graded/shadow 模式下唯一权威的市场状态判定入口。
+    strong / weak / extreme_weak / unknown 四态互斥。
+    """
+
+    regime: str  # strong | weak | extreme_weak | unknown
+    allow_entry: bool  # 是否允许买入信号进入正式候选
+    position_multiplier: float  # 建议仓位系数（=0 时等同于禁止）
+    score_threshold: float  # 该状态下生效的评分阈值
+    daily_signal_limit: int  # 该状态下每日最多允许的信号数（0=不限制）
+    require_relative_strength: bool  # 是否要求个股相对强度通过
+    reason_code: str  # 可机读原因码
+    reason: str  # 人读原因描述
 
 
 # ==================== 抽象接口定义 ====================
@@ -519,11 +982,19 @@ class RealtimeMarketContextProvider(MarketContextProvider):
         Returns:
             Optional[MarketContext]: 大盘上下文，获取失败时返回 None
         """
-        # 计算需要获取的指数数据天数：需满足长周期均线、MACD、斜率的所有需求
+        # 计算需要获取的指数数据天数：需满足长周期均线、MACD、斜率、相对强度的所有需求
+        # P2-4 修复（2026-10-20）：graded 的相对强度回看周期纳入拉取长度，
+        # 否则 lookback 大于上述窗口时 RS 会因指数序列不足而返回 None（静默过滤信号）。
+        _rs_lookback = getattr(
+            self.config.market_regime_policy_config,
+            "relative_strength_lookback",
+            0,
+        ) or 0
         required_days = max(
             self.config.index_ma_period_long + 10,
             self.config.macd_slow + self.config.macd_signal + 10,
             self.config.slope_ma_period + self.config.slope_lookback + 10,
+            _rs_lookback + 1 + 10,
             self.config.min_index_data_days,
         )
 
@@ -539,59 +1010,95 @@ class RealtimeMarketContextProvider(MarketContextProvider):
             logger.warning(f"指数 {self.config.index_code} 数据为空，跳过大盘过滤")
             return None
 
-        # R06：指数数据新鲜度校验（在计算任何指标前先比对日期）
-        last_raw_date = index_df["date"].iloc[-1]
-        # 统一转成日期字符串 YYYY-MM-DD
-        if hasattr(last_raw_date, "strftime"):
-            last_date_str = last_raw_date.strftime("%Y-%m-%d")
-        elif isinstance(last_raw_date, str):
-            last_date_str = last_raw_date[:10]
+        # ===== V3 前视偏差修复（P1-3，2026-10-20）=====
+        # R06 新鲜度校验已下移到「截断之后」（见 P1-2 修复）：
+        # 截断前只能判断「库里有没有数据」，截断后才能判断「目标交易日有没有数据」。
+        # index_df 来自 db.get_index_kline(days=required_days)，返回数据库里「最新」
+        # 的 N 个交易日。当 date_str 指向历史日期时（daily_scan --signal-date、
+        # 盘前重扫），末尾会包含 date_str 之后的行情。必须在计算任何指标
+        # （当前收盘、MA20/MA60、MACD、斜率、RS 序列）之前彻底截断，
+        # 否则历史扫描会读到未来数据（前视偏差）。
+        index_df = index_df[
+            index_df["date"].dt.strftime("%Y-%m-%d") <= date_str
+        ].reset_index(drop=True)
+        if index_df.empty:
+            logger.warning(
+                f"指数 {self.config.index_code} 在目标日期 {date_str} 及之前无任何数据，"
+                f"大盘风控上下文不可用（fail-closed）"
+            )
+            return None
+
+        # ===== P1-2 修复（2026-10-20）：新鲜度必须用「截断后」的实际最后交易日 =====
+        # 截断前的 last_date_str 只能证明「库里有数据」，不能证明「目标交易日有数据」：
+        # 当库里含目标日之后的行情、而目标日本身缺行时，截断后最后一行是更早的
+        # 交易日；若仍用截断前日期判断，会误入「历史扫描」分支，把前一交易日的
+        # 指标伪装成目标日数据（current_date=date_str）。
+        effective_last_date = index_df["date"].iloc[-1]
+        if hasattr(effective_last_date, "strftime"):
+            effective_last_str = effective_last_date.strftime("%Y-%m-%d")
+        elif isinstance(effective_last_date, str):
+            effective_last_str = effective_last_date[:10]
         else:
-            last_date_str = str(last_raw_date)[:10]
+            effective_last_str = str(effective_last_date)[:10]
 
-        if last_date_str != date_str:
-            # 指数最后 K 线日期 != 目标交易日 → 数据不新鲜
-            diff_msg = f"指数 {self.config.index_code} 最新日期 {last_date_str} != 目标日期 {date_str}"
-            strategy = self.config.freshness_strategy
+        # 上下文日期默认取目标交易日；目标日缺行时按实际最后交易日如实修正
+        context_date = date_str
 
-            if strategy == "stale_days":
-                # 允许最近 N 交易日内的延迟
-                from datetime import datetime as _dt
-                try:
-                    last_dt = _dt.strptime(last_date_str, "%Y-%m-%d")
-                    target_dt = _dt.strptime(date_str, "%Y-%m-%d")
-                    if abs((target_dt - last_dt).days) <= self.config.freshness_stale_days:
-                        logger.info(
-                            f"指数数据延迟在容忍范围内（{abs((target_dt - last_dt).days)} 天 ≤ "
-                            f"{self.config.freshness_stale_days} 天），继续计算"
+        if effective_last_str != date_str:
+            from datetime import datetime as _dt
+            try:
+                eff_dt = _dt.strptime(effective_last_str, "%Y-%m-%d")
+                target_dt = _dt.strptime(date_str, "%Y-%m-%d")
+                lag_days = (target_dt - eff_dt).days
+            except ValueError:
+                lag_days = None
+
+            if lag_days is not None and lag_days > 0:
+                # 截断后最后一行「早于」目标交易日 → 目标日缺行，属数据延迟（stale）
+                diff_msg = (
+                    f"指数 {self.config.index_code} 在目标交易日 {date_str} 及之前"
+                    f"的最后一个交易日为 {effective_last_str}（延迟 {lag_days} 天）"
+                )
+                strategy = self.config.freshness_strategy
+
+                if strategy == "stale_days":
+                    # 允许最近 N 天内的延迟（显式配置的容忍，日志中明确告知实际日期）
+                    if lag_days <= self.config.freshness_stale_days:
+                        logger.warning(
+                            f"{diff_msg}，延迟在容忍范围内（{lag_days} 天 ≤ "
+                            f"{self.config.freshness_stale_days} 天），"
+                            f"按 {effective_last_str} 的行情计算（非目标日数据）"
                         )
+                        # 如实标注实际数据日期，避免把前一交易日伪装成目标日
+                        context_date = effective_last_str
                     else:
                         logger.warning(
                             f"{diff_msg}，延迟超过允许上限 "
                             f"{self.config.freshness_stale_days} 天，按 skip 策略跳过大盘过滤"
                         )
                         return None
-                except ValueError:
-                    logger.warning(
-                        f"{diff_msg}，日期解析失败，按 skip 策略跳过大盘过滤"
+                elif strategy == "fail":
+                    logger.error(
+                        f"{diff_msg}，freshness_strategy=fail 要求严格日期一致，"
+                        f"大盘风控上下文不可用"
                     )
                     return None
-
-            elif strategy == "fail":
-                logger.error(
-                    f"{diff_msg}，freshness_strategy=fail 要求严格日期一致，"
-                    f"大盘风控上下文不可用"
-                )
-                return None
-
-            else:  # "skip"（默认）
+                else:  # "skip"（默认，生产配置）
+                    logger.warning(
+                        f"{diff_msg}，freshness_strategy=skip 跳过大盘过滤，"
+                        f"signal_date={date_str}"
+                    )
+                    return None
+            else:
+                # 目标日缺行且日期无法解析 → fail-closed，不得伪造目标日上下文
                 logger.warning(
-                    f"{diff_msg}，freshness_strategy=skip 跳过大盘过滤，"
-                    f"signal_date={date_str}"
+                    f"指数 {self.config.index_code} 截断后最后交易日 "
+                    f"{effective_last_str} 与目标日期 {date_str} 不一致且无法解析，"
+                    f"跳过大盘过滤"
                 )
                 return None
 
-        # 取最新一条作为当日收盘价
+        # 取截断后最新一条作为目标交易日收盘价
         current_close = float(index_df["close"].iloc[-1])
 
         # 计算短周期均线（MA20）
@@ -625,9 +1132,11 @@ class RealtimeMarketContextProvider(MarketContextProvider):
             index_dif, index_dea, index_hist = self._calculate_macd(index_df)
 
         # ===== V2.1 新增：斜率计算 =====
+        # V3 新增：graded/shadow 模式下强制计算 slope（_determine_regime 依赖 ma20_slope 和 ma60_slope）
+        _graded_mode_active = self.config.market_regime_mode in ("graded", "shadow")
         ma20_slope = None
         ma60_slope = None
-        if self.config.slope_filter_enabled or self.config.score_adjustment_enabled:
+        if self.config.slope_filter_enabled or self.config.score_adjustment_enabled or _graded_mode_active:
             # 斜率过滤启用时，计算 slope_ma_period 对应的斜率
             if self.config.slope_filter_enabled:
                 if self.config.slope_ma_period == 20:
@@ -648,6 +1157,16 @@ class RealtimeMarketContextProvider(MarketContextProvider):
                     ma60_slope = self._calculate_slope(
                         index_df, self.config.index_ma_period_long
                     )
+            # V3 新增：graded/shadow 模式需要两个 slope（_determine_regime 依赖）
+            if _graded_mode_active:
+                if ma20_slope is None:
+                    ma20_slope = self._calculate_slope(
+                        index_df, self.config.index_ma_period
+                    )
+                if ma60_slope is None:
+                    ma60_slope = self._calculate_slope(
+                        index_df, self.config.index_ma_period_long
+                    )
 
         # ===== V2.1 新增：市场强度判定 =====
         market_strength = "unknown"
@@ -656,8 +1175,29 @@ class RealtimeMarketContextProvider(MarketContextProvider):
                 current_close, index_ma20, index_ma60, ma20_slope, ma60_slope
             )
 
+        # ===== V3：构造 index_close_history 供 calculate_relative_strength 按日期对齐 =====
+        # index_df 已在函数入口按 date<=date_str 截断（无前视），这里只做长度裁剪。
+        lookback_max = max(
+            self.config.index_ma_period_long,    # MA60
+            getattr(self.config.market_regime_policy_config, "relative_strength_lookback", 0),
+        )
+        index_df_cut = index_df
+        # 只保留足够长度（lookback_max + 10 的缓冲），不要把整列都塞进去
+        if lookback_max > 0 and len(index_df_cut) > lookback_max + 10:
+            index_df_cut = index_df_cut.tail(lookback_max + 10)
+        # V3 修复（2026-10-20）：index_close_history 索引为交易日，
+        # 供 calculate_relative_strength 按日期对齐（消除停牌/缺日错位）
+        if index_df_cut.empty:
+            index_close_history = None
+        else:
+            index_close_history = pd.Series(
+                index_df_cut["close"].astype(float).values,
+                index=pd.to_datetime(index_df_cut["date"]).dt.strftime("%Y-%m-%d").values,
+                name="index_close",
+            )
+
         return MarketContext(
-            current_date=date_str,
+            current_date=context_date,
             index_close=current_close,
             index_ma20=index_ma20,
             index_ma60=index_ma60,
@@ -670,6 +1210,8 @@ class RealtimeMarketContextProvider(MarketContextProvider):
             ma20_slope=ma20_slope,
             ma60_slope=ma60_slope,
             market_strength=market_strength,
+            # V3 新增：截至 date_str 的历史指数收盘价序列（已截断，无前视）
+            index_close_history=index_close_history,
         )
 
     def _calculate_ma(
@@ -850,7 +1392,9 @@ class PreloadedMarketContextProvider(MarketContextProvider):
             df["hist"] = df["dif"] - df["dea"]
 
         # ===== V2.1 新增：预计算斜率列 =====
-        if self.config.slope_filter_enabled or self.config.score_adjustment_enabled:
+        # V3 新增：graded/shadow 模式下强制预计算两个 slope 列（_determine_regime 依赖）
+        _graded_mode_active_pre = self.config.market_regime_mode in ("graded", "shadow")
+        if self.config.slope_filter_enabled or self.config.score_adjustment_enabled or _graded_mode_active_pre:
             # MA20 斜率：(当前 MA20 - N 天前 MA20) / N 天前 MA20
             df["ma20_slope"] = (
                 df["ma20"] - df["ma20"].shift(self.config.slope_lookback)
@@ -870,6 +1414,10 @@ class PreloadedMarketContextProvider(MarketContextProvider):
         ma60_slope_min_idx = (
             self.config.index_ma_period_long + self.config.slope_lookback - 1
         )
+
+        # V3 修复（2026-10-20）：预计算交易日字符串索引，供 index_close_history
+        # 按日期对齐使用（循环外计算一次，避免 O(N²) 重复转换）
+        _index_date_strings = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d").values
 
         for idx in range(len(df)):
             row = df.iloc[idx]
@@ -906,9 +1454,14 @@ class PreloadedMarketContextProvider(MarketContextProvider):
                     index_hist = float(row["hist"])
 
             # ===== V2.1 新增：提取斜率值 =====
+            # V3 新增：graded/shadow 模式也需要从预计算列里提取 slope 值
             ma20_slope = None
             ma60_slope = None
-            if self.config.slope_filter_enabled or self.config.score_adjustment_enabled:
+            if (
+                self.config.slope_filter_enabled
+                or self.config.score_adjustment_enabled
+                or self.config.market_regime_mode in ("graded", "shadow")
+            ):
                 if idx >= ma20_slope_min_idx and pd.notna(row["ma20_slope"]):
                     ma20_slope = float(row["ma20_slope"])
                 if idx >= ma60_slope_min_idx and pd.notna(row["ma60_slope"]):
@@ -936,6 +1489,13 @@ class PreloadedMarketContextProvider(MarketContextProvider):
                 ma20_slope=ma20_slope,
                 ma60_slope=ma60_slope,
                 market_strength=market_strength,
+                # V3 新增：截至当前日期的完整历史指数收盘价
+                # （索引为交易日，供 calculate_relative_strength 按日期对齐）
+                index_close_history=pd.Series(
+                    df["close"].iloc[: idx + 1].astype(float).values,
+                    index=_index_date_strings[: idx + 1],
+                    name="index_close",
+                ),
             )
             self.context_map[date_str] = context
 
@@ -1090,6 +1650,42 @@ def cap_by_monthly_quota(
     return selected
 
 
+def apply_candidate_quota_chain(
+    candidates,
+    used_count: int,
+    max_per_month: int,
+    max_daily: int = 0,
+    graded_daily_limit: int = 0,
+):
+    """候选配额闭环：月额度 + 日额度 + 分级弱市日限额，统一截断。
+
+    P2-4 修复（2026-10-20）：graded 正式路径按「先 cap_by_monthly_quota，再分级
+    daily_signal_limit」两段截断；shadow 模拟此前只应用分级 daily_signal_limit，
+    遗漏了同样生效的 max_per_month / max_daily / 已用月额度，导致影子候选数被高估、
+    污染影子期对比数据。现在把整条配额链收敛到本函数，graded 正式路径与 shadow
+    模拟复用同一入口，保证两条链的配额口径完全一致。
+
+    Args:
+        candidates: 已按评分降序排列的候选列表（Signal 对象或 dict）
+        used_count: 该月份已占用信号数
+        max_per_month: 月度上限（来自 config.max_signals_per_month）
+        max_daily: 当日上限（来自 config.max_daily_signals，0/负数表示不启用）
+        graded_daily_limit: 分级裁决的弱市日限额（0/负数表示不启用）
+
+    Returns:
+        list: 截断后的入选候选，顺序保持评分降序
+    """
+    selected = cap_by_monthly_quota(
+        candidates,
+        used_count=used_count,
+        max_per_month=max_per_month,
+        max_daily=max_daily,
+    )
+    if graded_daily_limit > 0 and len(selected) > graded_daily_limit:
+        selected = selected[:graded_daily_limit]
+    return selected
+
+
 # ==================== 风控控制器 ====================
 
 class RiskController:
@@ -1131,6 +1727,10 @@ class RiskController:
             "skipped_macd_filter": 0,           # 被 MACD 过滤的信号数
             "skipped_slope_filter": 0,          # 被斜率过滤的信号数
             "skipped_score_adjustment": 0,      # 被评分调整归零的信号数
+            # V3 新增：分级市场风控过滤
+            "skipped_extreme_weak_filter": 0,        # 被极弱市场硬阻断
+            "skipped_weak_market_blocked": 0,        # 弱市 allow_entry=false 阻断
+            "skipped_market_data_unavailable": 0,    # 指数数据缺失
         }
 
         # 按月份统计风控命中（用于回测报告的时间分布分析）
@@ -1170,6 +1770,17 @@ class RiskController:
         Returns:
             RiskControlResult: 风控检查结果
         """
+        # ===== V3 新增：分级市场风控路径（仅 graded 模式） =====
+        # 一旦 mode 是 graded，直接走新裁决路径，彻底绕过旧的
+        # 评分调整、MA20/MA60 位置过滤、斜率过滤，避免重复惩罚。
+        # shadow 模式主流程必须走 hard_filter（此处不路由 shadow），
+        # 由调用方（daily_scan._run_shadow_graded_simulation）在末尾
+        # 独立调用 decide_market_regime 采集差异。
+        mode = self.config.market_regime_mode
+        if mode == "graded":
+            return self._apply_graded_controls(signal, market_context)
+
+        # ===== hard_filter 原有路径（零回归） =====
         # ===== V2.1 新增：评分调整（前置） =====
         # 极弱市场评分归零，直接过滤；其他市场按系数调整评分
         if self.config.score_adjustment_enabled:
@@ -1237,6 +1848,166 @@ class RiskController:
                 return result
 
         return result
+
+    # ==================== V3 新增：分级市场风控方法 ====================
+
+    def decide_market_regime(
+        self, market_context: MarketContext
+    ) -> MarketRegimeDecision:
+        """分级市场裁决（V3 新增，graded/shadow 模式唯一权威入口）。
+
+        决策顺序固定：数据有效性 → 极弱 → 强势 → 普通弱势。
+        本方法**不再**调用 _check_ma_position_filter()、_check_slope_filter()
+        或 adjust_score_by_market_state()，避免 graded 模式重复惩罚。
+        """
+        policy = self.config.market_regime_policy_config
+        if policy.mode not in ("graded", "shadow"):
+            # hard_filter 模式不应走到这里，返回一个保守决策
+            return MarketRegimeDecision(
+                regime="unknown",
+                allow_entry=True,
+                position_multiplier=1.0,
+                score_threshold=self.config.score_threshold,
+                daily_signal_limit=0,
+                require_relative_strength=False,
+                reason_code="hard_filter_mode",
+                reason="硬过滤模式下不使用分级裁决",
+            )
+
+        # ===== 状态判定 =====
+        regime = self._determine_regime(market_context)
+
+        # ===== 根据状态生成决策 =====
+        if regime == "unknown":
+            return MarketRegimeDecision(
+                regime="unknown",
+                allow_entry=False,
+                position_multiplier=0.0,
+                score_threshold=0.0,
+                daily_signal_limit=0,
+                require_relative_strength=False,
+                reason_code="market_data_unavailable",
+                reason="指数数据不足或过期，禁止开仓",
+            )
+
+        elif regime == "extreme_weak":
+            # P1-1 修复（2026-10-20）：裁决层双层防御——极弱市场无论配置写成什么，
+            # 一律硬编码 false / 0.0 / 0，保证「极弱市场最终信号恒为 0」的安全不变量
+            # 不会被配置绕过（配置层的 __post_init__ 已拒绝非法值，这里是最后一道墙）。
+            return MarketRegimeDecision(
+                regime="extreme_weak",
+                allow_entry=False,
+                position_multiplier=0.0,
+                score_threshold=0.0,
+                daily_signal_limit=0,
+                require_relative_strength=False,  # 相对强度不能绕过极弱阻断
+                reason_code="extreme_weak_market",
+                reason="大盘极弱（跌破 MA60 且 MA60 向下），禁止开仓",
+            )
+
+        elif regime == "strong":
+            return MarketRegimeDecision(
+                regime="strong",
+                allow_entry=True,
+                position_multiplier=1.0,
+                score_threshold=self.config.score_threshold,
+                daily_signal_limit=0,  # 0 表示不限制（沿用月/日额度）
+                require_relative_strength=False,
+                reason_code="strong_market",
+                reason="大盘强势（站上 MA20 且 MA20 向上），正常放行",
+            )
+
+        else:  # weak
+            return MarketRegimeDecision(
+                regime="weak",
+                allow_entry=policy.weak_allow_entry,
+                position_multiplier=policy.weak_position_multiplier,
+                score_threshold=policy.weak_score_threshold,
+                daily_signal_limit=policy.weak_daily_signal_limit,
+                require_relative_strength=policy.weak_require_relative_strength,
+                reason_code="weak_market",
+                reason=f"大盘偏弱（跌破 MA20 但 MA60 仍向上），{'允许' if policy.weak_allow_entry else '禁止'}高分候选",
+            )
+
+    def _determine_regime(self, market_context: MarketContext) -> str:
+        """纯函数：根据 MarketContext 判定 strong/weak/extreme_weak/unknown 四态。
+
+        判定优先级：extreme_weak > strong > weak > unknown。
+        """
+        # 数据有效性检查
+        if market_context is None or market_context.index_ma20 is None:
+            return "unknown"
+
+        close = market_context.index_close
+        ma20 = market_context.index_ma20
+        ma60 = market_context.index_ma60
+        ma20_slope = market_context.ma20_slope
+        ma60_slope = market_context.ma60_slope
+
+        # 极弱市场优先判定（跌破 MA60 且 MA60 向下）
+        if ma60 is not None and ma60_slope is not None:
+            if close < ma60 and ma60_slope <= 0:
+                return "extreme_weak"
+
+        # 强势市场（收盘 >= MA20 且 MA20 向上）
+        if ma20_slope is None:
+            return "unknown"
+        if close >= ma20 and ma20_slope > 0:
+            return "strong"
+
+        # 普通弱势
+        return "weak"
+
+    def _apply_graded_controls(self, signal, market_context: MarketContext) -> RiskControlResult:
+        """graded/shadow 模式下的统一裁决路径。
+
+        彻底绕过旧的评分调整、MA20/MA60 位置过滤和斜率过滤。
+        daily_signal_limit 的截断由调用方（daily_scan.py）在排序后执行，
+        本方法只负责单候选是否通过。
+        """
+        decision = self.decide_market_regime(market_context)
+
+        # 极弱/unknown/weak(未开启) → 直接阻断
+        if not decision.allow_entry:
+            filter_type = {
+                "extreme_weak": "extreme_weak_filter",
+                "unknown": "market_data_unavailable",
+                "weak": "weak_market_blocked",
+            }.get(decision.regime, "weak_market_blocked")
+            self._record_filter_stats(signal.signal_date, filter_type)
+            return RiskControlResult(
+                passed=False,
+                filter_rule="market_regime",
+                filter_reason=decision.reason,
+                details={
+                    "regime": decision.regime,
+                    "reason_code": decision.reason_code,
+                    "position_multiplier": decision.position_multiplier,
+                },
+            )
+
+        # 评分阈值：使用 decision.score_threshold（弱市通常更高）
+        if decision.score_threshold > 0 and signal.score < decision.score_threshold:
+            self._record_filter_stats(signal.signal_date, "score_filter")
+            return RiskControlResult(
+                passed=False,
+                filter_rule="score_threshold",
+                filter_reason=f"弱市评分 {signal.score:.2f} < 阈值 {decision.score_threshold}",
+                details={"effective_threshold": decision.score_threshold},
+            )
+
+        # 通过，附 MarketRegimeDecision 的关键信息给调用方
+        return RiskControlResult(
+            passed=True,
+            details={
+                "market_regime": decision.regime,
+                "position_multiplier": decision.position_multiplier,
+                "score_threshold": decision.score_threshold,
+                "daily_signal_limit": decision.daily_signal_limit,
+                "require_relative_strength": decision.require_relative_strength,
+                "reason_code": decision.reason_code,
+            },
+        )
 
     def check_market_trend(
         self, market_context: MarketContext
@@ -1684,6 +2455,16 @@ class RiskController:
             "skipped_score_adjustment": self.stats.get(
                 "skipped_score_adjustment", 0
             ),
+            # V3 新增：分级市场风控
+            "skipped_extreme_weak_filter": self.stats.get(
+                "skipped_extreme_weak_filter", 0
+            ),
+            "skipped_weak_market_blocked": self.stats.get(
+                "skipped_weak_market_blocked", 0
+            ),
+            "skipped_market_data_unavailable": self.stats.get(
+                "skipped_market_data_unavailable", 0
+            ),
             "total_filtered": sum(self.stats.values()),
         }
 
@@ -1701,6 +2482,12 @@ class RiskController:
                 "macd_filter": month_stats.get("macd_filter", 0),
                 "slope_filter": month_stats.get("slope_filter", 0),
                 "score_adjustment": month_stats.get("score_adjustment", 0),
+                # V3 新增
+                "extreme_weak_filter": month_stats.get("extreme_weak_filter", 0),
+                "weak_market_blocked": month_stats.get("weak_market_blocked", 0),
+                "market_data_unavailable": month_stats.get(
+                    "market_data_unavailable", 0
+                ),
                 "total_filtered": sum(month_stats.values()),
             })
 
@@ -1710,7 +2497,7 @@ class RiskController:
         }
 
     def reset_stats(self) -> None:
-        """重置统计计数器（回测开始前调用）（V2.1 扩展）"""
+        """重置统计计数器（回测开始前调用）（V3 扩展）"""
         self.stats = {
             # V2.0 原有
             "skipped_long_ma_filter": 0,
@@ -1720,6 +2507,10 @@ class RiskController:
             "skipped_macd_filter": 0,
             "skipped_slope_filter": 0,
             "skipped_score_adjustment": 0,
+            # V3 新增：分级市场风控
+            "skipped_extreme_weak_filter": 0,
+            "skipped_weak_market_blocked": 0,
+            "skipped_market_data_unavailable": 0,
         }
         self.monthly_filter_stats = {}
 
@@ -1727,13 +2518,14 @@ class RiskController:
         self, signal_date: str, filter_type: str
     ) -> None:
         """
-        记录风控命中统计（V2.1 扩展）
+        记录风控命中统计（V3 扩展）
 
         Args:
             signal_date: 信号日期，格式 YYYY-MM-DD
             filter_type: 过滤类型，支持：
                 - V2.0: long_ma_filter / monthly_limit / score_filter
                 - V2.1: macd_filter / slope_filter / score_adjustment
+                - V3: extreme_weak_filter / weak_market_blocked / market_data_unavailable
         """
         # 汇总计数器累加
         stats_key = f"skipped_{filter_type}"
@@ -1752,5 +2544,9 @@ class RiskController:
                 "macd_filter": 0,
                 "slope_filter": 0,
                 "score_adjustment": 0,
+                # V3 新增
+                "extreme_weak_filter": 0,
+                "weak_market_blocked": 0,
+                "market_data_unavailable": 0,
             }
         self.monthly_filter_stats[year_month][filter_type] += 1

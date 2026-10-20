@@ -48,9 +48,11 @@ from strategy.oversold_bounce.risk_control import (
     RiskControlConfig,
     RiskController,
     MarketContext,
+    MarketRegimeDecision,
     PreloadedMarketContextProvider,
     InMemoryMonthlyCounter,
     cap_by_monthly_quota,
+    calculate_relative_strength,
 )
 from strategy.base import Signal
 from collections import defaultdict
@@ -358,6 +360,14 @@ class TradeResult:
 
     score: float = 0.0
     """信号评分"""
+
+    # V3 新增：分级市场裁决字段
+    regime: str = ""
+    """市场裁决状态：strong / weak / extreme_weak / unknown。由 decide_market_regime() 给出。"""
+
+    position_multiplier: float = 1.0
+    """仓位乘数，源自 MarketRegimeDecision.position_multiplier。默认 1.0（满仓），
+    weak 市场通常为 0.5，extreme_weak 为 0.0。"""
 
 
 # ==================== 配置加载 ====================
@@ -826,6 +836,8 @@ class TradeSimulator:
         signal: Signal,
         kline_df: pd.DataFrame,
         stock_name: str = "",
+        position_multiplier: float = 1.0,
+        regime: str = "",
     ) -> Optional[TradeResult]:
         """
         模拟单笔交易
@@ -841,6 +853,11 @@ class TradeSimulator:
             signal: 策略信号
             kline_df: 完整 K 线数据
             stock_name: 股票名称
+            position_multiplier: V3 新增，仓位乘数（0~1.0），
+                源自 MarketRegimeDecision.position_multiplier。
+                weak 市场通常 0.5（半仓），strong 市场 1.0（满仓）。
+                乘数乘以收益贡献，不改变进出价格和成本比例。
+            regime: V3 新增，市场裁决状态，用于 TradeResult 输出。
 
         Returns:
             Optional[TradeResult]: 交易结果，若无法买入则返回 None
@@ -952,7 +969,7 @@ class TradeSimulator:
         # 卖出价格扣除滑点
         actual_exit_price = exit_price * (1 - self.config.slippage)
 
-        # 原始收益率（不含成本）
+        # 原始收益率（不含成本）：entry 与 exit 的价格差 / entry
         raw_return = (actual_exit_price - entry_price) / entry_price
 
         # 净收益率（扣除佣金和印花税）
@@ -963,6 +980,19 @@ class TradeSimulator:
         # 净收益 = (卖出价 - 买入价) - 买入佣金 - 卖出佣金 - 印花税
         net_profit = (actual_exit_price - entry_price) - buy_cost - sell_cost
         net_return = net_profit / entry_price
+
+        # V3 新增：position_multiplier 真正进入收益计算
+        # 弱半仓 → 收益贡献 = full_return × 0.5（同时缩小成本的相对比例影响）
+        # 这里直接对净收益率和原始收益率应用乘数，让半仓的收益/亏损比例都是满仓的一半
+        # 这是保守做法：成本按比例缩放（因为仓位更小，实际佣金和印花税也更少）
+        if position_multiplier != 1.0 and position_multiplier > 0:
+            raw_return = raw_return * position_multiplier
+            # 成本也是按比例缩放的（半仓只承担一半成本），所以净收益也是满仓的一半
+            net_return = net_return * position_multiplier
+        elif position_multiplier <= 0:
+            # 零仓位不应走到 simulate，但防御性处理：收益归零
+            raw_return = 0.0
+            net_return = 0.0
 
         hold_days = exit_idx - entry_idx
 
@@ -982,6 +1012,9 @@ class TradeSimulator:
             support_level=round(support_level, 4),
             stop_loss_price=round(stop_loss_price, 4),
             score=signal.score,
+            # V3 新增：分级裁决字段
+            regime=regime,
+            position_multiplier=position_multiplier,
         )
 
         return result
@@ -1029,6 +1062,19 @@ class BacktestEngine:
 
         self.monthly_counter: Optional[InMemoryMonthlyCounter] = None
         """单月信号计数器，启用风控时由 run 方法初始化"""
+
+        # V3 新增：分级市场裁决相关
+        self._market_regime_distribution: Dict[str, int] = defaultdict(int)
+        """回测期间每个交易日 MarketRegimeDecision 的分布统计。
+        key: regime 字符串（strong/weak/extreme_weak/unknown），value: 出现天数。
+        注意：按日期去重，一天的裁决只记一次（用 PreloadedProvider 逐日取上下文）。"""
+
+        self._graded_decisions_cache: Dict[str, MarketRegimeDecision] = {}
+        """信号日期 → MarketRegimeDecision 的缓存，避免同一日期重复调用 decide_market_regime。"""
+
+        # 市场状态分布与股票无关（只依赖 PreloadedProvider 的日期序列），
+        # 首次计算后置位，避免每只股票结束时重复遍历全部日期（O(股票数 × 天数)）
+        self._market_regime_distribution_computed: bool = False
 
         # 统计计数器
         self.stats = {
@@ -1098,6 +1144,10 @@ class BacktestEngine:
                     if self.market_context_provider is None:
                         logger.warning("大盘上下文提供者构建失败，风控的大盘趋势过滤将失效")
 
+        # V3（P2-5 修复）：市场状态分布只依赖指数日期序列、与个股无关，
+        # 因此在 run() 初始化市场上下文后独立计算一次；不得再依赖某只股票走完整流程。
+        self._compute_market_regime_distribution()
+
         # 阶段一：逐股票收集候选信号（只做前两层风控，不传 monthly_count）
         all_candidates: List[Dict] = []
 
@@ -1119,6 +1169,10 @@ class BacktestEngine:
         # 改后：全部候选按 (signal_date, -score) 排序，同日期内评分降序、跨日期升序
         #       再按月份分组，每月内用 cap_by_monthly_quota 统一分配名额
         all_candidates.sort(key=lambda c: (c['signal_date'], -c['score']))
+
+        # V3 新增：每日名额截断（弱市 daily_signal_limit 限制每日最多通过的信号数）
+        # 在月度配额之前执行，因为弱市的每日名额更严格
+        all_candidates = self._apply_daily_signal_limit(all_candidates)
 
         # 从风控配置读取配额参数（风控未启用时跳过月度配额，全部候选入选）
         max_per_month = 0
@@ -1150,17 +1204,26 @@ class BacktestEngine:
                 if self.monthly_counter is not None:
                     self.monthly_counter.increment(ym)
 
-                # 模拟交易
+                # 模拟交易（V3：传入分级裁决字段）
                 trade = self.trade_simulator.simulate(
-                    cand['signal'], cand['df'], cand['name']
+                    cand['signal'],
+                    cand['df'],
+                    cand['name'],
+                    position_multiplier=cand.get('position_multiplier', 1.0),
+                    regime=cand.get('regime', ''),
                 )
                 if trade is None:
                     self.stats["failed_trades"] += 1
                     continue
 
                 all_trades.append(trade)
+                # V3：日志中附加仓位乘数和 regime
+                regime_tag = f"[{trade.regime}]" if trade.regime else ""
+                mult_tag = (f"×{trade.position_multiplier}") if (
+                    trade.position_multiplier != 1.0
+                ) else ""
                 logger.info(
-                    f"{cand['code']} {cand['name']} 信号日 {cand['signal_date']}，"
+                    f"{cand['code']} {cand['name']} {cand['signal_date']} {regime_tag}{mult_tag}，"
                     f"买入 {trade.entry_date}@{trade.entry_price}，"
                     f"卖出 {trade.exit_date}@{trade.exit_price}，"
                     f"收益 {trade.net_return*100:.2f}% ({trade.exit_reason})"
@@ -1185,6 +1248,14 @@ class BacktestEngine:
             logger.info(f"MACD过滤：{self.stats['skipped_macd_filter']}")
             logger.info(f"斜率过滤：{self.stats['skipped_slope_filter']}")
             logger.info(f"评分归零：{self.stats['skipped_score_adjustment']}")
+        # V3 新增：分级市场裁决统计
+        if self.risk_controller is not None and self.risk_controller.config.market_regime_mode == "graded":
+            dist = dict(self._market_regime_distribution)
+            logger.info(f"市场状态分布：strong={dist.get('strong', 0)}, weak={dist.get('weak', 0)}, "
+                        f"extreme_weak={dist.get('extreme_weak', 0)}, unknown={dist.get('unknown', 0)}")
+            # 极弱市场交易数断言
+            extreme_weak_trades = sum(1 for t in all_trades if t.regime == "extreme_weak")
+            logger.info(f"极弱市场实际交易数：{extreme_weak_trades}（应恒为 0）")
         logger.info(f"总交易数：{self.stats['total_trades']}")
         logger.info("=" * 70)
 
@@ -1233,8 +1304,21 @@ class BacktestEngine:
             window_df = df.iloc[window_start:i + 1].copy()
 
             # 大盘过滤检查
+            # V3（修复 issue 2）：graded 模式下旧 MA 均线过滤必须让位于
+            # decide_market_regime 权威裁决——否则跌破均线的弱市日期会被此处提前
+            # 拦截，graded 的分级降仓策略永远得不到评估机会。
+            # shadow 模式回测须与 hard_filter 等价（零回归），因此仍保留旧过滤。
             current_date = window_df["date"].iloc[-1].strftime("%Y-%m-%d")
-            if self.config.index_filter_enabled and self.index_filter_map:
+            _regime_mode = (
+                self.risk_controller.config.market_regime_mode
+                if self.risk_controller is not None
+                else "hard_filter"
+            )
+            if (
+                _regime_mode != "graded"
+                and self.config.index_filter_enabled
+                and self.index_filter_map
+            ):
                 if not self.index_filter_map.get(current_date, False):
                     self.stats["skipped_index_filter"] += 1
                     continue
@@ -1307,9 +1391,93 @@ class BacktestEngine:
                     # 回测结束后的汇总报告会展示各规则的拦截笔数，无需逐条记录
                     continue
 
+            # ===== V3 新增：分级市场裁决 =====
+            # 仅在 graded 模式下，风控通过后（apply_all_controls 已放行）额外调用
+            # decide_market_regime 获取 position_multiplier / regime / daily_signal_limit，
+            # 存入 candidates 供 run() 模拟交易时使用。
+            #
+            # hard_filter / shadow：position_multiplier 默认 1.0，regime 留空，
+            # 模拟交易走满仓路径（shadow 回测须与 hard_filter 等价，零回归）。
+            regime = ""
+            position_multiplier = 1.0
+            daily_signal_limit = 0  # 0 = 不限制
+
+            controller = self.risk_controller
+            ctx_provider = self.market_context_provider
+            if (
+                controller is not None
+                and ctx_provider is not None
+                and controller.config.market_regime_mode == "graded"
+            ):
+                # 查缓存：同一日期多只股票会重复触发，缓存避免 O(N_stocks) 次重复裁决
+                if signal_date in self._graded_decisions_cache:
+                    decision = self._graded_decisions_cache[signal_date]
+                else:
+                    mkt_ctx = ctx_provider.get_context(signal_date)
+                    if mkt_ctx is None:
+                        # 大盘数据缺失：标记为 unknown（理论上 apply_all_controls 在 graded 下
+                        # 会提前拦截 market_data_unavailable，此处仅做防御）
+                        continue
+                    decision = controller.decide_market_regime(mkt_ctx)
+                    self._graded_decisions_cache[signal_date] = decision
+
+                # 防御性：allow_entry=False 时 apply_all_controls 本应已拦截；
+                # 此处再做一次保险性检查，确保极弱市场不会产生交易
+                if not decision.allow_entry:
+                    continue
+
+                # ===== V3：graded 模式相对强度过滤 =====
+                # 与 daily_scan.py 的 graded 路径对齐：require_relative_strength=True 时
+                # 计算个股 RS 并按 relative_strength_min 阈值过滤。
+                # 数据源：
+                #   - 个股：df（完整 K 线）截断到 signal_date 后取 tail(lookback+1)
+                #   - 指数：mkt_ctx.index_close_history（PreloadedProvider 已截断）
+                if decision.require_relative_strength:
+                    mrp = controller.config.market_regime_policy_config
+                    rs_lookback = mrp.relative_strength_lookback
+                    rs_min = mrp.relative_strength_min
+
+                    # 个股：截断到 signal_date 防前视，构造带交易日索引的 Series
+                    kline_cut = df[
+                        df["date"].dt.strftime("%Y-%m-%d") <= signal_date
+                    ]
+                    if kline_cut.empty:
+                        continue
+                    # 序列末日期对齐校验
+                    if kline_cut["date"].iloc[-1].strftime("%Y-%m-%d") != signal_date:
+                        continue
+
+                    stock_closes = pd.Series(
+                        kline_cut["close"].astype(float).values,
+                        index=pd.to_datetime(kline_cut["date"]).dt.strftime(
+                            "%Y-%m-%d"
+                        ).values,
+                        name="stock_close",
+                    )
+
+                    # 指数：mkt_ctx 来自 PreloadedProvider，index_close_history
+                    # 索引为交易日，已自动截断到 signal_date；按日期对齐由函数完成
+                    if mkt_ctx.index_close_history is None:
+                        continue
+                    index_closes = mkt_ctx.index_close_history
+
+                    rs_value = calculate_relative_strength(
+                        stock_closes, index_closes, rs_lookback
+                    )
+                    if rs_value is None or rs_value < rs_min:
+                        continue
+
+                regime = decision.regime
+                position_multiplier = decision.position_multiplier
+                daily_signal_limit = decision.daily_signal_limit
+
+            # P1-1 修复（2026-10-20）：冷却锚点只在候选通过全部准入检查并真正入选后更新。
+            # 修复前 last_signal_idx = i 位于 RS 校验之前，候选随后因 RS/分级裁决
+            # continue 时仍会占用 60 日冷却期，错误抑制后续本可放行的有效信号
+            # （回测信号数与收益系统性偏低）。
             last_signal_idx = i
 
-            # R21：候选信号收集到列表，不立即 simulate 和 increment
+            # R21+V3：候选信号收集，附加分级裁决字段
             candidates.append({
                 'signal': signal,
                 'signal_date': signal_date,
@@ -1317,13 +1485,105 @@ class BacktestEngine:
                 'code': code,
                 'name': name,
                 'df': df,
+                # V3 分级裁决字段
+                'regime': regime,
+                'position_multiplier': position_multiplier,
+                'daily_signal_limit': daily_signal_limit,
             })
 
+        # ===== V3：market_regime_distribution 已在 run() 中独立计算（P2-5）=====
         return candidates
+
+    def _compute_market_regime_distribution(self) -> None:
+        """V3 新增：采集完整 market_regime_distribution（P2-5 修复：与个股解耦）。
+
+        遍历 PreloadedProvider 的全部日期，不管有没有信号都统计一次 regime，
+        因此分布反映的是回测期间每天的裁决结果，而不是"只有产生信号的那些天"。
+
+        修复前该统计写在 `_backtest_single_stock()` 尾部：只要股票池里所有股票
+        都无数据 / 数据不足窗口而提前 return，分布就永远算不出来（报告市场归因为空）。
+        现在改为在 run() 初始化市场上下文后独立调用一次（幂等，已算过直接返回）。
+        """
+        if self._market_regime_distribution_computed:
+            return
+        if (
+            self.risk_controller is None
+            or self.market_context_provider is None
+            or self.risk_controller.config.market_regime_mode != "graded"
+        ):
+            return
+        ctx_map = getattr(self.market_context_provider, "context_map", {})
+        if not ctx_map:
+            # 无法枚举日期（Provider 未预载上下文）→ 保持未计算状态，不改写分布
+            return
+        self._market_regime_distribution.clear()
+        for d_str, ctx in ctx_map.items():
+            # 优先复用缓存里的决策（可能该日期已有信号触发），避免重复计算
+            if d_str in self._graded_decisions_cache:
+                dec = self._graded_decisions_cache[d_str]
+            else:
+                dec = self.risk_controller.decide_market_regime(ctx)
+                self._graded_decisions_cache[d_str] = dec
+            self._market_regime_distribution[dec.regime] += 1
+        self._market_regime_distribution_computed = True
 
     def get_stats(self) -> Dict:
         """获取回测统计信息"""
         return self.stats.copy()
+
+    def get_market_regime_distribution(self) -> Dict[str, int]:
+        """V3 新增：获取回测期间完整的市场状态分布。
+
+        以 PreloadedProvider context_map 的全部日期为基础，逐日调用
+        decide_market_regime 统计 regime，按日期去重（一天一条裁决）。
+        graded/shadow 模式下返回真实分布；hard_filter 模式返回空 dict。
+        """
+        return dict(self._market_regime_distribution)
+
+    def _apply_daily_signal_limit(self, candidates: List[Dict]) -> List[Dict]:
+        """V3 新增：按 daily_signal_limit 截断每日候选信号。
+
+        graded/shadow 模式下，弱市/极弱市可能配置了每日最多放行的信号数。
+        此方法在月度配额之前，按日期+regime 分组后截断。
+        hard_filter 模式下 daily_signal_limit 恒为 0，截断逻辑自动跳过。
+
+        Args:
+            candidates: 已按 (signal_date, -score) 全局排序的候选列表
+
+        Returns:
+            List[Dict]: 截断后的候选列表（同全局排序）
+        """
+        if not candidates:
+            return candidates
+
+        # 非 graded 模式（hard_filter/shadow）：daily_signal_limit 恒为 0，无需截断
+        if (
+            self.risk_controller is None
+            or self.risk_controller.config.market_regime_mode != "graded"
+        ):
+            return candidates
+
+        # 按 signal_date 分组（全局已排序，同日期内也已按 score 降序）
+        by_date: Dict[str, List[Dict]] = defaultdict(list)
+        for c in candidates:
+            by_date[c['signal_date']].append(c)
+
+        truncated: List[Dict] = []
+        # _stats_skipped 用于日志，暂不暴露：由各 regime 的 daily limit 控制即可
+        for date_str in sorted(by_date.keys()):
+            day_cands = by_date[date_str]
+
+            # decision.daily_signal_limit 来自 MarketRegimeDecision
+            # strong/unknown 通常为 0（不限制），weak/extreme_weak 可能有值
+            limit = day_cands[0].get('daily_signal_limit', 0) if day_cands else 0
+
+            if limit <= 0 or len(day_cands) <= limit:
+                truncated.extend(day_cands)
+            else:
+                # 只取前 limit 个（按 score 降序已排好）
+                truncated.extend(day_cands[:limit])
+
+        return truncated
 
 
 # ==================== 统计报告生成器 ====================
@@ -1402,6 +1662,15 @@ class BacktestReporter:
         }
 
         if not trades:
+            # P2（修复零交易报告）：即便无交易，也必须输出 V3 分级市场字段，
+            # 否则 graded 回测在弱市/极弱市出现零交易时，报告缺少
+            # market_regime_distribution / trade_summary_by_regime / 极弱市场交易数，
+            # 无法证明“零交易来自极弱市场拦截”而非回测链路故障。
+            zero_trade_dist = (
+                risk_control_stats.get("market_regime_distribution", {})
+                if risk_control_stats is not None
+                else {}
+            )
             return {
                 "meta": meta,
                 "summary": {
@@ -1422,6 +1691,12 @@ class BacktestReporter:
                 "exit_reasons": {},
                 "yearly_stats": [],
                 "stats": stats,
+                # V3 新增：分级市场裁决报告字段（零交易时 trade_summary_by_regime
+                # 以空 trades 计算，返回各 regime 全 0 的结构）
+                "market_regime_distribution": zero_trade_dist,
+                "trade_summary_by_regime": self._calc_trade_summary_by_regime([]),
+                "extreme_weak_trade_count": 0,
+                "trades": [],
                 "risk_control_stats": risk_control_stats or {
                     "summary": {
                         # V2.0 原有
@@ -1436,7 +1711,6 @@ class BacktestReporter:
                     },
                     "monthly": [],
                 },
-                "trades": [],
             }
 
         # 计算统计指标
@@ -1457,6 +1731,25 @@ class BacktestReporter:
 
         # 按年份统计
         yearly_stats = self._calc_yearly_stats(trades)
+
+        # V3 新增：按 market regime 汇总交易结果
+        trade_summary_by_regime = self._calc_trade_summary_by_regime(trades)
+
+        # V3 新增：从 risk_control_stats 中提取 market_regime_distribution
+        # run() 方法调用时会把 engine.get_market_regime_distribution() 注入到 risk_control_stats
+        market_regime_distribution = {}
+        extreme_weak_trade_count = 0
+        if risk_control_stats is not None:
+            market_regime_distribution = risk_control_stats.get(
+                "market_regime_distribution", {}
+            )
+            extreme_weak_trade_count = sum(
+                1 for t in trades if t.regime == "extreme_weak"
+            )
+        # 兜底：从 trades 里也计算一遍 trade_summary_by_regime
+        # （当直接构造 reporter 而不走 BacktestEngine.run() 时，
+        # trade_summary_by_regime 靠 trades 本身就能算出来；
+        # market_regime_distribution 可能为空，此时保持 {}）
 
         report = {
             "meta": meta,
@@ -1491,10 +1784,53 @@ class BacktestReporter:
                 },
                 "monthly": [],
             },
+            # V3 新增：分级市场裁决报告字段
+            "market_regime_distribution": market_regime_distribution,
+            "trade_summary_by_regime": trade_summary_by_regime,
+            "extreme_weak_trade_count": extreme_weak_trade_count,
             "trades": [asdict(t) for t in trades],
         }
 
         return report
+
+    def _calc_trade_summary_by_regime(self, trades: List[TradeResult]) -> Dict[str, Dict]:
+        """V3 新增：按 market regime 汇总交易结果。
+
+        返回一个 dict，key 为 regime 字符串（strong / weak / extreme_weak / unknown），
+        value 为该 regime 下的交易汇总：trades 数 / win_rate / avg_return / total_return。
+        没有交易的 regime 也会被包含（trades=0，其他字段为 0）。
+        """
+        regimes_of_interest = ("strong", "weak", "extreme_weak", "unknown")
+        by_regime: Dict[str, List[TradeResult]] = defaultdict(list)
+
+        for t in trades:
+            # regime 为空字符串（非 graded 模式）时归为 "unknown"
+            r = t.regime or "unknown"
+            by_regime[r].append(t)
+
+        summary: Dict[str, Dict] = {}
+        for regime in regimes_of_interest:
+            rt = by_regime.get(regime, [])
+            if rt:
+                returns = [t.net_return for t in rt]
+                wins = sum(1 for r in returns if r > 0)
+                summary[regime] = {
+                    "trades": len(rt),
+                    "win_count": wins,
+                    "win_rate": round(wins / len(rt) * 100, 2),
+                    "avg_return": round(sum(returns) / len(rt) * 100, 2),
+                    "total_return": round(sum(returns) * 100, 2),
+                }
+            else:
+                summary[regime] = {
+                    "trades": 0,
+                    "win_count": 0,
+                    "win_rate": 0.0,
+                    "avg_return": 0.0,
+                    "total_return": 0.0,
+                }
+
+        return summary
 
     def _calc_yearly_stats(self, trades: List[TradeResult]) -> List[Dict]:
         """
@@ -1667,6 +2003,64 @@ class BacktestReporter:
                         f"{m.get('score_adjustment', 0):>10} "
                         f"{month_total:>8}"
                     )
+
+        # V3 新增：分级市场裁决统计段（graded/shadow 模式下总是显示）
+        market_regime_dist = report.get("market_regime_distribution", {})
+        trade_summary = report.get("trade_summary_by_regime", {})
+        extreme_weak_count = report.get("extreme_weak_trade_count", -1)
+
+        if market_regime_dist or trade_summary:
+            # 只有有数据时才打印（非 graded 模式下两者都为空，不打印）
+            print("\n" + "-" * 70)
+            print("V3 分级市场裁决统计")
+            print("-" * 70)
+
+            # 市场状态分布（按日期去重）
+            if market_regime_dist:
+                print("\n  市场状态天数分布：")
+                total_days = sum(market_regime_dist.values())
+                label_map = {
+                    "strong": "强势",
+                    "weak": "偏弱",
+                    "extreme_weak": "极弱",
+                    "unknown": "数据缺失",
+                }
+                for regime in ("strong", "weak", "extreme_weak", "unknown"):
+                    days = market_regime_dist.get(regime, 0)
+                    if days > 0:
+                        pct = days / total_days * 100 if total_days > 0 else 0
+                        label = label_map.get(regime, regime)
+                        print(f"  {label}（{regime:<14}） {days:>5} 天 ({pct:>5.1f}%)")
+
+            # 按 regime 汇总交易结果
+            if trade_summary and summary.get("total_trades", 0) > 0:
+                print("\n  按市场状态交易结果：")
+                print(
+                    f"  {'状态':<10} {'交易数':>6} {'胜率':>8} "
+                    f"{'平均收益':>10} {'累计收益':>10}"
+                )
+                label_map2 = {
+                    "strong": "强势",
+                    "weak": "偏弱",
+                    "extreme_weak": "极弱",
+                    "unknown": "其他",
+                }
+                for regime in ("strong", "weak", "extreme_weak", "unknown"):
+                    rs = trade_summary.get(regime, {})
+                    trades_in_regime = rs.get("trades", 0)
+                    if trades_in_regime > 0 or regime in ("extreme_weak",):
+                        label = label_map2.get(regime, regime)
+                        print(
+                            f"  {label:<10} {trades_in_regime:>6} "
+                            f"{rs.get('win_rate', 0):>7.1f}% "
+                            f"{rs.get('avg_return', 0):>9.2f}% "
+                            f"{rs.get('total_return', 0):>9.2f}%"
+                        )
+
+            # 极弱市场交易数断言
+            if extreme_weak_count >= 0:
+                marker = "OK" if extreme_weak_count == 0 else "⚠ 违规！"
+                print(f"\n  极弱市场实际交易数：{extreme_weak_count}（应为 0）{marker}")
 
         # V2.0 预期对比
         print("\n" + "-" * 70)
@@ -1922,6 +2316,14 @@ def main():
             risk_control_stats = None
             if engine.risk_controller is not None:
                 risk_control_stats = engine.risk_controller.get_stats()
+
+            # V3 新增：把 market_regime_distribution 注入到 risk_control_stats 中
+            # generate_report 会从 risk_control_stats 里读取这个字段
+            market_regime_dist = engine.get_market_regime_distribution()
+            if market_regime_dist:
+                if risk_control_stats is None:
+                    risk_control_stats = {"summary": {}, "monthly": []}
+                risk_control_stats["market_regime_distribution"] = market_regime_dist
 
             if db is not None:
                 db.close()

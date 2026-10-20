@@ -27,15 +27,49 @@ class FeishuPusher:
     def send_card_message(self, signals: List) -> bool:
         """
         发送卡片消息。空 signals 时也发送（不含"今日无符合形态"措辞）。
+
+        V3 分级市场风控：根据 signal 的 market_regime 字段分流展示：
+          - strong：正标题，标注"强市正常放行"
+          - weak：正标题，标注"弱市分级放行"，展示建议仓位和相对强度
+          - extreme_weak：防御性处理——标题改为"观察名单"，正文明确说明风险
+          - hard_filter / 缺省：保持传统展示
         """
+        # ===== 分级裁决字段提取 =====
+        # 取第一个 signal 的 market_regime 来决定卡片整体风格
+        first_regime = None
+        if signals:
+            first_regime = signals[0].get("market_regime", "hard_filter")
+
+        # extreme_weak 防御：正常 daily_scan 不会把 extreme_weak 的信号放进来
+        # （allow_entry=False），但如果进来了，我们必须把它标为"观察名单"
+        # 防止误发送"建议买入"措辞导致用户操作
+        is_observation_list = (
+            first_regime == "extreme_weak"
+        )
+
+        # 根据 regime 决定卡片 header 颜色和标题
+        if is_observation_list:
+            header_template = "orange"
+            header_title = "📋 观察名单"
+        elif first_regime == "strong":
+            header_template = "green"
+            header_title = "📈 新筛选股票提醒（强市正常放行）"
+        elif first_regime == "weak":
+            header_template = "yellow"
+            header_title = "📈 新筛选股票提醒（弱市分级放行）"
+        else:
+            # hard_filter / unknown / 缺省 → 传统展示
+            header_template = "blue"
+            header_title = "📈 新筛选股票提醒"
+
         card = {
             "msg_type": "interactive",
             "card": {
                 "config": {"wide_screen_mode": True},
                 "header": {
-                    "template": "blue",
+                    "template": header_template,
                     "title": {
-                        "content": "📈 新筛选股票提醒",
+                        "content": header_title,
                         "tag": "plain_text",
                     },
                 },
@@ -48,14 +82,33 @@ class FeishuPusher:
             stop_loss_ratio = first_sig.get("stop_loss_ratio", 0.97)
             trailing_stop = first_sig.get("trailing_stop_ratio", 0.08)
 
+            # ===== summary 段：按 regime 生成不同措辞 =====
+            if is_observation_list:
+                # 极弱市场 → 观察名单，禁止"建议买入"措辞
+                summary_content = (
+                    f"当前市场环境极弱（MA60 向下 + 指数跌破 MA60），禁止开仓。\n"
+                    f"共发现 {len(signals)} 个原始形态候选，以下仅供观察参考，**不构成买入建议**。\n"
+                    f"⚠️ 风险提示：极弱市场应保持空仓或极小仓位观望。"
+                )
+            elif first_regime == "weak":
+                # 弱市分级放行 → 展示仓位建议
+                summary_content = (
+                    f"弱市分级放行：共 {len(signals)} 只股票通过相对强度筛选。\n"
+                    f"⚠️ 弱市操作建议：建议仓位见个股卡片内标注，严格控制风险。\n"
+                    f"支撑位×{stop_loss_ratio}为止损价，移动止盈回撤{trailing_stop:.0%}卖出。以上信息仅供参考，不构成投资建议"
+                )
+            else:
+                # strong / hard_filter / 其他 → 传统展示
+                summary_content = (
+                    f"共筛选出 {len(signals)} 只股票，建议开盘后择机买入（高开>5%请放弃）\n"
+                    f"⚠️ 风险提示：支撑位×{stop_loss_ratio}为止损价，"
+                    f"移动止盈回撤{trailing_stop:.0%}卖出。以上信息仅供参考，不构成投资建议"
+                )
+
             summary_element = {
                 "tag": "div",
                 "text": {
-                    "content": (
-                        f"共筛选出 {len(signals)} 只股票，建议开盘后择机买入（高开>5%请放弃）\n"
-                        f"⚠️ 风险提示：支撑位×{stop_loss_ratio}为止损价，"
-                        f"移动止盈回撤{trailing_stop:.0%}卖出。以上信息仅供参考，不构成投资建议"
-                    ),
+                    "content": summary_content,
                     "tag": "lark_md",
                 },
             }
@@ -73,29 +126,64 @@ class FeishuPusher:
                 else:
                     surge_volume_ratio_str = str(surge_volume_ratio)
 
-                trailing_stop = sig.get("trailing_stop_ratio", 0.08)
+                trailing_stop_sig = sig.get("trailing_stop_ratio", 0.08)
                 hard_stop = sig.get("hard_stop_loss", 0.10)
+
+                # ===== V3 分级字段展示 =====
+                regime = sig.get("market_regime", "hard_filter")
+                graded_lines: List[str] = []
+                show_trading_advice = True
+
+                # 极弱市场 → 观察名单，不展示交易建议
+                if regime == "extreme_weak":
+                    show_trading_advice = False
+                    graded_lines.append("🔴 极弱市场 · 仅供观察")
+                elif regime == "weak":
+                    # 弱市：展示建议仓位和相对强度
+                    rec_pos = sig.get("recommended_position_pct")
+                    if rec_pos is not None:
+                        graded_lines.append(f"• 建议仓位：{rec_pos:.2%}")
+                    rs = sig.get("relative_strength")
+                    if rs is not None:
+                        rs_sign = "+" if rs >= 0 else ""
+                        graded_lines.append(f"• 相对强度：{rs_sign}{rs:.2%}")
+                    graded_lines.append("• 弱市分级放行")
+                elif regime == "strong":
+                    graded_lines.append("• 强市正常放行")
+                # hard_filter / 其他 → 不展示分级字段
+
+                # 组装正文内容
+                content_lines = [
+                    f"**{sig['name']}** ({sig['code']})",
+                    f"📊 形态评分：{sig.get('score', 0):.2f}",
+                    "📈 关键指标：",
+                    f"• 信号日期：{sig.get('signal_date', '')}",
+                    f"• 放量日期：{sig.get('surge_date', '')}",
+                    f"• 放量涨幅：{surge_pct_str}",
+                    f"• 放量倍数：{surge_volume_ratio_str}倍",
+                    f"• 支撑位：{sig['support_level']}元",
+                    f"• 止损价：{sig['stop_loss_price']}元",
+                    f"• 回踩低点：{sig.get('retrace_low', 0)}元",
+                    f"• 大跌幅度：{sig.get('drop_rate', 0):.1%}",
+                ]
+
+                # 追加分级字段行
+                if graded_lines:
+                    content_lines.extend(graded_lines)
+
+                # 交易建议段（极弱市场不展示）
+                if show_trading_advice:
+                    content_lines.append("💡 交易建议：")
+                    content_lines.append("• 建议买入价：今日开盘价")
+                    content_lines.append(
+                        f"• 移动止盈：从持仓最高价回撤{trailing_stop_sig:.0%}卖出"
+                    )
+                    content_lines.append(f"• 硬止损：-{hard_stop:.0%}")
 
                 element = {
                     "tag": "div",
                     "text": {
-                        "content": (
-                            f"**{sig['name']}** ({sig['code']})\n"
-                            f"📊 形态评分：{sig.get('score', 0):.2f}\n"
-                            f"📈 关键指标：\n"
-                            f"• 信号日期：{sig.get('signal_date', '')}\n"
-                            f"• 放量日期：{sig.get('surge_date', '')}\n"
-                            f"• 放量涨幅：{surge_pct_str}\n"
-                            f"• 放量倍数：{surge_volume_ratio_str}倍\n"
-                            f"• 支撑位：{sig['support_level']}元\n"
-                            f"• 止损价：{sig['stop_loss_price']}元\n"
-                            f"• 回踩低点：{sig.get('retrace_low', 0)}元\n"
-                            f"• 大跌幅度：{sig.get('drop_rate', 0):.1%}\n"
-                            f"💡 交易建议：\n"
-                            f"• 建议买入价：今日开盘价\n"
-                            f"• 移动止盈：从持仓最高价回撤{trailing_stop:.0%}卖出\n"
-                            f"• 硬止损：-{hard_stop:.0%}"
-                        ),
+                        "content": "\n".join(content_lines),
                         "tag": "lark_md",
                     },
                 }
@@ -364,11 +452,28 @@ def main() -> None:
                 f"扫描结果与信号文件不一致，本次推送标记为失败以便下次重试。"
             )
             sys.exit(1)
-        print(f"\n发现 {len(signals)} 个买入信号（走卡片）")
+        # 打印分级裁决信息（从第一个 signal 的 market_regime 判断）
+        _first_regime = signals[0].get("market_regime", "hard_filter") if signals else "hard_filter"
+        _regime_label = {
+            "strong": "强市正常放行",
+            "weak": "弱市分级放行",
+            "extreme_weak": "极弱观察名单",
+            "hard_filter": "hard_filter 模式",
+        }.get(_first_regime, _first_regime)
+
+        if _first_regime == "extreme_weak":
+            print(f"\n当前市场极弱 → 观察名单（禁止开仓）：{len(signals)} 个候选（走卡片）")
+        else:
+            print(f"\n发现 {len(signals)} 个买入信号（{_regime_label}，走卡片）")
+
         for idx, sig in enumerate(signals, 1):
+            _regime = sig.get("market_regime", "hard_filter")
+            _pos = sig.get("recommended_position_pct")
+            _pos_str = f", 建议仓位 {_pos:.2%}" if _pos is not None and _regime in ("weak", "strong") else ""
             print(
                 f"{idx}. {sig['code']} - {sig['name']}: "
                 f"支撑 {sig['support_level']}, 止损 {sig['stop_loss_price']}"
+                f"{_pos_str}"
             )
 
         print("\n正在发送飞书推送...")

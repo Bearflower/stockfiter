@@ -3,7 +3,8 @@ pytest 全局 fixture（不 autouse，按需 import）。
 
 - repository_root: 仓库根路径，便于测试中定位 data/、scripts/、config/
 - database: 真实 PostgreSQL 连接，经 TEST_DB_* 环境变量；不可用则 skip
-  自动清理 scan_results 和 stocks 表中本次测试插入的数据
+  自动记录本次测试经写入接口插入的键，并在 teardown 精确清理
+  scan_results / stocks / push_history 中的对应行
 - scan_result: 单条扫描结果 fixture（test_scan_result_upsert.py 用）
 - mixed_stock_rows: 覆盖全部板块/类型的股票 fixture（test_stock_pool_filters.py 用）
 """
@@ -49,8 +50,12 @@ def database():
 
     环境变量 TEST_DB_HOST / TEST_DB_PORT / TEST_DB_NAME / TEST_DB_USER /
     TEST_DB_PASSWORD / TEST_DB_SCHEMA 决定连接参数；
-    缺少 DB_PASSWORD 或连接失败时 pytest.skip。
-    测试结束后清理本次测试写入的 scan_results / stocks 数据。
+    缺少 TEST_DB_PASSWORD 或连接失败时 pytest.skip。
+
+    teardown 清理：本 fixture 用子类包一层写入接口（save_scan_result /
+    insert_stocks / save_push_history），记录本次测试写入的键，结束后按
+    scan_date / code / (code, push_date) 精确删除，保证同一测试库可重复运行。
+    scan_runs 由 test_scan_run_data_metrics.py 自行清理，不在此处理。
     """
     # 设置临时环境变量让 DatabaseManager 构造函数读到
     test_db_password = os.getenv("TEST_DB_PASSWORD")
@@ -66,40 +71,62 @@ def database():
 
     from data.database import DatabaseManager
 
+    class _TrackingDatabaseManager(DatabaseManager):
+        """记录测试写入的键，供 fixture teardown 精确清理。"""
+
+        def __init__(self):
+            self.cleanup_codes = set()       # scan_results / stocks 的 code
+            self.cleanup_scan_dates = set()  # scan_results 的 scan_date
+            self.cleanup_push_keys = set()   # push_history 的 (code, push_date)
+            super().__init__()
+
+        def save_scan_result(self, scan_date, results):
+            for item in results or []:
+                code = item.get("code")
+                if code:
+                    self.cleanup_codes.add(str(code))
+            if scan_date:
+                self.cleanup_scan_dates.add(str(scan_date))
+            return super().save_scan_result(scan_date, results)
+
+        def insert_stocks(self, rows):
+            for item in rows or []:
+                code = item.get("code")
+                if code:
+                    self.cleanup_codes.add(str(code))
+            return super().insert_stocks(rows)
+
+        def save_push_history(self, code, push_date, push_type="daily_scan"):
+            if code and push_date:
+                self.cleanup_push_keys.add((str(code), str(push_date)))
+            return super().save_push_history(code, push_date, push_type)
+
+        def insert_push_record(self, code, push_date, push_type="new_signal"):
+            return self.save_push_history(code, push_date, push_type)
+
     try:
-        db = DatabaseManager()
+        db = _TrackingDatabaseManager()
     except Exception as exc:
         pytest.skip(f"PostgreSQL 测试库连接失败：{exc}")
 
-    # 记录本次测试要清理的数据键
-    cleanup_keys = {"scan_result_codes": set(), "stocks_codes": set()}
-
     yield db
 
-    # --- cleanup ---
+    # --- cleanup：按记录的键精确删除本次测试写入的行 ---
     try:
         cur = db.conn.cursor()
-        # 清理 scan_results 中的测试数据（按 fixture 已知 code 或按近期 date 清理）
-        if cleanup_keys["scan_result_codes"]:
-            codes = list(cleanup_keys["scan_result_codes"])
+        if db.cleanup_codes:
+            codes = list(db.cleanup_codes)
+            cur.execute("DELETE FROM scan_results WHERE code = ANY(%s)", (codes,))
+            cur.execute("DELETE FROM stocks WHERE code = ANY(%s)", (codes,))
+        if db.cleanup_scan_dates:
             cur.execute(
-                f"DELETE FROM scan_results WHERE code = ANY(%s)",
-                (codes,),
+                "DELETE FROM scan_results WHERE scan_date = ANY(%s)",
+                (list(db.cleanup_scan_dates),),
             )
-        # 同时清理 scan_date 在未来的测试残留（用大于今天的日期作为清理标记不可行，
-        # 这里改为扫描 scan_date 在过去 1 天内由 fixture 插入的记录——实际上我们
-        # 通过 save_scan_result 的入参 code 来识别；如果测试用了动态 code，则
-        # 另加一个清理手段）
-        # 保险做法：按 stocks 表中我们知道要插入的 codes 清理
-        if cleanup_keys["stocks_codes"]:
-            codes = list(cleanup_keys["stocks_codes"])
+        for code, push_date in db.cleanup_push_keys:
             cur.execute(
-                f"DELETE FROM scan_results WHERE code = ANY(%s)",
-                (codes,),
-            )
-            cur.execute(
-                f"DELETE FROM stocks WHERE code = ANY(%s)",
-                (codes,),
+                "DELETE FROM push_history WHERE code = %s AND push_date = %s",
+                (code, push_date),
             )
         db.conn.commit()
         cur.close()
