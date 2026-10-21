@@ -24,6 +24,14 @@ from data.fetcher import BaostockSession
 logger = get_logger()
 
 
+class BaostockRequestTimeout(RuntimeError):
+    """单股请求超时后标记当前 Baostock 会话已不可安全复用。"""
+
+    def __init__(self, symbol: str):
+        super().__init__(f"{symbol} 获取超时，当前 Baostock 会话已废弃")
+        self.symbol = symbol
+
+
 # ==================== 配置加载 ====================
 
 def _load_kline_update_config(config_path: str = 'config/config.yaml') -> dict:
@@ -257,10 +265,11 @@ class DailyKlineUpdater:
         try:
             return future.result(timeout=timeout)
         except FuturesTimeoutError:
-            logger.warning(f"{symbol} 获取超时（>{timeout}秒），跳过")
-            # R12 相关：不调用 cancel_futures（无法中断已运行线程），仅隔离会话
-            executor.shutdown(wait=False)
-            return None
+            logger.error(
+                f"{symbol} 获取超时（>{timeout}秒）；底层线程无法安全中断，"
+                "立即废弃当前会话并终止本轮，等待回补任务接管"
+            )
+            raise BaostockRequestTimeout(symbol)
         finally:
             executor.shutdown(wait=False)
 
@@ -478,6 +487,7 @@ class DailyKlineUpdater:
         skipped = 0
         # 收集失败股票，用于后续重试
         failed_stocks = []  # (code, symbol) 列表
+        session_unhealthy = False
         # 滑动窗口失败率检测：窗口大小和阈值从配置读取
         recent_results = deque(maxlen=window_size)  # 1=失败, 0=成功
 
@@ -529,6 +539,12 @@ class DailyKlineUpdater:
                         failed_stocks.append((code, symbol))
                         logger.warning(f"{code} 更新失败：返回空数据")
 
+                except BaostockRequestTimeout as e:
+                    failed += 1
+                    recent_results.append(1)
+                    session_unhealthy = True
+                    logger.error(f"{e}；禁止继续复用损坏会话")
+                    break
                 except Exception as e:
                     failed += 1
                     recent_results.append(1)  # 异常=失败
@@ -574,7 +590,7 @@ class DailyKlineUpdater:
         # 配合方案 A 调高 total_failure_limit 到 400 双重保险
         # ================================================================
         normal_complete = (idx >= total - 1)
-        if not normal_complete and total > 0:
+        if not session_unhealthy and not normal_complete and total > 0:
             remaining_count = total - 1 - idx
             if remaining_count > 0:
                 logger.warning(
@@ -621,6 +637,12 @@ class DailyKlineUpdater:
                                 catchup_fail += 1
                                 failed += 1
 
+                        except BaostockRequestTimeout as e:
+                            catchup_fail += 1
+                            failed += 1
+                            session_unhealthy = True
+                            logger.error(f"补抓阶段 {e}；终止补抓并废弃会话")
+                            break
                         except Exception as e:
                             catchup_fail += 1
                             failed += 1
@@ -641,7 +663,7 @@ class DailyKlineUpdater:
         logger.info("=" * 80)
 
         # 对失败的股票进行重试（Baostock 间歇性故障，重试一次通常能恢复）
-        if failed_stocks:
+        if failed_stocks and not session_unhealthy:
             logger.info(f"开始重试 {len(failed_stocks)} 只失败股票...")
             retry_success = 0
             retry_fail = 0
@@ -667,6 +689,12 @@ class DailyKlineUpdater:
                                 logger.info(f"重试成功：{code}")
                                 continue
                         retry_fail += 1
+                    except BaostockRequestTimeout as e:
+                        retry_fail += 1
+                        failed += 1
+                        session_unhealthy = True
+                        logger.error(f"重试阶段 {e}；终止重试并废弃会话")
+                        break
                     except Exception as e:
                         retry_fail += 1
                         logger.debug(f"重试失败：{code} - {e}")

@@ -338,6 +338,35 @@ class TestCircuitBreakerControlFlow:
         # 如果主循环没 break，补抓不会触发，总调用会是 10 + 10（重试）= 20。
         assert call_count[0] <= 15, f"硬上限应让主循环在第 3 次失败后 break（含补抓+重试最多 13，<=15 即说明熔断有效），实际 {call_count[0]}"
 
+    def test_request_timeout_aborts_corrupted_session_without_catchup_or_retry(self):
+        """单股线程超时后底层请求仍在运行，必须立刻废弃会话并终止本轮。"""
+        from scripts.data.update_kline_daily import (
+            BaostockRequestTimeout,
+            DailyKlineUpdater,
+            _load_kline_update_config,
+        )
+
+        cfg = _load_kline_update_config()
+        updater = self._make_updater_with_10_stocks(cfg)
+        call_count = [0]
+
+        def timed_out_fetch(self_, session, symbol, days=120, timeout=None):
+            call_count[0] += 1
+            raise BaostockRequestTimeout(symbol)
+
+        with patch("scripts.data.update_kline_daily.DatabaseManager", return_value=updater.db):
+            with patch.object(DailyKlineUpdater, "_fetch_with_timeout", timed_out_fetch):
+                with patch("scripts.data.update_kline_daily.BaostockSession"):
+                    with patch("utils.trade_calendar.is_trading_day", return_value=True):
+                        with patch(
+                            "scripts.data.update_kline_daily.pd.read_sql_query",
+                            return_value=_MockDf(),
+                        ):
+                            result = updater.update_all_klines()
+
+        assert call_count[0] == 1, "损坏会话不得进入补抓或失败重试"
+        assert result.failed == 1
+
 
 # =====================================================================
 # B3.3-4 --result-json 读写两端契约

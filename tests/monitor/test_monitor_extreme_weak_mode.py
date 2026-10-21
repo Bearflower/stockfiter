@@ -73,7 +73,7 @@ def _run_block(row):
 
     out = []
     code = _BLOCK.replace(
-        "print(f'{target}|{leak}|{metrics_missing}|{leak_info}')",
+        "emit_monitor_result(target, leak, metrics_missing, leak_info)",
         "out.append(f'{target}|{leak}|{metrics_missing}|{leak_info}')",
     )
     # 桩掉 data.database 后执行，执行完必须还原 sys.modules，避免污染其它用例

@@ -62,6 +62,14 @@ LOG_DIR="/root/stockfilter_v3/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/monitor.log"
 
+# 容器内 Python 同时会输出 Loguru 日志；查询结果必须使用独立协议前缀，
+# 禁止再按日期或任意竖线 grep，否则时间戳/日志字段会被误当成业务数据。
+MONITOR_RESULT_PREFIX="__OBPC_MONITOR_RESULT__"
+
+extract_monitor_results() {
+    sed -n "s/^${MONITOR_RESULT_PREFIX}|//p"
+}
+
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
@@ -318,6 +326,9 @@ check_obpc_coverage() {
     local result=$(docker exec stockfilter-kline python3 -c "
 from data.database import DatabaseManager
 
+def emit_monitor_result(*parts):
+    print('__OBPC_MONITOR_RESULT__|' + '|'.join(str(part) for part in parts))
+
 target = '$target_date'
 
 db = DatabaseManager()
@@ -332,9 +343,9 @@ cur.execute(\"SELECT COUNT(DISTINCT code) FROM schema_stockfilter.klines WHERE d
 covered = cur.fetchone()[0] or 0
 
 rate = covered / pool_count if pool_count > 0 else 0
-print(f'{target} {covered} {pool_count} {rate:.4f}')
+emit_monitor_result(target, covered, pool_count, f'{rate:.4f}')
 db.close()
-" 2>&1 | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}' | tail -1)
+" 2>&1 | extract_monitor_results | tail -1)
 
     if [ -z "$result" ]; then
         # 查询失败
@@ -345,9 +356,21 @@ db.close()
         return
     fi
 
-    local covered=$(echo "$result" | awk '{print $2}')
-    local pool_count=$(echo "$result" | awk '{print $3}')
-    local rate=$(echo "$result" | awk '{print $4}')
+    local result_date=$(echo "$result" | cut -d'|' -f1)
+    local covered=$(echo "$result" | cut -d'|' -f2)
+    local pool_count=$(echo "$result" | cut -d'|' -f3)
+    local rate=$(echo "$result" | cut -d'|' -f4)
+
+    if [ "$result_date" != "$target_date" ] || ! [[ "$covered" =~ ^[0-9]+$ ]] || \
+       ! [[ "$pool_count" =~ ^[0-9]+$ ]] || ! [[ "$rate" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        if [ "$LAST_OBPC_COVERAGE_STATUS" != "query_failed" ]; then
+            LAST_OBPC_COVERAGE_STATUS="query_failed"
+            send_feishu "$WEBHOOK" "⚠️ OBPC 覆盖率查询结果非法" \
+                "查询返回不符合监控协议（fail-closed）：${result}" \
+                "WARNING"
+        fi
+        return
+    fi
 
     # 覆盖率低于阈值 → 告警
     local threshold="$OBPC_COVERAGE_THRESHOLD"
@@ -489,6 +512,10 @@ check_obpc_scan_stale() {
 
     local result=$(docker exec stockfilter-kline python3 -c "
 from data.database import DatabaseManager
+
+def emit_monitor_result(*parts):
+    print('__OBPC_MONITOR_RESULT__|' + '|'.join(str(part) for part in parts))
+
 db = None
 try:
     db = DatabaseManager()
@@ -503,20 +530,20 @@ try:
     rows = cur.fetchall()
     if rows:
         for r in rows:
-            print(f'{r[0]}|{r[1]}|{r[2]}')
+            emit_monitor_result(r[0], r[1], r[2])
     else:
         # P2-3：查询成功且无卡死记录 → 输出显式 none 标记，供 shell 区分
         # 「无异常（空结果）」与「查询失败」（二者仅凭空字符串无法区分）
-        print('none|0|0')
+        emit_monitor_result('none', 0, 0)
 except Exception as e:
     # P2-3 修复（fail-closed）：查询失败输出哨兵，交由 shell 发去重告警
-    print(f'query_failed|{type(e).__name__}')
+    emit_monitor_result('query_failed', type(e).__name__)
 if db is not None:
     try:
         db.close()
     except Exception:
         pass
-" 2>&1 | grep '|')
+" 2>&1 | extract_monitor_results)
 
     local first_field=$(echo "$result" | cut -d'|' -f1)
     if [ -z "$result" ] || [ "$first_field" = "query_failed" ] || [[ "$result" == *"Traceback"* ]]; then
@@ -549,37 +576,50 @@ if db is not None:
 check_obpc_scan_blocked() {
     local result=$(docker exec stockfilter-kline python3 -c "
 from data.database import DatabaseManager
+
+def emit_monitor_result(*parts):
+    print('__OBPC_MONITOR_RESULT__|' + '|'.join(str(part) for part in parts))
+
 db = None
 try:
     db = DatabaseManager()
     cur = db.conn.cursor()
 
-    # 查最近 ${SCAN_BLOCKED_WINDOW_DAYS} 天的 failed / blocked_data 记录
-    # P2 修复：PostgreSQL 把双引号视为列名标识符，状态字面量必须用单引号
+    # 每个交易日只看 started_at 最新的一次运行。若晚间 initial 曾 blocked_data，
+    # 但次晨 rescan 已成功，旧阻断已收敛，不应继续告警。
     cur.execute('''
+        WITH ranked_runs AS (
+            SELECT signal_date, run_kind, status, filter_reason,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY signal_date
+                       ORDER BY started_at DESC
+                   ) AS run_rank
+            FROM schema_stockfilter.scan_runs
+            WHERE signal_date >= CURRENT_DATE - ${SCAN_BLOCKED_WINDOW_DAYS}
+        )
         SELECT signal_date, run_kind, status, filter_reason
-        FROM schema_stockfilter.scan_runs
-        WHERE status IN ('failed', 'blocked_data')
-          AND signal_date >= CURRENT_DATE - ${SCAN_BLOCKED_WINDOW_DAYS}
+        FROM ranked_runs
+        WHERE run_rank = 1
+          AND status IN ('failed', 'blocked_data')
         ORDER BY signal_date DESC, run_kind DESC
         LIMIT ${SCAN_BLOCKED_LIMIT}
     ''')
     rows = cur.fetchall()
     if rows:
         for r in rows:
-            print(f'{r[0]}|{r[1]}|{r[2]}|{r[3]}')
+            emit_monitor_result(r[0], r[1], r[2], r[3])
     else:
         # P2-3：查询成功且无异常记录 → 显式 none 标记，区分空结果与查询失败
-        print('none|0|0|0')
+        emit_monitor_result('none', 0, 0, 0)
 except Exception as e:
     # P2-3 修复（fail-closed）：查询失败输出哨兵，交由 shell 发去重告警
-    print(f'query_failed|{type(e).__name__}')
+    emit_monitor_result('query_failed', type(e).__name__)
 if db is not None:
     try:
         db.close()
     except Exception:
         pass
-" 2>&1 | grep '|')
+" 2>&1 | extract_monitor_results)
 
     local first_field=$(echo "$result" | cut -d'|' -f1)
     if [ -z "$result" ] || [ "$first_field" = "query_failed" ] || [[ "$result" == *"Traceback"* ]]; then
@@ -628,6 +668,9 @@ check_obpc_push_missing() {
     local result=$(docker exec stockfilter-kline python3 -c "
 from data.database import DatabaseManager
 
+def emit_monitor_result(*parts):
+    print('__OBPC_MONITOR_RESULT__|' + '|'.join(str(part) for part in parts))
+
 target = '$target_date'
 
 db = None
@@ -655,16 +698,16 @@ try:
     ''', (target,))
     push_cnt = cur.fetchone()[0] or 0
 
-    print(f'{target}|{scan_status}|{push_cnt}')
+    emit_monitor_result(target, scan_status, push_cnt)
 except Exception as e:
     # P1-5 修复（fail-closed）：查询失败输出哨兵值，交由 shell 发去重告警
-    print(f'query_failed|{type(e).__name__}')
+    emit_monitor_result('query_failed', type(e).__name__)
 if db is not None:
     try:
         db.close()
     except Exception:
         pass
-" 2>&1 | grep '|' | tail -1)
+" 2>&1 | extract_monitor_results | tail -1)
 
     local first_field=$(echo "$result" | cut -d'|' -f1)
     if [ -z "$result" ] || [ "$first_field" = "query_failed" ]; then
@@ -789,6 +832,9 @@ check_obpc_extreme_weak_leak() {
 import json
 from data.database import DatabaseManager
 
+def emit_monitor_result(*parts):
+    print('__OBPC_MONITOR_RESULT__|' + '|'.join(str(part) for part in parts))
+
 target = '$target_date'
 
 db = None
@@ -807,7 +853,7 @@ try:
     row = cur.fetchone()
 except Exception as e:
     # 修复 issue 8（fail-closed）：查询失败不得被当作'没有穿透'
-    print(f'query_failed|{type(e).__name__}')
+    emit_monitor_result('query_failed', type(e).__name__)
 else:
     leak = 0
     metrics_missing = 0
@@ -882,11 +928,11 @@ else:
             elif regime == 'extreme_weak' and sel > 0:
                 leak = 1
                 leak_info = f'regime=extreme_weak selected_count={sel} status={status} mode={mode}'
-    print(f'{target}|{leak}|{metrics_missing}|{leak_info}')
+    emit_monitor_result(target, leak, metrics_missing, leak_info)
 
 if db is not None:
     db.close()
-" 2>&1 | grep '|' | tail -1)
+" 2>&1 | extract_monitor_results | tail -1)
 
     # 查询为空/失败：fail-closed，不得静默当作无穿透
     local first_field=$(echo "$result" | cut -d'|' -f1)
