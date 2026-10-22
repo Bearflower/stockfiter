@@ -107,6 +107,21 @@ docs/
 
 如果需要了解完整的项目需求，请查看 `requirements/` 目录下的需求文档（如有）。
 
+### 2026-10-22 K 线采集进程隔离与断点续采交付索引
+
+| 类别 | 路径 | 说明 |
+|------|------|------|
+| **新增** | `scripts/data/kline_collection.py` | 分片监督者：进程级超时 → terminate/宽限期/SIGKILL → PID 确认 → 数据库缺口续采 |
+| **新增** | `tests/scheduler/test_kline_process_isolation.py` | 610 只超时恢复、重建上限、截止时间、无进展、DB 异常、配置 fail-closed |
+| **重写** | `scripts/data/update_kline_daily.py` | 纯串行 `--worker` 分片进程 + 监督者入口 `run_update`；移除线程池伪超时 |
+| **更新** | `scripts/scheduler_kline.py`、`main.py` | 两条全量入口统一走共享监督者 |
+| **更新** | `scripts/monitor.sh` | 恢复事件一次性告警、失败告警携带 details、查询失败 fail-closed |
+| **更新** | `docs/designs/配置管理设计.md` | §8.1 移除 `request_timeout_seconds`，新增 10 项分片/隔离/DB 超时配置与推导依据 |
+| 实施记录 | `docs/reports/2026-10-22-kline-process-isolation.md` | 契约、配置初值推导、验证证据及第四轮复审整改记录 |
+| 计划 | `tasks/plan.md`、`tasks/todo.md` | 实施方案与任务清单（含基准 BLOCKED 说明） |
+
+验收标准（本地）：全量 pytest 378 passed / 8 skipped（需真实 PostgreSQL 环境）、编译与 bash 语法检查通过、故障注入可恢复至 98%+ 且无残留 PID、连续多只永久挂死股票被隔离且不阻断后续普通缺口。
+
 ### 2026-10-18 Task 9：OBPC 扫描可靠性整改交付索引
 
 本轮整改引入的新文件与更新点：
@@ -136,5 +151,5 @@ docs/
 
 ---
 
-**文档版本**：V1.3（2026-10-18 Task 9：新增 OBPC 扫描可靠性整改交付索引，索引数据库表数量由 5 更正为 6）
-**最后更新**：2026-10-18
+**文档版本**：V1.4（2026-10-22：新增 K 线采集进程隔离与断点续采交付索引；V1.3 为 2026-10-18 OBPC 扫描可靠性整改索引）
+**最后更新**：2026-10-22

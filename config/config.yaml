@@ -75,16 +75,53 @@ global:
   # 与 backfill 节语义不同：日更新关注「全市场当日数据是否完整」
   kline_update:
     days_to_update: 5              # C-1：更新最近多少天的数据（防止遗漏）
-    request_timeout_seconds: 15    # 单股抓取超时（秒）
     request_interval_seconds: 0.05 # M-2：每次请求后休眠时间（秒），限流防止触发 Baostock API
     target_date_max_backtrack: 7   # P1：计算目标交易日时最多回溯的自然日数（覆盖周末+常见节假日；春节例外时兜底到库内最新交易日）
     failure_rate_threshold: 0.7    # 滑动窗口失败率熔断阈值
     failure_window_size: 100       # 滑动窗口大小（最近 N 次请求）
     failure_window_min_samples: 50 # 熔断判定最小样本数
-    total_failure_limit: 400       # 累计失败硬上限（单股 15s × 400 = 6000s ≈ 100min，在 3h 超时前熔断；2026-10-20 调高：配合补抓逻辑降低熔断频率）
+    total_failure_limit: 250       # 单个分片累计失败硬上限；必须小于 worker_chunk_size，否则分片内永达不到（load_collection_config 强校验）
     min_success_rate: 0.9         # 完整性：成功率红线（成功/(成功+失败)）
     min_coverage_rate: 0.98        # 完整性：处理覆盖率红线（熔断后未遍历股票计入分母，禁止大面积漏处理）
     skipped_ratio_guard: 0.95      # 休市日 guard 阈值：仅当 target_date 为非交易日时，skipped_ratio ≥ 此值才放行（is_complete 第 3 条）
+
+    # ---- 进程级隔离 + 数据库断点续采（2026-10-22 改造） ----
+    # 单个 Baostock 请求不可安全取消，因此不再做单股线程超时；
+    # 超时由监督者终止整个工作进程，再用新进程从数据库缺口继续。
+    #
+    # 初值推导依据（本地 100 只基准 BLOCKED：2026-10-22 两次尝试均在 Baostock
+    # 登录阶段被连接重置 Errno 54 / 网络接收错误，未取得 p95；初值改由生产证据推导，
+    # 待故障注入阶段复测校准）：
+    #   - 生产证据：2909 只夜间任务在旧 3h 外层超时内正常完成，唯一异常出现在
+    #     第 610 只股票单股挂死（旧单股超时 15s）。
+    #   - worker_chunk_size=300：常态单股 < 0.5s 推算，单分片常态 < 150s，
+    #     既能在超时后快速重查缺口，也能覆盖股票池约 10% 的进展。
+    #   - worker_timeout_seconds=300：约为常态分片耗时的 2 倍；单只挂死最多
+    #     浪费 300s，但进度文件已定位到具体股票，其余已落库股票不会重复采集。
+    #   - worker_terminate_grace_seconds=10：足够 Python 响应 SIGTERM 关闭 Baostock
+    #     socket；超时未退则 SIGKILL，由操作系统回收残留线程/连接。
+    #   - max_session_restarts=6：每次进程超时只损失 1 只挂起股票，6 次约覆盖
+    #     股票池 0.2% 的离散挂死；超过则视为会话级故障，停止恢复并判失败。
+    #   - recovery_deadline_buffer_seconds=300：为 OBPC 初扫等待窗口预留 5 分钟
+    #     写库与扫描启动时间；截止时间 = 初扫时刻 + KLINE_WAIT_TIMEOUT - 本余量。
+    #   - immediate_recovery_enabled=true：主采集失败后立即断点恢复，不等次日 07:00。
+    #   - max_consecutive_no_progress_rounds=2：连续 2 个分片既无新增落库、也没有
+    #     新识别并隔离挂死股票，说明 Baostock/数据库整体不可用；新隔离动作属于
+    #     有效状态推进，不计入无进展，最终仍由会话重建上限和截止时间兜底。
+    #   - max_quarantined_retries=1：超时股票先延后隔离，普通缺口处理完后最多
+    #     再重试 1 次；永久挂死股票最终计入 failed，不会反复占据队首阻塞其余缺口。
+    #   - db_query_timeout_seconds=30 / db_connect_timeout_seconds=10：监督者自身
+    #     数据库操作的时间上限，避免慢查询或建连阻塞突破整体截止时间。
+    worker_chunk_size: 300
+    worker_timeout_seconds: 300
+    worker_terminate_grace_seconds: 10
+    max_session_restarts: 6
+    recovery_deadline_buffer_seconds: 300
+    immediate_recovery_enabled: true
+    max_consecutive_no_progress_rounds: 2
+    max_quarantined_retries: 1
+    db_query_timeout_seconds: 30
+    db_connect_timeout_seconds: 10
 
   # 日志配置
   logging:

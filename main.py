@@ -73,10 +73,11 @@ def run_kline_update() -> None:
     logger.info("=" * 50)
 
     # C-1：加载 config.yaml，所有参数从配置读取，禁止硬编码
+    # 2026-10-22：与 scheduler_kline 共用同一加载器（含分片采集配置与历史默认值），
+    # 避免 main.py --all 与定时任务出现两套配置口径。
+    from scripts.data.update_kline_daily import load_kline_update_config
     config_path = os.path.join(os.path.dirname(__file__), 'config/config.yaml')
-    with open(config_path, 'r', encoding='utf-8') as f:
-        cfg = yaml.safe_load(f) or {}
-    kline_cfg = (cfg.get('global') or {}).get('kline_update') or {}
+    kline_cfg = load_kline_update_config(config_path)
 
     # AC-2：非交易日守卫——main.py --update 不经 scheduler 守卫，
     # 这里兜底：非交易日跳过采集循环，记 INFO 不 raise，让后续扫描/推送正常执行。
@@ -105,7 +106,8 @@ def run_kline_update() -> None:
     # 改为调 run_update 业务函数，正常 return UpdateResult，流水线可继续
     from scripts.data.update_kline_daily import run_update as kline_run_update
     # C-1 + H-1：cfg 从 config 读取，统一由 updater.cfg 单点管理
-    result = kline_run_update(cfg=kline_cfg)
+    # 人工入口允许滚动截止窗口（strict_deadline=False），自动调度入口保持严格截止
+    result = kline_run_update(cfg=kline_cfg, strict_deadline=False)
 
     # R-01 + B2：完整性判定（严格对齐第 9.2 节 4 条顺序）
     skipped_ratio_guard = kline_cfg.get('skipped_ratio_guard', 0.95)
@@ -114,12 +116,11 @@ def run_kline_update() -> None:
         target_date=result.target_date,
         skipped_ratio_guard=skipped_ratio_guard,
     )
-    coverage_pct = result.coverage_rate * 100
     td_pct = result.target_date_coverage_rate * 100
     logger.info(
         f"K 线数据更新：success={result.success}, failed={result.failed}, "
-        f"skipped={result.skipped}, processed={result.processed_count}/{result.total}, "
-        f"coverage={coverage_pct:.2f}%, target_date={result.target_date}, "
+        f"skipped={result.skipped}, processed={result.processed_count}/{result.total}"
+        f"（{result.coverage_rate * 100:.2f}%）, target_date={result.target_date}, "
         f"target_date_coverage={td_pct:.2f}% → "
         f"{'PASS' if complete else 'FAIL'}"
     )
@@ -127,9 +128,9 @@ def run_kline_update() -> None:
     # R-01：数据不完整时向上抛异常，阻断 run_all 中的后续扫描与推送
     if not complete:
         raise RuntimeError(
-            f"K 线数据完整性 FAIL：处理 {result.processed_count}/{result.total} "
-            f"（覆盖 {result.coverage_rate * 100:.2f}%），"
-            f"目标交易日 {result.target_date} 覆盖 {result.target_date_coverage_rate * 100:.2f}%。"
+            f"K 线数据完整性 FAIL：处理 {result.processed_count}/{result.total}，"
+            f"目标交易日 {result.target_date} 覆盖 "
+            f"{td_pct:.2f}%。"
             f"下游扫描与推送已阻断。"
         )
 

@@ -33,6 +33,9 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
       - PYTHONPATH=/app
+      # 分片采集截止时间与 OBPC 初扫等待窗口同源（禁止另写 23:40 绝对时刻）
+      - KLINE_WAIT_TIMEOUT=${KLINE_WAIT_TIMEOUT:-1800}
+      - SCHEDULE_SCAN=${SCHEDULE_SCAN:-23:15}
     volumes:
       - ./logs:/app/logs
       - ./config/config.yaml:/app/config/config.yaml:ro
@@ -67,8 +70,9 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
       - PYTHONPATH=/app
-      - KLINE_WAIT_TIMEOUT=1800
-      - KLINE_WAIT_INTERVAL=60
+      - KLINE_WAIT_TIMEOUT=${KLINE_WAIT_TIMEOUT:-1800}
+      - KLINE_WAIT_INTERVAL=${KLINE_WAIT_INTERVAL:-60}
+      - SCHEDULE_SCAN=${SCHEDULE_SCAN:-23:15}
     volumes:
       - ./logs:/app/logs
       - ./output:/app/output

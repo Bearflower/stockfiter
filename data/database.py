@@ -154,12 +154,18 @@ def filter_stock_pool(df: pd.DataFrame, stock_pool_config: dict) -> pd.DataFrame
 class DatabaseManager:
     """数据库管理类"""
 
-    def __init__(self, connection_string: Optional[str] = None):
+    def __init__(self, connection_string: Optional[str] = None,
+                 connect_timeout: Optional[int] = None,
+                 statement_timeout: Optional[int] = None):
         """
         初始化数据库连接
 
         Args:
             connection_string: PostgreSQL 连接字符串
+            connect_timeout: 建连超时秒数（None 表示沿用 libpq 默认，
+                供 K 线监督者这类有整体截止时间的调用方使用）
+            statement_timeout: SQL 语句超时秒数（None 表示沿用 PostgreSQL 默认）。
+                通过连接 options 从建连时生效，覆盖构造期建表与迁移。
         """
         self.host = os.getenv("DB_HOST", "localhost")
         self.port = os.getenv("DB_PORT", "5432")
@@ -178,25 +184,45 @@ class DatabaseManager:
             )
 
         self.connection_string = connection_string
+        self.connect_timeout = connect_timeout
+        self.statement_timeout = statement_timeout
         self.conn = None
         self._connect()
-        self._create_tables()
-        self._migrate_add_frequency()
-        # 2026-10-18 新增：幂等迁移链
-        self._migrate_task_status_columns()
-        self._migrate_create_scan_runs()
-        self._migrate_scan_results_unique_index()
+        try:
+            self._create_tables()
+            self._migrate_add_frequency()
+            # 2026-10-18 新增：幂等迁移链
+            self._migrate_task_status_columns()
+            self._migrate_create_scan_runs()
+            self._migrate_scan_results_unique_index()
+        except Exception:
+            # 构造期建表/迁移同样受 statement_timeout 约束；一旦失败，必须
+            # 主动释放已建立连接，避免半初始化对象遗留连接直到 GC。
+            try:
+                self.close()
+            except Exception as close_error:
+                logger.warning(f"数据库构造失败后的连接关闭也失败：{close_error}")
+            raise
 
     def _connect(self):
         """建立数据库连接"""
         try:
+            connect_kwargs = {}
+            if self.connect_timeout is not None:
+                connect_kwargs["connect_timeout"] = int(self.connect_timeout)
+            connection_options = [f"-c search_path={self.schema}"]
+            if self.statement_timeout is not None:
+                connection_options.append(
+                    f"-c statement_timeout={int(self.statement_timeout) * 1000}"
+                )
             self.conn = psycopg2.connect(
                 host=self.host,
                 port=self.port,
                 database=self.database,
                 user=self.user,
                 password=self.password,
-                options=f"-c search_path={self.schema}",
+                options=" ".join(connection_options),
+                **connect_kwargs,
             )
             logger.info(
                 f"PostgreSQL 数据库连接成功 ({self.host}:{self.port}/{self.database})"

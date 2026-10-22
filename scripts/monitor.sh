@@ -121,6 +121,7 @@ LAST_KLINE_SYNC_STATUS="ok"
 # OBPC 新增告警状态追踪
 LAST_OBPC_COVERAGE_STATUS="ok"       # 覆盖率告警
 LAST_OBPC_TASK_STATUS="ok"           # task_status 状态异常
+LAST_KLINE_RECOVERY_KEY=""           # 超时后自动恢复的一次性告警去重键
 LAST_OBPC_SCAN_MISSING="ok"          # scan_runs 缺失
 LAST_OBPC_SCAN_STALE="ok"            # running 超时
 LAST_OBPC_SCAN_BLOCKED="ok"          # failed / blocked_data
@@ -398,43 +399,124 @@ db.close()
 }
 
 # 告警 2：task_status.status != completed
+# 2026-10-22 改造：告警携带分片采集 details（completion_mode / stop_reason /
+# 会话重建次数 / 超时分片与卡死股票 / 覆盖率），并在「超时后已恢复」时发送一次性 WARNING。
 check_obpc_task_status() {
-    local result=$(docker exec stockfilter-kline python3 -c "
+    # 一次查询两个任务；任何异常都输出 QUERY_FAILED 哨兵，shell 侧强校验两行齐全，
+    # 避免「第一条成功、第二条异常」时把不完整结果当作正常状态。
+    local raw=$(docker exec stockfilter-kline python3 -c "
+import json
 from data.database import DatabaseManager
-db = DatabaseManager()
-cur = db.conn.cursor()
 
-# 查 kline_update 和 backfill
-for task in ('kline_update', 'backfill'):
-    cur.execute(\"SELECT task_name, status FROM schema_stockfilter.task_status WHERE task_name = %s\", (task,))
-    row = cur.fetchone()
-    if row:
-        print(f'{row[0]}|{row[1]}|None')
-    else:
-        print(f'{task}|unknown|None')
-db.close()
-" 2>&1 | grep -E '^(kline_update|backfill)\|')
+try:
+    db = DatabaseManager()
+    cur = db.conn.cursor()
+except Exception as e:
+    print(f'QUERY_FAILED|connect|{type(e).__name__}: {str(e)[:160]}')
+    raise SystemExit(0)
+
+try:
+    # 查 kline_update 和 backfill（details 缺失时按空字典处理，不伪造字段）
+    for task in ('kline_update', 'backfill'):
+        cur.execute(
+            \"SELECT task_name, status, target_date, details FROM schema_stockfilter.task_status WHERE task_name = %s\",
+            (task,),
+        )
+        row = cur.fetchone()
+        if not row:
+            print(f'{task}|unknown|None|unknown|-|-|0|-|-')
+            continue
+        details = row[3]
+        if isinstance(details, str):
+            try:
+                details = json.loads(details)
+            except Exception:
+                details = {}
+        if not isinstance(details, dict):
+            details = {}
+        mode = details.get('completion_mode') or 'unknown'
+        stop = details.get('stop_reason') or '-'
+        restarts = details.get('session_restarts')
+        restarts = '-' if restarts is None else restarts
+        chunks = details.get('timed_out_chunks')
+        chunks = chunks if isinstance(chunks, list) else []
+        hung = '-'
+        if chunks:
+            last = chunks[-1] if isinstance(chunks[-1], dict) else {}
+            hung = last.get('last_started_code') or '-'
+        cov = details.get('coverage_rate')
+        cov = '-' if cov is None else cov
+        print(f'{row[0]}|{row[1]}|{row[2] or \"None\"}|{mode}|{stop}|{restarts}|{len(chunks)}|{hung}|{cov}')
+    db.close()
+except Exception as e:
+    print(f'QUERY_FAILED|query|{type(e).__name__}: {str(e)[:160]}')
+" 2>&1)
+
+    local result=$(printf '%s\n' "$raw" | grep -E '^(kline_update|backfill)\|')
+    local query_failed_line=$(printf '%s\n' "$raw" | grep -E '^QUERY_FAILED\|' | head -1)
+    local has_kline=0
+    local has_backfill=0
+    printf '%s\n' "$result" | grep -q '^kline_update|' && has_kline=1
+    printf '%s\n' "$result" | grep -q '^backfill|' && has_backfill=1
 
     local anomaly=0
     local msg_parts=""
     local key=""
+    local recovery_mode=""
+    local recovery_key=""
 
-    while IFS='|' read -r task status target_date; do
+    # 查询失败或不完整必须 fail-closed：不得把不完整/空结果当作「任务正常」
+    if [ -n "$query_failed_line" ] || [ "$has_kline" != "1" ] || [ "$has_backfill" != "1" ]; then
+        if [ "$LAST_OBPC_TASK_STATUS" != "query_failed" ]; then
+            LAST_OBPC_TASK_STATUS="query_failed"
+            local query_fail_body="无法完整查询 task_status（fail-closed）"
+            query_fail_body="${query_fail_body}"$'\n'"哨兵：${query_failed_line:-无}"
+            query_fail_body="${query_fail_body}"$'\n'"kline_update 行：${has_kline} / backfill 行：${has_backfill}"
+            query_fail_body="${query_fail_body}"$'\n\n'"请检查数据库连接与 kline 容器状态"
+            send_feishu "$WEBHOOK" "⚠️ OBPC 数据任务状态查询失败" "$query_fail_body" "WARNING"
+        fi
+        return
+    fi
+
+    while IFS='|' read -r task status target_date mode stop restarts timeouts hung coverage; do
+        # 超时后自动恢复：按目标日 + 停止原因 + 重建次数去重，只告警一次
+        if [ "$task" = "kline_update" ] && [ "$mode" = "recovered_after_timeout" ]; then
+            recovery_mode="recovered"
+            recovery_key="recovered|${target_date}|${stop}|${restarts}|${timeouts}"
+        fi
+
         if [ "$status" != "completed" ]; then
             anomaly=1
             msg_parts="${msg_parts}• ${task}: status=${status} target_date=${target_date}
+  completion_mode=${mode} stop_reason=${stop}
+  会话重建=${restarts} 超时分片=${timeouts} 超时股票=${hung}
+  覆盖率=${coverage}
 "
-            key="${key}_${task}_${status}"
+            key="${key}_${task}_${status}_${mode}_${stop}"
         fi
     done <<< "$result"
+
+    if [ "$recovery_mode" = "recovered" ]; then
+        if [ "$LAST_KLINE_RECOVERY_KEY" != "$recovery_key" ]; then
+            LAST_KLINE_RECOVERY_KEY="$recovery_key"
+            local recovery_body="采集进程发生超时，已终止旧进程并从数据库缺口续采完成。"
+            recovery_body="${recovery_body}"$'\n'"目标交易日：$(echo "$recovery_key" | cut -d'|' -f2)"
+            recovery_body="${recovery_body}"$'\n'"停止原因：$(echo "$recovery_key" | cut -d'|' -f3)"
+            recovery_body="${recovery_body}"$'\n'"会话重建次数：$(echo "$recovery_key" | cut -d'|' -f4)"
+            recovery_body="${recovery_body}"$'\n'"超时分片数：$(echo "$recovery_key" | cut -d'|' -f5)"
+            recovery_body="${recovery_body}"$'\n\n'"数据已达标，扫描不受影响；请关注 Baostock 稳定性。"
+            send_feishu "$WEBHOOK" "⚠️ K线采集超时后已自动恢复" "$recovery_body" "WARNING"
+        fi
+    else
+        LAST_KLINE_RECOVERY_KEY=""
+    fi
 
     if [ "$anomaly" = "1" ]; then
         local state="anomaly${key}"
         if [ "$LAST_OBPC_TASK_STATUS" != "$state" ]; then
             LAST_OBPC_TASK_STATUS="$state"
-            send_feishu "$WEBHOOK" "⚠️ OBPC 数据任务未完成" \
-                "以下 task_status 状态异常：\n${msg_parts}\n\nOBPC 扫描依赖 kline_update + backfill 均完成" \
-                "WARNING"
+            local anomaly_body="以下 task_status 状态异常："$'\n'"${msg_parts}"$'\n'"OBPC 扫描依赖 kline_update + backfill 均完成"
+            send_feishu "$WEBHOOK" "⚠️ OBPC 数据任务未完成" "$anomaly_body" "WARNING"
         fi
     else
         if [ "$LAST_OBPC_TASK_STATUS" != "ok" ] && [ -n "$LAST_OBPC_TASK_STATUS" ]; then

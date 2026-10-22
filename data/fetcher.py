@@ -328,43 +328,6 @@ def fetch_and_cache_kline(
     return kline_df
 
 
-def update_all_klines(
-    db: DatabaseManager, stocks: List[dict], days: int = 120
-) -> int:
-    """
-    批量更新所有股票的 K 线数据
-
-    Args:
-        db: 数据库管理器
-        stocks: 股票列表
-        days: 获取天数
-
-    Returns:
-        int: 成功更新的股票数量
-    """
-    success_count = 0
-    total = len(stocks)
-
-    for idx, stock in enumerate(stocks):
-        code = stock['code']
-        symbol = stock['symbol']
-
-        try:
-            df = fetch_and_cache_kline(db, symbol, code, days)
-            if df is not None and len(df) > 0:
-                success_count += 1
-        except Exception as e:
-            logger.error(f"{code} 更新 K 线失败：{e}")
-
-        if (idx + 1) % 100 == 0:
-            logger.info(
-                f"K 线更新进度：{idx + 1}/{total}，成功：{success_count}"
-            )
-
-    logger.info(f"K 线更新完成：成功 {success_count}/{total}")
-    return success_count
-
-
 def get_kline_for_pattern(
     db: DatabaseManager, symbol: str, code: str, days: int = 120
 ) -> Optional[pd.DataFrame]:

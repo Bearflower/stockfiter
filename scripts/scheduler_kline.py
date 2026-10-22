@@ -1,6 +1,6 @@
 """
 K线数据服务调度器
-每天 22:00(北京) K线更新，07:00 历史补全
+每天 23:00(北京) K线更新，07:00 历史补全
 使用明确的 Asia/Shanghai 时区，防止 Docker 容器时区漂移
 """
 from __future__ import annotations
@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 import time
 import logging
 import subprocess
@@ -20,7 +19,6 @@ TZ = ZoneInfo("Asia/Shanghai")
 # 可配置参数（通过环境变量覆盖，默认值合理无需配置）
 SCHEDULE_KLINE_UPDATE = os.environ.get("SCHEDULE_KLINE_UPDATE", "23:00")   # 2026-10-20 错峰：避开 Baostock 晚间高峰期（原 22:00）
 SCHEDULE_BACKFILL = os.environ.get("SCHEDULE_BACKFILL", "07:00")
-KLINE_UPDATE_TIMEOUT = int(os.environ.get("KLINE_UPDATE_TIMEOUT", "10800"))  # 3小时
 BACKFILL_TIMEOUT = int(os.environ.get("BACKFILL_TIMEOUT", "7200"))  # 2小时
 POST_TASK_DELAY = int(os.environ.get("POST_TASK_DELAY", "90"))
 LOOP_INTERVAL = int(os.environ.get("LOOP_INTERVAL", "30"))
@@ -118,6 +116,12 @@ def compute_backfill_target_date(now: datetime) -> tuple[str | None, bool]:
     return nearest_trading_date(now, inclusive=False)
 
 
+def load_kline_update_cfg() -> dict:
+    """读取 global.kline_update 配置（与 update_kline_daily 同一加载器，避免双源）。"""
+    from scripts.data.update_kline_daily import load_kline_update_config
+    return load_kline_update_config()
+
+
 # ---------------------------------------------------------------------------
 # DB 写入辅助
 # ---------------------------------------------------------------------------
@@ -128,6 +132,9 @@ def _write_task_status(
     status: str,
     target_date: str | None = None,
     details: dict | None = None,
+    *,
+    db_connect_timeout_seconds: int,
+    db_query_timeout_seconds: int,
 ) -> None:
     """原子写入 task_status（R-01：携带 target_date 与 details + P1 修复 rollback）。
 
@@ -144,7 +151,10 @@ def _write_task_status(
 
     db = None
     try:
-        db = DatabaseManager()
+        db = DatabaseManager(
+            connect_timeout=db_connect_timeout_seconds,
+            statement_timeout=db_query_timeout_seconds,
+        )
         cur = db.conn.cursor()
         now2 = datetime.now(TZ)
         # 写入基础列（向后兼容：新列不存在时只写基础列）
@@ -207,11 +217,18 @@ def _write_task_status(
                 pass
 
 
-def _ensure_task_status_table() -> None:
+def _ensure_task_status_table(
+    *,
+    db_connect_timeout_seconds: int,
+    db_query_timeout_seconds: int,
+) -> None:
     """确保 task_status 表存在（幂等）。"""
     from data.database import DatabaseManager
 
-    db = DatabaseManager()
+    db = DatabaseManager(
+        connect_timeout=db_connect_timeout_seconds,
+        statement_timeout=db_query_timeout_seconds,
+    )
     try:
         cur = db.conn.cursor()
         cur.execute(
@@ -241,7 +258,24 @@ def main() -> None:
     logger.info("K线数据服务调度器启动（当前时间: %s）", datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S"))
     logger.info("定时任务：23:00 K线更新（错峰 Baostock 晚间高峰）/ 07:00 历史补全（均为北京时间）")
 
-    _ensure_task_status_table()
+    # 必须在任何数据库访问前完成全量配置校验；否则配置错误时仅构造
+    # DatabaseManager 就可能被建连/迁移卡住，违背 fail-closed 入口约束。
+    from scripts.data.kline_collection import (
+        compute_collection_deadline,
+        load_collection_config,
+    )
+
+    try:
+        cfg = load_kline_update_cfg()
+        collection_cfg = load_collection_config(cfg)
+    except Exception as e:
+        logger.critical("K 线配置非法，调度器拒绝启动且不访问数据库：%s", e)
+        return
+
+    _ensure_task_status_table(
+        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+    )
 
     # 当天已触发过的任务（防止同一分钟多次触发）
     last_run_kline: str = ""
@@ -258,6 +292,16 @@ def main() -> None:
 
         if hm == SCHEDULE_KLINE_UPDATE and last_run_kline != today:
             last_run_kline = today
+
+            # 配置文件可能通过挂载在进程运行期间更新；每次任务仍需在指数更新、
+            # 状态写入等任何外部动作前重新加载并完整校验。
+            try:
+                cfg = load_kline_update_cfg()
+                collection_cfg = load_collection_config(cfg)
+            except Exception as e:
+                logger.critical("K 线配置非法，本轮拒绝执行且不访问数据库：%s", e)
+                time.sleep(POST_TASK_DELAY)
+                continue
 
             # 非交易日守卫：纯函数调用（B3.2 抽出，便于单测）
             if should_skip_kline_update(now=now, today_str=today):
@@ -296,64 +340,93 @@ def main() -> None:
                 "weekday 降级" if td_degraded else "Baostock 已验证",
             )
 
+            # 2026-10-22 改造：23:00 分支在进程内运行监督者，
+            # 采集由子进程分片执行（超时 → 终止 → 数据库断点续采）。
+            # 不再使用 3 小时外层 subprocess 超时，整体截止时间由统一公式推导：
+            #   initial_scan_time + KLINE_WAIT_TIMEOUT - recovery_deadline_buffer_seconds
             try:
-                # 用临时文件接收子进程的 UpdateResult 详情（Baostock 挂起隔离 → 保持 subprocess）
-                result_json_path = tempfile.mktemp(
-                    prefix=f"kline_result_{today}_", suffix=".json"
+                from scripts.data.update_kline_daily import (
+                    build_task_status_details,
+                    run_update as kline_run_update,
                 )
 
-                # R13 + R-01：子进程隔离 + --result-json 输出详情
-                # capture_output=False + stdout/stderr=None 让日志实时输出到 docker logs
-                result = subprocess.run(
-                    [
-                        sys.executable,
-                        "scripts/data/update_kline_daily.py",
-                        "--result-json", result_json_path,
-                    ],
-                    stdout=None,
-                    stderr=None,
-                    timeout=KLINE_UPDATE_TIMEOUT,
+                deadline = compute_collection_deadline(
+                    now,
+                    collection_cfg.initial_scan_time,
+                    collection_cfg.kline_wait_timeout_seconds,
+                    collection_cfg.recovery_deadline_buffer_seconds,
+                    strict=True,
                 )
 
-                # 读取子进程输出的 details（读不到时 details={}）
-                details: dict = {}
-                if os.path.exists(result_json_path):
-                    try:
-                        with open(result_json_path, 'r', encoding='utf-8') as f:
-                            details = json.load(f)
-                    except Exception as je:
-                        logger.warning("读取 result-json 失败：%s", je)
-                    finally:
-                        # 清理临时文件
-                        try:
-                            os.unlink(result_json_path)
-                        except Exception:
-                            pass
+                logger.info(
+                    f"分片采集截止时间：{deadline.strftime('%Y-%m-%d %H:%M:%S')}"
+                    f"（初扫 {collection_cfg.initial_scan_time}，"
+                    f"等待 {collection_cfg.kline_wait_timeout_seconds}s，"
+                    f"预留 {collection_cfg.recovery_deadline_buffer_seconds}s）"
+                )
 
-                if result.returncode == 0:
-                    logger.info("K 线数据更新完成（完整性 PASS）")
-                    _write_task_status("kline_update", "completed", target_date, details)
-                else:
-                    # R13 + R-01：完整性判定 FAIL（处理覆盖率/目标日覆盖率不足等）
-                    logger.error(
-                        "K 线数据更新完整性判定 FAIL（退出码 %d，details=%s）",
-                        result.returncode, details,
+                result = kline_run_update(cfg=cfg, deadline=deadline)
+
+                complete = result.is_complete(
+                    cfg['min_success_rate'],
+                    cfg['total_failure_limit'],
+                    cfg['min_coverage_rate'],
+                    target_date=result.target_date,
+                    skipped_ratio_guard=cfg['skipped_ratio_guard'],
+                )
+                # 只补充模式与真实覆盖率口径；不得用处理比例覆盖 details.coverage_rate
+                details = build_task_status_details(result)
+                effective_target_date = result.target_date or target_date
+
+                if complete:
+                    logger.info(
+                        f"K 线数据更新完成（完整性 PASS）：mode={result.completion_mode} "
+                        f"覆盖 {result.target_date_success}/{result.total}"
+                        f"（{result.target_date_coverage_rate * 100:.2f}%）"
                     )
-                    _write_task_status("kline_update", "failed", target_date, details)
-            except subprocess.TimeoutExpired:
-                logger.error(
-                    "K 线数据更新超时（>%ds），视为失败", KLINE_UPDATE_TIMEOUT, exc_info=True
-                )
-                # P1-2：补传 target_date，与正常失败分支语义一致
-                _write_task_status("kline_update", "failed", target_date, {})
+                    _write_task_status(
+                        "kline_update", "completed", effective_target_date, details,
+                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    )
+                else:
+                    logger.error(
+                        f"K 线数据更新完整性判定 FAIL（mode={result.completion_mode} "
+                        f"stop={details.get('stop_reason')} 覆盖 "
+                        f"{result.target_date_success}/{result.total}，"
+                        f"{result.target_date_coverage_rate * 100:.2f}%）"
+                    )
+                    _write_task_status(
+                        "kline_update", "failed", effective_target_date, details,
+                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    )
             except Exception as e:
                 logger.error("K 线数据更新异常：%s", e, exc_info=True)
-                # P1-2：补传 target_date
-                _write_task_status("kline_update", "failed", target_date, {})
+                _write_task_status(
+                    "kline_update", "failed", target_date,
+                    {
+                        "collection_mode": "chunked",
+                        "completion_mode": "failed",
+                        "stop_reason": "exception",
+                        "error": str(e),
+                        "target_date": target_date,
+                    },
+                    db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                    db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                )
             time.sleep(POST_TASK_DELAY)
 
         elif hm == SCHEDULE_BACKFILL and last_run_backfill != today:
             last_run_backfill = today
+
+            try:
+                cfg = load_kline_update_cfg()
+                collection_cfg = load_collection_config(cfg)
+            except Exception as e:
+                logger.critical("K 线配置非法，本轮补全拒绝执行且不访问数据库：%s", e)
+                time.sleep(POST_TASK_DELAY)
+                continue
             logger.info("=== 执行历史数据补全（07:00 北京）===")
 
             # R-02 修复：07:00 补全的目标日 = 最近一个「已收盘」的交易日（严格早于 today），
@@ -376,19 +449,35 @@ def main() -> None:
                 )
                 if result.returncode == 0:
                     logger.info("历史数据补全完成")
-                    _write_task_status("backfill", "completed", target_date, {})
+                    _write_task_status(
+                        "backfill", "completed", target_date, {},
+                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    )
                 else:
                     logger.error(
                         "历史数据补全返回非零退出码 %d",
                         result.returncode,
                     )
-                    _write_task_status("backfill", "failed", target_date, {})
+                    _write_task_status(
+                        "backfill", "failed", target_date, {},
+                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    )
             except subprocess.TimeoutExpired:
                 logger.error("历史数据补全超时（>%ds）", BACKFILL_TIMEOUT, exc_info=True)
-                _write_task_status("backfill", "failed", target_date, {})
+                _write_task_status(
+                    "backfill", "failed", target_date, {},
+                    db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                    db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                )
             except Exception as e:
                 logger.error("历史数据补全失败: %s", e, exc_info=True)
-                _write_task_status("backfill", "failed", target_date, {})
+                _write_task_status(
+                    "backfill", "failed", target_date, {},
+                    db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+                    db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                )
             time.sleep(POST_TASK_DELAY)
 
         else:

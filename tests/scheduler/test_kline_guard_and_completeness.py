@@ -10,7 +10,6 @@ import json
 import os
 import tempfile
 from datetime import datetime
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -232,140 +231,104 @@ class TestIsCompleteOrder:
         ) is False
 
 
-class _MockDf:
-    """最小 pandas DataFrame mock，支持 .empty / df['col'].iloc[0] / f-string 格式化。"""
-    empty = True
-
-    def __getitem__(self, key):
-        return _MockSeries()
-
-
-class _MockSeries:
-    iloc = None
-
-    def __init__(self):
-        self.iloc = _MockIloc()
-
-
-class _MockIloc:
-    def __getitem__(self, idx):
-        return 0
-
-    def __format__(self, fmt):
-        return '0'
-
-
 # =====================================================================
 # B3.3-3 熔断控制流（滑动窗口 break）
 # =====================================================================
 
-class TestCircuitBreakerControlFlow:
-    """update_kline_daily.py 中滑动窗口失败率熔断控制流。"""
+class _FakeBaostockSession:
+    """最小 Baostock 会话替身（纯串行，返回空数据即计入失败）。"""
+
+    def __init__(self, fetcher=None):
+        self._fetcher = fetcher
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def get_kline(self, symbol, end_date=None, days=120):
+        if self._fetcher is not None:
+            return self._fetcher(symbol, end_date, days)
+        return None
+
+
+class TestChunkCircuitBreaker:
+    """update_kline_daily.DailyKlineUpdater.collect() 的分片内熔断控制流。"""
 
     def _make_updater_with_10_stocks(self, cfg):
-        """构造一个有 MagicMock db + 10 只股票 DataFrame 的 DailyKlineUpdater。"""
-        import pandas as pd
+        """构造 MagicMock db + 10 只股票输入的 DailyKlineUpdater。"""
         from scripts.data.update_kline_daily import DailyKlineUpdater
         updater = DailyKlineUpdater(days_to_update=1, config=cfg)
         updater.db = MagicMock()
-
-        stocks_df = pd.DataFrame([
-            {'code': f'00000{i}.SZ', 'symbol': f'00000{i}.SZ', 'list_date': None}
-            for i in range(10)
-        ])
-        updater.db.get_stock_list.return_value = stocks_df
         updater.db.get_latest_kline_date.return_value = "2026-10-10"
-        return updater
+        stocks = [
+            {'code': f'00000{i}', 'symbol': f'00000{i}.SZ'} for i in range(10)
+        ]
+        return updater, stocks
 
     def test_sliding_window_triggers_break_on_high_failure_rate(self):
-        """滑动窗口内失败率超过阈值应提前 break（熔断只终止第一次循环，不影响重试）。"""
-        from scripts.data.update_kline_daily import DailyKlineUpdater, _load_kline_update_config
+        """滑动窗口内失败率超过阈值应提前终止本分片。"""
+        from scripts.data.update_kline_daily import (
+            DailyKlineUpdater,
+            load_kline_update_config,
+        )
 
-        cfg = _load_kline_update_config()
+        cfg = load_kline_update_config()
         cfg['failure_window_size'] = 100
         cfg['failure_window_min_samples'] = 5
         cfg['failure_rate_threshold'] = 0.5
+        cfg['total_failure_limit'] = 400
 
-        updater = self._make_updater_with_10_stocks(cfg)
+        updater, stocks = self._make_updater_with_10_stocks(cfg)
 
-        call_count = [0]
-        def fake_fetch(self_, session, symbol, days=120, timeout=None):
-            call_count[0] += 1
-            return None
         with patch("scripts.data.update_kline_daily.DatabaseManager", return_value=updater.db):
-            with patch.object(DailyKlineUpdater, '_fetch_with_timeout', fake_fetch):
-                with patch("scripts.data.update_kline_daily.BaostockSession"):
-                    with patch("utils.trade_calendar.is_trading_day", return_value=True):
-                        with patch("scripts.data.update_kline_daily.pd.read_sql_query",
-                                   return_value=_MockDf()):
-                            updater.update_all_klines()
+            with patch("data.fetcher.BaostockSession", _FakeBaostockSession):
+                with patch("scripts.data.update_kline_daily.time.sleep"):
+                    result = updater.collect(
+                        target_date="2026-10-16",
+                        stocks=stocks,
+                        pool_size=len(stocks),
+                    )
 
-        # 熔断在第一次循环第 5 次失败后触发（5/5=100% > 50%）→ 第一次循环只处理了 5 只；
-        # 方案 B（2026-10-20）：熔断后补抓剩余 5 只 → 补抓 5 次 fetch；
-        # retry 循环再处理 5 只失败的 → 重试 5 次 fetch；
-        # 总计：主循环 5 + 补抓 5 + 重试 5 = 15 次。
-        # 关键验证：主循环在 break 点（第 5 只）确实提前终止，而不是遍历完全部 10 只。
-        # 如果主循环没 break，总调用会是 10 + 10（补抓不会触发因为 normal_complete） + 10（重试）= 30。
-        assert call_count[0] <= 20, f"滑动窗口熔断应在第一次循环第 5 只后触发（含补抓+重试最多 15，<=20 即说明熔断有效），实际 {call_count[0]}"
+        assert result.stop_reason == "failure_rate"
+        assert result.failed == 5, f"第 5 次失败后应熔断，实际 failed={result.failed}"
 
     def test_hard_limit_break_on_total_failure(self):
-        """累计失败达到硬上限时应提前 break。"""
-        from scripts.data.update_kline_daily import DailyKlineUpdater, _load_kline_update_config
+        """累计失败达到硬上限时应提前终止本分片。"""
+        from scripts.data.update_kline_daily import (
+            DailyKlineUpdater,
+            load_kline_update_config,
+        )
 
-        cfg = _load_kline_update_config()
+        cfg = load_kline_update_config()
         cfg['failure_window_min_samples'] = 1000  # 让滑动窗口熔断无法触发
         cfg['total_failure_limit'] = 3
 
-        updater = self._make_updater_with_10_stocks(cfg)
-
-        call_count = [0]
-        def fake_fetch(self_, session, symbol, days=120, timeout=None):
-            call_count[0] += 1
-            return None
-        with patch("scripts.data.update_kline_daily.DatabaseManager", return_value=updater.db):
-            with patch.object(DailyKlineUpdater, '_fetch_with_timeout', fake_fetch):
-                with patch("scripts.data.update_kline_daily.BaostockSession"):
-                    with patch("utils.trade_calendar.is_trading_day", return_value=True):
-                        with patch("scripts.data.update_kline_daily.pd.read_sql_query",
-                                   return_value=_MockDf()):
-                            updater.update_all_klines()
-
-        # 硬上限 3 次失败 → 主循环处理 3 只后 break（idx=2 处触发）；
-        # 方案 B（2026-10-20）：补抓 range(3, 10) = 7 只；
-        # retry 循环再重试 3 只失败的；
-        # 总计：主循环 3 + 补抓 7 + 重试 3 = 13 次 fetch。
-        # 关键验证：主循环在 break 点（第 3 只）确实提前终止，而不是遍历完全部 10 只。
-        # 如果主循环没 break，补抓不会触发，总调用会是 10 + 10（重试）= 20。
-        assert call_count[0] <= 15, f"硬上限应让主循环在第 3 次失败后 break（含补抓+重试最多 13，<=15 即说明熔断有效），实际 {call_count[0]}"
-
-    def test_request_timeout_aborts_corrupted_session_without_catchup_or_retry(self):
-        """单股线程超时后底层请求仍在运行，必须立刻废弃会话并终止本轮。"""
-        from scripts.data.update_kline_daily import (
-            BaostockRequestTimeout,
-            DailyKlineUpdater,
-            _load_kline_update_config,
-        )
-
-        cfg = _load_kline_update_config()
-        updater = self._make_updater_with_10_stocks(cfg)
-        call_count = [0]
-
-        def timed_out_fetch(self_, session, symbol, days=120, timeout=None):
-            call_count[0] += 1
-            raise BaostockRequestTimeout(symbol)
+        updater, stocks = self._make_updater_with_10_stocks(cfg)
 
         with patch("scripts.data.update_kline_daily.DatabaseManager", return_value=updater.db):
-            with patch.object(DailyKlineUpdater, "_fetch_with_timeout", timed_out_fetch):
-                with patch("scripts.data.update_kline_daily.BaostockSession"):
-                    with patch("utils.trade_calendar.is_trading_day", return_value=True):
-                        with patch(
-                            "scripts.data.update_kline_daily.pd.read_sql_query",
-                            return_value=_MockDf(),
-                        ):
-                            result = updater.update_all_klines()
+            with patch("data.fetcher.BaostockSession", _FakeBaostockSession):
+                with patch("scripts.data.update_kline_daily.time.sleep"):
+                    result = updater.collect(
+                        target_date="2026-10-16",
+                        stocks=stocks,
+                        pool_size=len(stocks),
+                    )
 
-        assert call_count[0] == 1, "损坏会话不得进入补抓或失败重试"
-        assert result.failed == 1
+        assert result.stop_reason == "failure_limit"
+        assert result.failed == 3, f"第 3 次失败后应熔断，实际 failed={result.failed}"
+
+    def test_worker_has_no_thread_pool_timeout(self):
+        """工作进程内部不得再有单股线程池伪超时入口。"""
+        from scripts.data import update_kline_daily
+
+        assert not hasattr(update_kline_daily.DailyKlineUpdater, "_fetch_with_timeout")
+        source = open(update_kline_daily.__file__, encoding="utf-8").read()
+        # 只允许在模块 docstring 中提及历史改造，不得真实导入或使用线程池
+        assert "from concurrent.futures" not in source
+        assert "ThreadPoolExecutor(" not in source
+        assert "BaostockRequestTimeout" not in source
 
 
 # =====================================================================
@@ -373,7 +336,7 @@ class TestCircuitBreakerControlFlow:
 # =====================================================================
 
 class TestResultJsonContract:
-    """update_kline_daily.main() 写入的 result-json 键集 vs scheduler_kline 读取端契约。"""
+    """update_kline_daily._result_to_dict 输出键集 vs scheduler/monitor 读取端契约。"""
 
     EXPECTED_KEYS = {
         'success', 'failed', 'skipped', 'total',
@@ -383,87 +346,77 @@ class TestResultJsonContract:
         'success_rate', 'skipped_ratio',
         # B2 新增
         'is_trading_day_degraded', 'target_date_inferred_non_trading',
+        # 2026-10-22 分片采集新增
+        'completion_mode',
     }
 
-    def test_result_dict_contains_all_expected_keys(self):
-        """main() 构造的 result_dict 应包含所有 scheduler 读取端需要的键。"""
-        from scripts.data.update_kline_daily import UpdateResult, main as kline_main
+    FLATTENED_DETAIL_KEYS = {
+        'collection_mode', 'stop_reason', 'worker_processes', 'session_restarts',
+        'timed_out_chunks', 'rounds', 'started_at', 'finished_at', 'deadline',
+        'duration_seconds', 'covered',
+    }
 
-        # 构造最小 UpdateResult
-        result = UpdateResult(
-            success=100, failed=2, skipped=2000, total=2102,
-            target_date="2026-10-16",
-            target_date_success=2100,
-            latest_trade_date="2026-10-16",
-            is_trading_day_degraded=False,
-            target_date_inferred_non_trading=False,
-        )
-
-        # 直接调 run_update 会真的跑采集，太危险。我们直接模拟 main() 里
-        # 构造 result_dict 的逻辑（复制键集，这是契约所在）
-        result_dict = {
-            'success': result.success,
-            'failed': result.failed,
-            'skipped': result.skipped,
-            'total': result.total,
-            'processed_count': result.processed_count,
-            'coverage_rate': round(result.coverage_rate, 6),
-            'target_date': result.target_date,
-            'target_date_success': result.target_date_success,
-            'target_date_coverage_rate': round(result.target_date_coverage_rate, 6),
-            'latest_trade_date': result.latest_trade_date,
-            'success_rate': round(result.success_rate, 6),
-            'skipped_ratio': round(result.skipped_ratio, 6),
-            'is_trading_day_degraded': result.is_trading_day_degraded,
-            'target_date_inferred_non_trading': result.target_date_inferred_non_trading,
-        }
-
-        missing = self.EXPECTED_KEYS - set(result_dict.keys())
-        extra = set(result_dict.keys()) - self.EXPECTED_KEYS
-        assert not missing, f"result_dict 缺少键：{missing}"
-        assert not extra, f"result_dict 有多余键：{extra}"
-
-    def test_result_json_roundtrip(self):
-        """写入临时文件 + 读回，验证 scheduler_kline 读取端的 JSON 解析能拿到所有键。"""
+    def _make_result(self, details=None):
         from scripts.data.update_kline_daily import UpdateResult
-
-        result = UpdateResult(
+        return UpdateResult(
             success=2900, failed=5, skipped=6, total=2911,
             target_date="2026-10-16", target_date_success=2910,
             latest_trade_date="2026-10-16",
             is_trading_day_degraded=False,
             target_date_inferred_non_trading=False,
+            completion_mode="recovered_after_timeout",
+            details=details,
         )
-        result_dict = {
-            'success': result.success,
-            'failed': result.failed,
-            'skipped': result.skipped,
-            'total': result.total,
-            'processed_count': result.processed_count,
-            'coverage_rate': round(result.coverage_rate, 6),
-            'target_date': result.target_date,
-            'target_date_success': result.target_date_success,
-            'target_date_coverage_rate': round(result.target_date_coverage_rate, 6),
-            'latest_trade_date': result.latest_trade_date,
-            'success_rate': round(result.success_rate, 6),
-            'skipped_ratio': round(result.skipped_ratio, 6),
-            'is_trading_day_degraded': result.is_trading_day_degraded,
-            'target_date_inferred_non_trading': result.target_date_inferred_non_trading,
+
+    def test_result_dict_contains_all_expected_keys(self):
+        """_result_to_dict 应包含所有消费端需要的顶层键。"""
+        from scripts.data.update_kline_daily import _result_to_dict
+
+        result_dict = _result_to_dict(self._make_result())
+
+        missing = self.EXPECTED_KEYS - set(result_dict.keys())
+        assert not missing, f"result_dict 缺少键：{missing}"
+
+    def test_details_fields_are_flattened(self):
+        """collection details 需同时保留嵌套与平铺（监控脚本读平铺字段）。"""
+        from scripts.data.update_kline_daily import _result_to_dict
+
+        details = {
+            'collection_mode': 'chunked',
+            'stop_reason': 'coverage_reached',
+            'worker_processes': 10,
+            'session_restarts': 1,
+            'timed_out_chunks': [{'last_started_code': '600610'}],
+            'rounds': [],
+            'started_at': '2026-10-16T23:00:00',
+            'finished_at': '2026-10-16T23:20:00',
+            'deadline': '2026-10-16T23:40:00',
+            'duration_seconds': 1200.0,
+            'covered': 2910,
+            'contract_version': 1,
         }
+        result_dict = _result_to_dict(self._make_result(details=details))
+
+        assert result_dict['collection'] == details
+        for key in self.FLATTENED_DETAIL_KEYS:
+            assert key in result_dict, f"details 字段未平铺到顶层：{key}"
+
+    def test_result_json_roundtrip(self):
+        """写入临时文件 + 读回，验证监控/调度读取端的 JSON 解析能拿到所有键。"""
+        from scripts.data.update_kline_daily import _result_to_dict
+
+        result_dict = _result_to_dict(self._make_result())
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
             tmp_path = tmp.name
             json.dump(result_dict, tmp, ensure_ascii=False)
 
         try:
-            # 模拟 scheduler_kline 的读取逻辑
             with open(tmp_path, 'r', encoding='utf-8') as f:
                 details = json.load(f)
 
-            # 所有 EXPECTED_KEYS 必须可读且类型正确
             for key in self.EXPECTED_KEYS:
                 assert key in details, f"读取端拿不到 {key}"
-                # coverage_rate/success_rate/skipped_ratio 应为 float
                 if key in ('coverage_rate', 'target_date_coverage_rate',
                            'success_rate', 'skipped_ratio'):
                     assert isinstance(details[key], (int, float)), f"{key} 应为数值"
@@ -493,12 +446,29 @@ class TestTaskStatusWrite:
         fake_db.conn.cursor.return_value = fake_cur
 
         with patch("data.database.DatabaseManager", return_value=fake_db):
-            _write_task_status("kline_update", "completed", target_date="2026-10-16", details={'foo': 1})
+            _write_task_status(
+                "kline_update", "completed", target_date="2026-10-16", details={'foo': 1},
+                db_connect_timeout_seconds=10, db_query_timeout_seconds=30,
+            )
 
         # INSERT 一条（基础列） + UPDATE 一条（target_date/details）+ 一条 commit
         assert fake_cur.execute.call_count >= 2
         fake_db.conn.commit.assert_called_once()
         fake_db.close.assert_called_once()
+
+    def test_database_manager_receives_explicit_timeouts(self):
+        """状态写入不得使用 libpq/PostgreSQL 无界默认超时。"""
+        from scripts.scheduler_kline import _write_task_status
+
+        fake_db = MagicMock()
+        with patch("data.database.DatabaseManager", return_value=fake_db) as manager:
+            _write_task_status(
+                "kline_update", "failed",
+                db_connect_timeout_seconds=10,
+                db_query_timeout_seconds=30,
+            )
+
+        manager.assert_called_once_with(connect_timeout=10, statement_timeout=30)
 
     def test_new_column_failure_rolls_back_and_retries_basic(self):
         """P1-4：target_date/details 列写入失败时应 rollback 并重写基础列。"""
@@ -517,7 +487,10 @@ class TestTaskStatusWrite:
         ]
 
         with patch("data.database.DatabaseManager", return_value=fake_db):
-            _write_task_status("kline_update", "completed", target_date="2026-10-16", details={})
+            _write_task_status(
+                "kline_update", "completed", target_date="2026-10-16", details={},
+                db_connect_timeout_seconds=10, db_query_timeout_seconds=30,
+            )
 
         # rollback 应该被调用
         assert fake_db.conn.rollback.call_count >= 1
@@ -531,7 +504,41 @@ class TestTaskStatusWrite:
 
         with patch("data.database.DatabaseManager", side_effect=RuntimeError("no db")):
             # 不应 raise
-            _write_task_status("kline_update", "failed")
+            _write_task_status(
+                "kline_update", "failed",
+                db_connect_timeout_seconds=10, db_query_timeout_seconds=30,
+            )
+
+
+def test_ensure_task_status_table_uses_explicit_database_timeouts():
+    """启动建表也必须受连接与 SQL 超时约束。"""
+    from scripts.scheduler_kline import _ensure_task_status_table
+
+    fake_db = MagicMock()
+    with patch("data.database.DatabaseManager", return_value=fake_db) as manager:
+        _ensure_task_status_table(
+            db_connect_timeout_seconds=10,
+            db_query_timeout_seconds=30,
+        )
+
+    manager.assert_called_once_with(connect_timeout=10, statement_timeout=30)
+    fake_db.close.assert_called_once()
+
+
+def test_scheduler_rejects_invalid_config_before_any_database_access():
+    """调度器启动时配置非法应直接退出，不能先建表或迁移数据库。"""
+    from scripts import scheduler_kline
+
+    with patch.object(
+        scheduler_kline,
+        "load_kline_update_cfg",
+        return_value={"worker_chunk_size": 0},
+    ), patch.object(
+        scheduler_kline,
+        "_ensure_task_status_table",
+        side_effect=AssertionError("invalid config must not access database"),
+    ):
+        scheduler_kline.main()
 
 
 # =====================================================================
@@ -603,87 +610,76 @@ class TestRunKlineUpdateNonTradingGuard:
                     pytest.fail("trade_calendar 异常时守卫应保守放行，不应阻塞")
 
 
-class TestUpdateAllKlinesNonTradingGuard:
-    """T6：update_kline_daily.py DailyKlineUpdater.update_all_klines 入口守卫。
+class TestRunUpdateNonTradingGuard:
+    """T6：update_kline_daily.run_update 入口守卫（main.py 与调度器共用同一入口）。
 
-    交易日守卫位于 stocks_df 加载完拿到 total 之后——
-    这样非交易日时构造的 UpdateResult 有正确 total，让 skipped_ratio=skipped/total=1.0
-    满足 is_complete 红线。
+    交易日守卫位于股票池加载后、采集监督者启动前——
+    非交易日返回 PASS 语义 UpdateResult，不启动任何工作进程。
     """
 
-    def _make_updater_with_db(self, cfg):
-        """构造有 MagicMock db + 2 只股票的 DailyKlineUpdater。"""
+    def _make_pool(self):
         import pandas as pd
-        from scripts.data.update_kline_daily import DailyKlineUpdater
-        updater = DailyKlineUpdater(days_to_update=1, config=cfg)
-        updater.db = MagicMock()
-        stocks_df = pd.DataFrame([
-            {'code': '000001.SZ', 'symbol': '000001.SZ'},
-            {'code': '000002.SZ', 'symbol': '000002.SZ'},
+        return pd.DataFrame([
+            {'code': '000001', 'symbol': '000001.SZ'},
+            {'code': '000002', 'symbol': '000002.SZ'},
         ])
-        updater.db.get_stock_list.return_value = stocks_df
-        return updater
 
-    def test_non_trading_day_returns_pass_result_without_fetching(self):
-        """T6：非交易日 update_all_klines 返回 PASS 语义 UpdateResult，
-        不进入采集循环（_fetch_with_timeout 不应被调用）。"""
-        from scripts.data.update_kline_daily import DailyKlineUpdater, _load_kline_update_config
+    def test_non_trading_day_returns_pass_result_without_collecting(self):
+        """非交易日 run_update 返回 PASS 语义结果，且不启动监督者。"""
+        from scripts.data.update_kline_daily import load_kline_update_config, run_update
 
-        cfg = _load_kline_update_config()
-        updater = self._make_updater_with_db(cfg)
+        cfg = load_kline_update_config()
+        with patch("utils.trade_calendar.is_trading_day", return_value=False):
+            with patch(
+                "scripts.data.kline_collection.run_supervised_collection"
+            ) as mock_collect:
+                result = run_update(cfg=cfg, pool_df=self._make_pool())
 
-        fetch_called = [False]
-
-        def fake_fetch(self_, session, symbol, days=120, timeout=None):
-            fetch_called[0] = True
-            return None
-
-        with patch("scripts.data.update_kline_daily.DatabaseManager", return_value=updater.db):
-            with patch.object(DailyKlineUpdater, '_fetch_with_timeout', fake_fetch):
-                with patch("utils.trade_calendar.is_trading_day", return_value=False):
-                    with patch("scripts.data.update_kline_daily.pd.read_sql_query",
-                               return_value=_MockDf()):
-                        result = updater.update_all_klines()
-
-        # 1. _fetch_with_timeout 不应被调用（采集循环被守卫短路）
-        assert fetch_called[0] is False, "非交易日守卫应阻止采集循环进入 _fetch_with_timeout"
-
-        # 2. 返回的 UpdateResult 应满足 PASS 语义
+        assert mock_collect.call_count == 0, "非交易日不得启动分片采集"
         assert result.total == 2
         assert result.success == 0
         assert result.failed == 0
-        assert result.skipped == 2  # skipped=total → skipped_ratio=1.0
+        assert result.skipped == 2
         assert result.target_date_inferred_non_trading is True
-
-        # 3. 用 is_complete 验证 PASS
         assert result.is_complete(
             min_success_rate=0.90,
             total_failure_limit=500,
             min_coverage_rate=0.98,
         ) is True
 
-    def test_trading_day_goes_into_fetch_loop(self):
-        """交易日时守卫放行，进入采集循环（_fetch_with_timeout 应被调用）。"""
-        from scripts.data.update_kline_daily import DailyKlineUpdater, _load_kline_update_config
+    def test_trading_day_starts_supervised_collection(self):
+        """交易日守卫放行后必须走分片监督者（不得回到旧全量循环）。"""
+        from scripts.data.kline_collection import CollectionOutcome
+        from scripts.data.update_kline_daily import load_kline_update_config, run_update
 
-        cfg = _load_kline_update_config()
-        cfg['failure_window_min_samples'] = 1000  # 阻止滑动窗口熔断
-        cfg['total_failure_limit'] = 1000  # 阻止硬上限熔断
-        updater = self._make_updater_with_db(cfg)
+        cfg = load_kline_update_config()
+        outcome = CollectionOutcome(
+            target_date="2026-10-16",
+            total=2,
+            covered=2,
+            success=2,
+            failed=0,
+            skipped=0,
+            completion_mode="normal",
+            stop_reason="coverage_reached",
+        )
 
-        fetch_count = [0]
+        with patch("utils.trade_calendar.is_trading_day", return_value=True):
+            with patch(
+                "utils.trade_calendar.is_trading_day_with_confidence",
+                return_value=(True, False),
+            ):
+                with patch(
+                    "scripts.data.update_kline_daily.DatabaseManager"
+                ) as mock_db:
+                    with patch(
+                        "scripts.data.kline_collection.run_supervised_collection",
+                        return_value=outcome,
+                    ) as mock_collect:
+                        result = run_update(cfg=cfg, pool_df=self._make_pool())
 
-        def fake_fetch(self_, session, symbol, days=120, timeout=None):
-            fetch_count[0] += 1
-            return None  # 返回空数据 → 计为 failed
-
-        with patch("scripts.data.update_kline_daily.DatabaseManager", return_value=updater.db):
-            with patch.object(DailyKlineUpdater, '_fetch_with_timeout', fake_fetch):
-                with patch("scripts.data.update_kline_daily.BaostockSession"):
-                    with patch("utils.trade_calendar.is_trading_day", return_value=True):
-                        with patch("scripts.data.update_kline_daily.pd.read_sql_query",
-                                   return_value=_MockDf()):
-                            updater.update_all_klines()
-
-        # 交易日应至少进入一次采集循环
-        assert fetch_count[0] >= 1, "交易日守卫应放行，采集循环至少执行一次 _fetch_with_timeout"
+        assert mock_collect.call_count == 1, "交易日必须启动分片监督者"
+        mock_db.return_value.close.assert_called_once()
+        assert result.success == 2
+        assert result.coverage_rate == 1.0
+        assert result.details["stop_reason"] == "coverage_reached"
