@@ -137,8 +137,9 @@ retries × (db_connect_timeout_seconds + db_query_timeout_seconds
 
 ## 6. 发布与回退边界
 
-本轮只形成候选代码。独立代码审查通过后才另行请求 Git/部署授权。上线继续保持 `hard_filter`；若状态写入或采集恢复出现回归，
-回退到当前生产提交，并依靠既有 07:00 backfill 与 98% fail-closed 门禁保护扫描。
+候选代码通过独立审查与隔离 PostgreSQL 门禁后，已按单独授权提交、推送并部署。上线继续保持 `hard_filter`；若状态写入或
+采集恢复出现回归，回退到部署前提交 `e8110c8bf8c19b33135ce9193476af3c51d36cd0`，并依靠既有 07:00 backfill 与
+98% fail-closed 门禁保护扫描。
 
 **风险级别：R3**（生产调度恢复、数据库状态一致性、并发锁与 fail-closed 链路）。
 
@@ -163,4 +164,18 @@ Baostock 原始异常仍标记为“会话级卡顿的高概率判断”，不�
   隔离数据库并关闭本地 `15433` SSH 隧道。
 - 独立复审两轮提出的 P1/P2 均已修复，最终只读回看通过。
 
-**状态：本地代码、独立复审与隔离 PostgreSQL 门禁全部通过；等待单独 Git/部署授权。**
+## 8. Git 与生产部署验收
+
+- 发布提交：`2801b561b9ab461d19ad4f73b971680b5b949b05`；GitHub Actions run 30 的 kline、obpc、
+  eadvisor 三个构建 job 与自动部署 job 全部成功。
+- 三个生产容器均为新镜像、`healthy`、`RestartCount=0`；部署日志记录同一完整 SHA。
+- 容器内 `kline_collection.py`、`scheduler_kline.py`、`monitor.sh` 与本地提交 SHA-256 一致；宿主机与两个相关容器的
+  `config.yaml` 摘要一致，实读 `market_regime_policy.mode=hard_filter`，三项 task_status 重试参数为 `3/1/1`。
+- 生产 `task_status` 已包含 `task_name/last_completed_at/status/target_date/details(JSONB)`；部署后三个容器新增
+  error/exception/fatal/traceback 日志均为 0。
+- 发现 CI 只同步 compose/config，不同步宿主机实际运行的 `scripts/monitor.sh`。已备份旧脚本为
+  `monitor.sh.bak.20261023-2801b56`，原子替换为当前提交并重启；摘要一致且仅有一个 `bash monitor.sh` 进程。
+  后续应将该同步与单实例重启步骤纳入 CI，避免再次依赖手工补部署。
+
+**状态：代码、独立复审、隔离 PostgreSQL、提交推送和生产五层技术验证全部通过；生产保持 `hard_filter`。下一门禁为
+2026-10-23 23:00/23:15 首个真实调度窗口及连续 5 个交易日观察。**

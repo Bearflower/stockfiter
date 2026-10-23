@@ -36,6 +36,9 @@
       覆盖率只统计股票池交集；blocked_data 严格降噪。聚焦 114 passed / 3 skipped，
       无数据库全量 430 passed / 11 skipped；隔离 PostgreSQL 专项 10 passed、
       同环境全量 441 passed / 0 skipped；数据残留 0，测试库和 SSH 隧道已清理；独立复审通过。
-- [ ] Task 6：完成本地故障注入、全量回归、hard_filter 部署与五层验证
-      —— 本地部分已完成（全量回归 + 静态检查 + compose 语法），部署未授权，等待复审
+- [x] Task 6：完成本地故障注入、全量回归、hard_filter 部署与五层验证
+      —— 提交 `2801b561b9ab461d19ad4f73b971680b5b949b05` 已由 GitHub Actions run 30
+      构建三镜像并部署；三容器健康且关键文件摘要一致，生产配置仍为 hard_filter，
+      task_status 契约列可读，部署后新增错误 0。CI 未同步宿主机 monitor.sh 的缺口已用
+      原子替换 + 旧文件备份补齐，新监控进程保持单实例；后续应把该手工步骤纳入 CI。
 - [ ] Checkpoint C：连续观察 5 个交易日，确认回补恢复为兜底路径
