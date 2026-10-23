@@ -274,6 +274,31 @@ class FeishuPusher:
 # =====================================================================
 
 
+def _format_raw_candidates(data_metrics) -> List[str]:
+    """
+    从 scan_runs.data_metrics 中提取原始形态候选的「代码 名称」标签。
+
+    历史记录 / 旧版本可能没有 raw_candidates 字段，缺失时返回空列表，
+    由调用方保持原文案，不抛异常。
+    """
+    if not isinstance(data_metrics, dict):
+        return []
+    items = data_metrics.get("raw_candidates")
+    if not isinstance(items, list):
+        return []
+
+    labels: List[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("code") or "").strip()
+        if not code:
+            continue
+        name = str(item.get("name") or "").strip()
+        labels.append(f"{code} {name}".strip())
+    return labels
+
+
 def build_scan_summary_message(
     signal_date: str,
     run: Optional[dict],
@@ -319,6 +344,12 @@ def build_scan_summary_message(
         if status == "blocked_market":
             raw_count = run.get("raw_candidate_count", 0)
             reason = run.get("filter_reason") or "未记录原因"
+            # 原始形态候选明细：展示「代码 名称」便于人工复盘。
+            # 旧记录没有 raw_candidates 字段时为空，文案回退为仅展示数量。
+            candidate_labels = _format_raw_candidates(run.get("data_metrics"))
+            candidates_suffix = (
+                f"（{'，'.join(candidate_labels)}）" if candidate_labels else ""
+            )
             # 个股层面（评分/冷却期/年度额度/每日 TopN 截断）筛掉全部候选时，
             # filter_reason 用 RISK_CONTROLS_FILTERED_ALL 标识，不能推成"市场风控拦截"。
             # 延迟 import 该常量避免定义漂移；导入失败时回退为同值字面量。
@@ -331,14 +362,15 @@ def build_scan_summary_message(
             if reason == _all_filtered_reason:
                 return (
                     header
-                    + f"发现 {raw_count} 个原始形态候选，"
+                    + f"发现 {raw_count} 个原始形态候选{candidates_suffix}，"
                     + "均未通过个股级筛选（评分/冷却期/年度额度/每日截断），"
                     + "并非市场层面的风控拦截。"
                 )
             # 市场层面拦截（来自 risk_controller 的市场硬过滤）
             return (
                 header
-                + f"发现 {raw_count} 个原始形态候选，但被市场风控拦截：{reason}。"
+                + f"发现 {raw_count} 个原始形态候选{candidates_suffix}，"
+                + f"但被市场风控拦截：{reason}。"
             )
 
         if status == "blocked_data":

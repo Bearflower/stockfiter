@@ -408,6 +408,26 @@ class TestGradedScanIntegration:
         # trend_filter_reason 应该包含分级裁决的 reason_code
         assert result["trend_filter_reason"] == "extreme_weak_market"
 
+    def test_raw_candidate_details_written_to_data_metrics(self):
+        """原始形态候选明细必须写入 data_metrics，供飞书推送展示股票代码。"""
+        result = _run_scan_with_mocks(
+            config=_make_graded_config(
+                weak_score_threshold=75,
+                weak_daily_limit=5,
+            ),
+            index_trend="extreme_weak",
+            stock_performances=["strong", "strong"],
+            candidate_scores=[95.0, 90.0],
+        )
+
+        raw_candidates = result["data_metrics"]["raw_candidates"]
+        assert raw_candidates == [
+            {"code": "600001", "name": "测试股票1"},
+            {"code": "600002", "name": "测试股票2"},
+        ]
+        # 明细数量必须与 raw_candidate_count 闭环
+        assert len(raw_candidates) == result["raw_candidate_count"]
+
     def test_weak_daily_limit_truncates(self):
         """弱市 daily_signal_limit=1 → 只保留最高分候选。"""
         result = _run_scan_with_mocks(

@@ -552,6 +552,8 @@ def scan_daily_signals(
 
     scanned_count = 0
     raw_candidate_count = 0  # 风控裁决前的形态候选数
+    # 原始形态候选明细（code/name），写入 data_metrics 供飞书推送展示
+    raw_candidates: List[Dict[str, str]] = []
     signals: List[Dict] = []
 
     # ===== V3 新增：分级模式下的细粒度计数（用于 data_metrics） =====
@@ -615,6 +617,7 @@ def scan_daily_signals(
                 continue
 
             raw_candidate_count += 1
+            raw_candidates.append({"code": str(code), "name": str(name)})
 
             # ---- 冷却期 + 年度额度 ----
             retrace_date = chosen.detail.get("retrace_date", "")
@@ -1000,6 +1003,9 @@ def scan_daily_signals(
             "policy_mode": risk_config.market_regime_mode,
             "raw_candidate_count": raw_candidate_count,
         })
+
+    # 原始形态候选明细：供飞书推送在 blocked_market 场景中展示股票代码
+    data_metrics["raw_candidates"] = raw_candidates
 
     return {
         "signals": signals,

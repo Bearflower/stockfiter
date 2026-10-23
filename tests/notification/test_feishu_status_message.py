@@ -146,6 +146,44 @@ def test_blocked_market_market_level_keeps_market_wording():
     assert "MACD DIF < 0" in message
 
 
+def test_blocked_market_lists_raw_candidate_codes_and_names():
+    """blocked_market 有 data_metrics.raw_candidates 时，文案必须列出股票代码和名称"""
+    run = {
+        "status": "blocked_market",
+        "raw_candidate_count": 2,
+        "selected_count": 0,
+        "filter_reason": (
+            "大盘环境不佳（20日均线过滤：沪深300 4036.30 < MA20 4313.60）"
+        ),
+        "data_metrics": {
+            "raw_candidate_count": 2,
+            "raw_candidates": [
+                {"code": "000001", "name": "平安银行"},
+                {"code": "600000", "name": "浦发银行"},
+            ],
+        },
+    }
+    message = build_scan_summary_message("2026-10-22", run)
+    assert message is not None
+    assert "2 个原始形态候选（000001 平安银行，600000 浦发银行）" in message
+    assert "市场风控拦截" in message
+
+
+def test_blocked_market_without_candidate_details_falls_back():
+    """旧记录缺 raw_candidates（或结构异常）时回退为仅展示数量，不抛异常"""
+    for data_metrics in (None, {}, {"raw_candidates": "bad_type"}, {"raw_candidates": [1, {}]}):
+        run = {
+            "status": "blocked_market",
+            "raw_candidate_count": 6,
+            "selected_count": 0,
+            "filter_reason": "沪深300 DIF <= 0",
+            "data_metrics": data_metrics,
+        }
+        message = build_scan_summary_message("2026-10-21", run)
+        assert message is not None
+        assert "6 个原始形态候选，但被市场风控拦截" in message
+
+
 # ===========================================================================
 # Task 5 / V3 分级市场风控：send_card_message 分级展示测试
 # ===========================================================================
