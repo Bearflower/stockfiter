@@ -36,8 +36,10 @@ from scripts.data.kline_collection import (
     STOP_NO_PROGRESS,
     STOP_QUARANTINED_EXHAUSTED,
     STOP_RESTART_LIMIT,
+    STOP_WORKER_FATAL,
     WorkerOutcome,
     CollectionConfig,
+    _is_valid_worker_result,
     compute_collection_deadline,
     load_collection_config,
     run_supervised_collection,
@@ -95,7 +97,15 @@ class FakeRunner:
             exit_code=exit_code,
             timed_out=timed_out,
             duration_seconds=1.0,
-            result={"failed_codes": []} if exit_code == 0 else None,
+            result={
+                "contract_version": 1,
+                "mode": "chunk",
+                "target_date": target_date,
+                "chunk_index": chunk_index,
+                "chunk_size": len(chunk),
+                "processed": len(chunk),
+                "failed_codes": [],
+            } if exit_code == 0 else None,
             progress={"last_started_code": last_started} if last_started else None,
             killed=timed_out,
             kill_signal="SIGKILL" if timed_out else "",
@@ -116,6 +126,9 @@ def make_config(**overrides) -> CollectionConfig:
         "max_quarantined_retries": 1,
         "db_query_timeout_seconds": 30,
         "db_connect_timeout_seconds": 10,
+        "task_status_write_retries": 3,
+        "task_status_write_retry_delay_seconds": 1,
+        "task_status_process_terminate_grace_seconds": 1,
         "initial_scan_time": "23:15",
         "kline_wait_timeout_seconds": 1800,
         "min_coverage_rate": 0.98,
@@ -288,6 +301,228 @@ def test_no_progress_stops_collection():
     assert outcome.stop_reason == STOP_NO_PROGRESS
     assert outcome.completion_mode == MODE_FAILED
     assert len(runner.calls) == 2
+
+
+def test_abnormal_sessions_do_not_consume_content_no_progress_budget():
+    """会话级异常零新增不得误触发内容级 no_progress，应允许新会话恢复。"""
+    codes = [f"{600000 + i}" for i in range(10)]
+    store = FakeStore(codes)
+
+    class SessionFailureThenRecoveryRunner:
+        def __init__(self):
+            self.calls = []
+
+        def run(self, chunk, chunk_index, round_index, timeout_seconds, work_dir,
+                target_date, pool_size):
+            self.calls.append(list(chunk))
+            call_index = len(self.calls) - 1
+            if call_index < 2:
+                return WorkerOutcome(
+                    round_index=round_index,
+                    chunk_index=chunk_index,
+                    chunk_codes=[item["code"] for item in chunk],
+                    exit_code=2,
+                    timed_out=False,
+                    duration_seconds=1.0,
+                    result=None,
+                    progress=None,
+                    pid=12000 + call_index,
+                    pid_gone=True,
+                )
+            store.covered.update(item["code"] for item in chunk)
+            return WorkerOutcome(
+                round_index=round_index,
+                chunk_index=chunk_index,
+                chunk_codes=[item["code"] for item in chunk],
+                exit_code=0,
+                timed_out=False,
+                duration_seconds=1.0,
+                    result={
+                        "contract_version": 1,
+                        "mode": "chunk",
+                        "target_date": target_date,
+                        "chunk_index": chunk_index,
+                        "chunk_size": len(chunk),
+                        "processed": len(chunk),
+                        "failed_codes": [],
+                },
+                progress=None,
+                pid=12000 + call_index,
+                pid_gone=True,
+            )
+
+    runner = SessionFailureThenRecoveryRunner()
+    now = datetime(2026, 10, 22, 23, 0, 0)
+    outcome = run_supervised_collection(
+        target_date="2026-10-22",
+        config=make_config(
+            worker_chunk_size=10,
+            max_consecutive_no_progress_rounds=2,
+            max_session_restarts=3,
+        ),
+        store=store,
+        deadline=now + timedelta(hours=1),
+        runner=runner,
+        now_fn=fixed_now(now),
+    )
+
+    assert len(runner.calls) == 3
+    assert outcome.stop_reason == STOP_COVERAGE_REACHED
+    assert outcome.covered == 10
+    assert outcome.session_restarts == 2
+
+
+def test_exit_zero_without_valid_result_is_abnormal():
+    """exit=0 但 result 缺失不能伪装成正常内容结果。"""
+    codes = ["600000"]
+    store = FakeStore(codes)
+
+    class MissingResultRunner:
+        def run(self, chunk, chunk_index, round_index, timeout_seconds, work_dir,
+                target_date, pool_size):
+            return WorkerOutcome(
+                round_index=round_index,
+                chunk_index=chunk_index,
+                chunk_codes=["600000"],
+                exit_code=0,
+                timed_out=False,
+                duration_seconds=1.0,
+                result=None,
+                progress=None,
+                pid=13000,
+                pid_gone=True,
+            )
+
+    now = datetime(2026, 10, 22, 23, 0, 0)
+    outcome = run_supervised_collection(
+        target_date="2026-10-22",
+        config=make_config(
+            max_session_restarts=0,
+            max_consecutive_no_progress_rounds=99,
+        ),
+        store=store,
+        deadline=now + timedelta(hours=1),
+        runner=MissingResultRunner(),
+        now_fn=fixed_now(now),
+    )
+
+    assert outcome.stop_reason == STOP_RESTART_LIMIT
+    assert outcome.session_restarts == 1
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"processed": 2},
+        {"processed": 0, "failed_codes": ["600000"]},
+        {"failed_codes": [123]},
+        {"failed_codes": [{}]},
+        {"failed_codes": ["999999"]},
+        {"chunk_index": 9},
+        {"chunk_size": 2},
+    ],
+)
+def test_worker_result_contract_rejects_chunk_inconsistencies(override):
+    """损坏结果不得被归类为正常内容结果。"""
+    outcome = WorkerOutcome(
+        round_index=0,
+        chunk_index=0,
+        chunk_codes=["600000"],
+        exit_code=0,
+        timed_out=False,
+        duration_seconds=1.0,
+        result={
+            "contract_version": 1,
+            "mode": "chunk",
+            "target_date": "2026-10-22",
+            "chunk_index": 0,
+            "chunk_size": 1,
+            "processed": 1,
+            "failed_codes": [],
+            **override,
+        },
+        progress=None,
+        pid=13001,
+        pid_gone=True,
+    )
+    assert _is_valid_worker_result(outcome, "2026-10-22") is False
+
+
+def test_unreaped_worker_stops_before_starting_another_process():
+    """旧 PID 未回收时必须立即停止，禁止并发启动新会话。"""
+    codes = ["600000"]
+    store = FakeStore(codes)
+
+    class UnreapedRunner:
+        def __init__(self):
+            self.calls = 0
+
+        def run(self, chunk, chunk_index, round_index, timeout_seconds, work_dir,
+                target_date, pool_size):
+            self.calls += 1
+            return WorkerOutcome(
+                round_index=round_index,
+                chunk_index=chunk_index,
+                chunk_codes=["600000"],
+                exit_code=None,
+                timed_out=True,
+                duration_seconds=1.0,
+                result=None,
+                progress=None,
+                killed=True,
+                pid=14000,
+                pid_gone=False,
+            )
+
+    runner = UnreapedRunner()
+    now = datetime(2026, 10, 22, 23, 0, 0)
+    outcome = run_supervised_collection(
+        target_date="2026-10-22",
+        config=make_config(),
+        store=store,
+        deadline=now + timedelta(hours=1),
+        runner=runner,
+        now_fn=fixed_now(now),
+    )
+
+    assert runner.calls == 1
+    assert outcome.stop_reason == STOP_WORKER_FATAL
+
+
+def test_unreaped_worker_takes_priority_over_post_query_failure():
+    """PID 未回收必须先于轮后 DB 查询判定，不能被 db_error 掩盖。"""
+    codes = ["600000"]
+    store = FakeStore(codes, fail_on_call_at=2)
+
+    class UnreapedRunner:
+        def run(self, chunk, chunk_index, round_index, timeout_seconds, work_dir,
+                target_date, pool_size):
+            return WorkerOutcome(
+                round_index=round_index,
+                chunk_index=chunk_index,
+                chunk_codes=["600000"],
+                exit_code=None,
+                timed_out=True,
+                duration_seconds=1.0,
+                result=None,
+                progress=None,
+                killed=True,
+                pid=14001,
+                pid_gone=False,
+            )
+
+    now = datetime(2026, 10, 22, 23, 0, 0)
+    outcome = run_supervised_collection(
+        target_date="2026-10-22",
+        config=make_config(),
+        store=store,
+        deadline=now + timedelta(hours=1),
+        runner=UnreapedRunner(),
+        now_fn=fixed_now(now),
+    )
+
+    assert outcome.stop_reason == STOP_WORKER_FATAL
+    assert store.query_calls == 1, "PID 未回收后不得再发起轮后数据库查询"
 
 
 def test_database_error_fails_closed():
@@ -538,6 +773,9 @@ def test_collection_config_invalid_type_fails_closed():
         "max_quarantined_retries": 1,
         "db_query_timeout_seconds": 30,
         "db_connect_timeout_seconds": 10,
+        "task_status_write_retries": 3,
+        "task_status_write_retry_delay_seconds": 1,
+        "task_status_process_terminate_grace_seconds": 1,
         "total_failure_limit": 250,
         "days_to_update": 5,
         "target_date_max_backtrack": 7,
@@ -601,11 +839,88 @@ def test_collection_config_requires_new_keys():
         "min_coverage_rate": 0.98,
         "request_interval_seconds": 0.05,
     }
-    for missing in ("max_quarantined_retries", "db_query_timeout_seconds", "db_connect_timeout_seconds"):
+    for missing in (
+        "max_quarantined_retries",
+        "db_query_timeout_seconds",
+        "db_connect_timeout_seconds",
+        "task_status_write_retries",
+        "task_status_write_retry_delay_seconds",
+        "task_status_process_terminate_grace_seconds",
+    ):
         cfg = dict(base)
         cfg.pop(missing, None)
         with pytest.raises(CollectionConfigError):
             load_collection_config(cfg)
+
+
+def test_collection_config_requires_task_status_write_retry_keys():
+    """状态落库重试参数必须显式配置，缺失时 fail-closed。"""
+    from scripts.data.update_kline_daily import load_kline_update_config
+
+    base = load_kline_update_config()
+    base["task_status_write_retries"] = 3
+    base["task_status_write_retry_delay_seconds"] = 1
+    base["task_status_process_terminate_grace_seconds"] = 1
+    for missing in (
+        "task_status_write_retries",
+        "task_status_write_retry_delay_seconds",
+        "task_status_process_terminate_grace_seconds",
+    ):
+        cfg = dict(base)
+        cfg.pop(missing)
+        with pytest.raises(CollectionConfigError):
+            load_collection_config(cfg)
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("task_status_write_retries", 0),
+        ("task_status_write_retries", True),
+        ("task_status_write_retries", "3"),
+        ("task_status_write_retry_delay_seconds", -1),
+        ("task_status_write_retry_delay_seconds", True),
+        ("task_status_write_retry_delay_seconds", "1"),
+        ("task_status_process_terminate_grace_seconds", 0),
+        ("task_status_process_terminate_grace_seconds", True),
+        ("task_status_process_terminate_grace_seconds", "1"),
+    ],
+)
+def test_collection_config_rejects_invalid_task_status_retry_values(key, value):
+    """重试次数须为正整数，间隔须为非负整数，拒绝 bool/字符串。"""
+    from scripts.data.update_kline_daily import load_kline_update_config
+
+    cfg = load_kline_update_config()
+    cfg["task_status_write_retries"] = 3
+    cfg["task_status_write_retry_delay_seconds"] = 1
+    cfg["task_status_process_terminate_grace_seconds"] = 1
+    cfg[key] = value
+    with pytest.raises(CollectionConfigError):
+        load_collection_config(cfg)
+
+
+def test_task_status_retry_budget_must_be_strictly_below_recovery_buffer():
+    """总预算等于恢复余量必须拒绝，少 1 秒才允许。"""
+    from scripts.data.update_kline_daily import load_kline_update_config
+
+    cfg = load_kline_update_config()
+    cfg.update(
+        {
+            "task_status_write_retries": 3,
+            "task_status_write_retry_delay_seconds": 0,
+            "task_status_process_terminate_grace_seconds": 1,
+            "db_connect_timeout_seconds": 10,
+            "db_query_timeout_seconds": 30,
+            "recovery_deadline_buffer_seconds": 126,
+        }
+    )
+    with pytest.raises(CollectionConfigError):
+        load_collection_config(cfg)
+
+    cfg["recovery_deadline_buffer_seconds"] = 127
+    parsed = load_collection_config(cfg)
+    assert parsed.task_status_write_retries == 3
+    assert parsed.task_status_write_retry_delay_seconds == 0
 
 
 def test_run_update_validates_collection_config_before_loading_stock_pool(monkeypatch):

@@ -122,6 +122,12 @@ global:
     max_quarantined_retries: 1
     db_query_timeout_seconds: 30
     db_connect_timeout_seconds: 10
+    # task_status 运行期只做轻量 UPSERT；最坏预算
+    # 3×(10s 建连 + 30s SQL + 2×1s 进程回收) + 2×1s 间隔
+    # = 128s < 300s 恢复余量；父进程 watchdog 会强制终止卡死写入进程。
+    task_status_write_retries: 3
+    task_status_write_retry_delay_seconds: 1
+    task_status_process_terminate_grace_seconds: 1
 
   # 日志配置
   logging:

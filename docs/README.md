@@ -116,7 +116,7 @@ docs/
 | **重写** | `scripts/data/update_kline_daily.py` | 纯串行 `--worker` 分片进程 + 监督者入口 `run_update`；移除线程池伪超时 |
 | **更新** | `scripts/scheduler_kline.py`、`main.py` | 两条全量入口统一走共享监督者 |
 | **更新** | `scripts/monitor.sh` | 恢复事件一次性告警、失败告警携带 details、查询失败 fail-closed |
-| **更新** | `docs/designs/配置管理设计.md` | §8.1 移除 `request_timeout_seconds`，新增 10 项分片/隔离/DB 超时配置与推导依据 |
+| **更新** | `docs/designs/配置管理设计.md` | §8.1 移除 `request_timeout_seconds`，统一管理 13 项分片/隔离/DB 超时/状态重试配置与推导依据 |
 | 实施记录 | `docs/reports/2026-10-22-kline-process-isolation.md` | 契约、配置初值推导、验证证据及第四轮复审整改记录 |
 | 计划 | `tasks/plan.md`、`tasks/todo.md` | 实施方案与任务清单（含基准 BLOCKED 说明） |
 

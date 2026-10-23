@@ -5,11 +5,12 @@ K线数据服务调度器
 """
 from __future__ import annotations
 
-import json
 import os
+import re
 import sys
 import time
 import logging
+import multiprocessing
 import subprocess
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -127,6 +128,214 @@ def load_kline_update_cfg() -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _connect_task_status_db(
+    *,
+    db_connect_timeout_seconds: int,
+    db_query_timeout_seconds: int,
+):
+    """建立 task_status 专用轻量连接，不执行建表或迁移。"""
+    import psycopg2
+
+    password = os.getenv("DB_PASSWORD")
+    if not password:
+        raise RuntimeError("必须通过环境变量 DB_PASSWORD 配置数据库密码")
+    schema = os.getenv("DB_SCHEMA", "schema_stockfilter")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", schema):
+        raise RuntimeError(f"DB_SCHEMA 非法：{schema!r}")
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        database=os.getenv("DB_NAME", "stockfilter"),
+        user=os.getenv("DB_USER", "stockfilter_user"),
+        password=password,
+        connect_timeout=int(db_connect_timeout_seconds),
+        options=(
+            f"-c search_path={schema} "
+            f"-c statement_timeout={int(db_query_timeout_seconds) * 1000}"
+        ),
+    )
+
+
+def _is_retryable_task_status_error(exc: Exception) -> bool:
+    """只重试连接/锁/事务瞬时错误，确定性 schema/权限错误立即失败。"""
+    import psycopg2
+
+    return isinstance(
+        exc,
+        (
+            psycopg2.OperationalError,
+            psycopg2.InterfaceError,
+            psycopg2.errors.QueryCanceled,
+            psycopg2.errors.LockNotAvailable,
+            psycopg2.errors.DeadlockDetected,
+            psycopg2.errors.SerializationFailure,
+        ),
+    )
+
+
+def _write_task_status_once(
+    task_name: str,
+    status: str,
+    target_date: str | None = None,
+    details: dict | None = None,
+    *,
+    db_connect_timeout_seconds: int,
+    db_query_timeout_seconds: int,
+) -> tuple[bool, bool, str]:
+    """在当前进程执行一次原子 UPSERT，返回成功/可重试/错误摘要。"""
+    from psycopg2.extras import Json
+
+    conn = None
+    cur = None
+    try:
+        conn = _connect_task_status_db(
+            db_connect_timeout_seconds=db_connect_timeout_seconds,
+            db_query_timeout_seconds=db_query_timeout_seconds,
+        )
+        cur = conn.cursor()
+        now2 = datetime.now(TZ)
+        cur.execute(
+            "INSERT INTO task_status "
+            "(task_name, last_completed_at, status, target_date, details) "
+            "VALUES (%s, %s, %s, %s, %s) "
+            "ON CONFLICT (task_name) DO UPDATE SET "
+            "last_completed_at = EXCLUDED.last_completed_at, "
+            "status = EXCLUDED.status, target_date = EXCLUDED.target_date, "
+            "details = EXCLUDED.details",
+            (task_name, now2, status, target_date, Json(details or {})),
+        )
+        conn.commit()
+        return True, False, ""
+    except Exception as exc:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return False, _is_retryable_task_status_error(exc), (
+            f"{type(exc).__name__}: {str(exc)[:500]}"
+        )
+    finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _task_status_write_child(send_conn, kwargs: dict) -> None:
+    """子进程入口：数据库驱动即使卡死也可由父进程整体终止。"""
+    try:
+        send_conn.send(_write_task_status_once(**kwargs))
+    except BaseException as exc:  # 子进程必须把非预期终止转成父进程可见结果
+        try:
+            send_conn.send((False, True, f"child_error:{type(exc).__name__}:{exc}"))
+        except Exception:
+            pass
+    finally:
+        send_conn.close()
+
+
+def _terminate_status_process(process, grace_seconds: float) -> bool:
+    """有界终止状态写入子进程，返回 PID 是否已回收。"""
+    process.terminate()
+    process.join(timeout=grace_seconds)
+    if process.is_alive():
+        process.kill()
+        process.join(timeout=grace_seconds)
+    return not process.is_alive()
+
+
+def _run_task_status_attempt(
+    *,
+    task_name: str,
+    status: str,
+    target_date: str | None,
+    details: dict | None,
+    db_connect_timeout_seconds: int,
+    db_query_timeout_seconds: int,
+    attempt_timeout_seconds: float,
+    process_terminate_grace_seconds: float,
+) -> tuple[bool, bool, str]:
+    """隔离执行一次状态写入；超过单次 deadline 后终止整个子进程。"""
+    start_method = (
+        "fork" if "fork" in multiprocessing.get_all_start_methods() else "spawn"
+    )
+    context = multiprocessing.get_context(start_method)
+    recv_conn, send_conn = context.Pipe(duplex=False)
+    kwargs = {
+        "task_name": task_name,
+        "status": status,
+        "target_date": target_date,
+        "details": details,
+        "db_connect_timeout_seconds": db_connect_timeout_seconds,
+        "db_query_timeout_seconds": db_query_timeout_seconds,
+    }
+    process = context.Process(
+        target=_task_status_write_child,
+        args=(send_conn, kwargs),
+        name=f"task-status-{task_name}",
+    )
+    try:
+        process.start()
+        send_conn.close()
+        process.join(timeout=max(0.0, attempt_timeout_seconds))
+        if process.is_alive():
+            pid_gone = _terminate_status_process(
+                process, process_terminate_grace_seconds
+            )
+            suffix = "" if pid_gone else f" pid_not_reaped={process.pid}"
+            return False, pid_gone, f"attempt_timeout{suffix}"
+        if recv_conn.poll():
+            result = recv_conn.recv()
+            if (
+                isinstance(result, tuple)
+                and len(result) == 3
+                and isinstance(result[0], bool)
+                and isinstance(result[1], bool)
+                and isinstance(result[2], str)
+            ):
+                return result
+        return False, True, f"child_result_missing exit_code={process.exitcode}"
+    except Exception as exc:
+        # 任意进程/IPC 异常都必须先确认旧 PID 已回收。无法确认时按未回收处理，
+        # 禁止重试，避免两个状态写入进程并发操作同一任务行。
+        try:
+            process_alive = process.is_alive()
+        except Exception:
+            process_alive = True
+        pid_gone = not process_alive
+        if process_alive:
+            try:
+                pid_gone = _terminate_status_process(
+                    process, process_terminate_grace_seconds
+                )
+            except Exception:
+                pid_gone = False
+        suffix = "" if pid_gone else f" pid_not_reaped={process.pid}"
+        return (
+            False,
+            pid_gone,
+            f"process_error:{type(exc).__name__}:{exc}{suffix}",
+        )
+    finally:
+        try:
+            send_conn.close()
+        except Exception:
+            pass
+        recv_conn.close()
+        try:
+            if process.pid is not None and not process.is_alive():
+                process.close()
+        except Exception:
+            pass
+
+
 def _write_task_status(
     task_name: str,
     status: str,
@@ -135,11 +344,11 @@ def _write_task_status(
     *,
     db_connect_timeout_seconds: int,
     db_query_timeout_seconds: int,
-) -> None:
-    """原子写入 task_status（R-01：携带 target_date 与 details + P1 修复 rollback）。
-
-    P1-3/P1-4：内层 except 必须显式 rollback()，防止新列写入失败让整个事务中毒、
-    连基础 INSERT 一起被回滚；日志级别从 debug 升级到 warning 便于运维可见。
+    task_status_write_retries: int,
+    task_status_write_retry_delay_seconds: int,
+    task_status_process_terminate_grace_seconds: int,
+) -> bool:
+    """在独立子进程中原子写入 task_status，并由父进程执行硬 deadline。
 
     Args:
         task_name: 任务名（kline_update / backfill）
@@ -147,74 +356,103 @@ def _write_task_status(
         target_date: 目标交易日字符串 "YYYY-MM-DD"，可为 None
         details: UpdateResult 详情字典，可为 None 或空
     """
-    from data.database import DatabaseManager
-
-    db = None
-    try:
-        db = DatabaseManager(
-            connect_timeout=db_connect_timeout_seconds,
-            statement_timeout=db_query_timeout_seconds,
-        )
-        cur = db.conn.cursor()
-        now2 = datetime.now(TZ)
-        # 写入基础列（向后兼容：新列不存在时只写基础列）
-        cur.execute(
-            "INSERT INTO schema_stockfilter.task_status "
-            "(task_name, last_completed_at, status) VALUES (%s, %s, %s) "
-            "ON CONFLICT (task_name) DO UPDATE SET last_completed_at=%s, status=%s",
-            (task_name, now2, status, now2, status),
-        )
-        # 尝试写入新列（target_date + details）
-        try:
-            details_json = json.dumps(details or {}, ensure_ascii=False)
-            cur.execute(
-                "UPDATE schema_stockfilter.task_status "
-                "SET target_date = %s, details = %s "
-                "WHERE task_name = %s",
-                (target_date, details_json, task_name),
+    attempt_timeout = db_connect_timeout_seconds + db_query_timeout_seconds
+    total_budget = (
+        task_status_write_retries
+        * (attempt_timeout + 2 * task_status_process_terminate_grace_seconds)
+        + (task_status_write_retries - 1)
+        * task_status_write_retry_delay_seconds
+    )
+    deadline = time.monotonic() + total_budget
+    for attempt in range(1, task_status_write_retries + 1):
+        remaining = deadline - time.monotonic()
+        if remaining <= 2 * task_status_process_terminate_grace_seconds:
+            logger.critical(
+                "task_status 总写入预算耗尽：task=%s target_date=%s attempt=%d/%d",
+                task_name, target_date, attempt, task_status_write_retries,
             )
-        except Exception as col_err:
-            # P1-4：显式回滚，防止新列写入失败让整个事务中毒、
-            # 连已经成功执行的基础 INSERT/UPDATE 一起丢失
-            try:
-                db.conn.rollback()
-                # 回滚后重新执行基础列写入（确保至少基础数据落库）
-                cur.execute(
-                    "INSERT INTO schema_stockfilter.task_status "
-                    "(task_name, last_completed_at, status) VALUES (%s, %s, %s) "
-                    "ON CONFLICT (task_name) DO UPDATE SET last_completed_at=%s, status=%s",
-                    (task_name, now2, status, now2, status),
-                )
-                db.conn.commit()
-            except Exception as rollback_err:
-                logger.error(
-                    "回滚后重写基础 task_status 仍失败：%s", rollback_err, exc_info=True
-                )
-                return
-            # 日志升级到 WARNING + 中文，让运维默认能看到
-            logger.warning(
-                "写入 target_date/details 列失败（可能尚未迁移，已回滚并重写基础列）：%s",
-                col_err,
-            )
+            return False
+        success, retryable, error = _run_task_status_attempt(
+            task_name=task_name,
+            status=status,
+            target_date=target_date,
+            details=details,
+            db_connect_timeout_seconds=db_connect_timeout_seconds,
+            db_query_timeout_seconds=db_query_timeout_seconds,
+            attempt_timeout_seconds=min(
+                attempt_timeout,
+                remaining - 2 * task_status_process_terminate_grace_seconds,
+            ),
+            process_terminate_grace_seconds=(
+                task_status_process_terminate_grace_seconds
+            ),
+        )
+        if success:
             logger.info(
-                "task_status 写入（基础列 only）：%s → %s (target_date=%s)",
-                task_name, status, target_date,
+                "task_status 写入：%s → %s (target_date=%s, attempt=%d)",
+                task_name, status, target_date, attempt,
             )
-            return
-
-        db.conn.commit()
-        logger.info(
-            "task_status 写入：%s → %s (target_date=%s)",
-            task_name, status, target_date,
+            return True
+        if not retryable or attempt >= task_status_write_retries:
+            logger.critical(
+                "task_status 最终写入失败：task=%s status=%s target_date=%s "
+                "completion_mode=%s attempt=%d/%d error=%s",
+                task_name,
+                status,
+                target_date,
+                (details or {}).get("completion_mode", "unknown"),
+                attempt,
+                task_status_write_retries,
+                error,
+            )
+            return False
+        logger.warning(
+            "task_status 瞬时写入失败，准备重连：task=%s target_date=%s "
+            "attempt=%d/%d error=%s",
+            task_name, target_date, attempt, task_status_write_retries, error,
         )
-    except Exception as e:
-        logger.error("写入 task_status 失败：%s", e, exc_info=True)
-    finally:
-        if db is not None:
-            try:
-                db.close()
-            except Exception:
-                pass
+        sleep_seconds = min(
+            task_status_write_retry_delay_seconds,
+            max(0.0, deadline - time.monotonic()),
+        )
+        if sleep_seconds > 0:
+            time.sleep(sleep_seconds)
+    return False
+
+
+def _record_task_status(
+    task_name: str,
+    status: str,
+    target_date: str | None,
+    details: dict | None,
+    collection_cfg,
+) -> bool:
+    """调用方闭环：最终失败必须携带本轮业务结果记录 CRITICAL。"""
+    written = _write_task_status(
+        task_name,
+        status,
+        target_date,
+        details,
+        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
+        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+        task_status_write_retries=collection_cfg.task_status_write_retries,
+        task_status_write_retry_delay_seconds=(
+            collection_cfg.task_status_write_retry_delay_seconds
+        ),
+        task_status_process_terminate_grace_seconds=(
+            collection_cfg.task_status_process_terminate_grace_seconds
+        ),
+    )
+    if not written:
+        logger.critical(
+            "本轮业务已结束但 task_status 未落库：task=%s target_date=%s "
+            "business_status=%s completion_mode=%s",
+            task_name,
+            target_date,
+            status,
+            (details or {}).get("completion_mode", "unknown"),
+        )
+    return written
 
 
 def _ensure_task_status_table(
@@ -222,22 +460,30 @@ def _ensure_task_status_table(
     db_connect_timeout_seconds: int,
     db_query_timeout_seconds: int,
 ) -> None:
-    """确保 task_status 表存在（幂等）。"""
-    from data.database import DatabaseManager
-
-    db = DatabaseManager(
-        connect_timeout=db_connect_timeout_seconds,
-        statement_timeout=db_query_timeout_seconds,
+    """启动期准备完整 task_status schema；运行期写入不再执行 DDL。"""
+    conn = _connect_task_status_db(
+        db_connect_timeout_seconds=db_connect_timeout_seconds,
+        db_query_timeout_seconds=db_query_timeout_seconds,
     )
+    cur = None
     try:
-        cur = db.conn.cursor()
+        cur = conn.cursor()
         cur.execute(
-            "CREATE TABLE IF NOT EXISTS schema_stockfilter.task_status "
-            "(task_name VARCHAR(50) PRIMARY KEY, last_completed_at TIMESTAMP, status VARCHAR(20))"
+            "CREATE TABLE IF NOT EXISTS task_status ("
+            "task_name VARCHAR(50) PRIMARY KEY, last_completed_at TIMESTAMP, "
+            "status VARCHAR(20), target_date DATE, "
+            "details JSONB NOT NULL DEFAULT '{}'::jsonb)"
         )
-        db.conn.commit()
+        cur.execute(
+            "ALTER TABLE task_status "
+            "ADD COLUMN IF NOT EXISTS target_date DATE, "
+            "ADD COLUMN IF NOT EXISTS details JSONB NOT NULL DEFAULT '{}'::jsonb"
+        )
+        conn.commit()
     finally:
-        db.close()
+        if cur is not None:
+            cur.close()
+        conn.close()
     logger.info("task_status 表已就绪")
 
 
@@ -384,10 +630,9 @@ def main() -> None:
                         f"覆盖 {result.target_date_success}/{result.total}"
                         f"（{result.target_date_coverage_rate * 100:.2f}%）"
                     )
-                    _write_task_status(
+                    _record_task_status(
                         "kline_update", "completed", effective_target_date, details,
-                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                        collection_cfg,
                     )
                 else:
                     logger.error(
@@ -396,14 +641,13 @@ def main() -> None:
                         f"{result.target_date_success}/{result.total}，"
                         f"{result.target_date_coverage_rate * 100:.2f}%）"
                     )
-                    _write_task_status(
+                    _record_task_status(
                         "kline_update", "failed", effective_target_date, details,
-                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                        collection_cfg,
                     )
             except Exception as e:
                 logger.error("K 线数据更新异常：%s", e, exc_info=True)
-                _write_task_status(
+                _record_task_status(
                     "kline_update", "failed", target_date,
                     {
                         "collection_mode": "chunked",
@@ -412,8 +656,7 @@ def main() -> None:
                         "error": str(e),
                         "target_date": target_date,
                     },
-                    db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                    db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    collection_cfg,
                 )
             time.sleep(POST_TASK_DELAY)
 
@@ -449,34 +692,26 @@ def main() -> None:
                 )
                 if result.returncode == 0:
                     logger.info("历史数据补全完成")
-                    _write_task_status(
-                        "backfill", "completed", target_date, {},
-                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    _record_task_status(
+                        "backfill", "completed", target_date, {}, collection_cfg,
                     )
                 else:
                     logger.error(
                         "历史数据补全返回非零退出码 %d",
                         result.returncode,
                     )
-                    _write_task_status(
-                        "backfill", "failed", target_date, {},
-                        db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                        db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                    _record_task_status(
+                        "backfill", "failed", target_date, {}, collection_cfg,
                     )
             except subprocess.TimeoutExpired:
                 logger.error("历史数据补全超时（>%ds）", BACKFILL_TIMEOUT, exc_info=True)
-                _write_task_status(
-                    "backfill", "failed", target_date, {},
-                    db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                    db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                _record_task_status(
+                    "backfill", "failed", target_date, {}, collection_cfg,
                 )
             except Exception as e:
                 logger.error("历史数据补全失败: %s", e, exc_info=True)
-                _write_task_status(
-                    "backfill", "failed", target_date, {},
-                    db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
-                    db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
+                _record_task_status(
+                    "backfill", "failed", target_date, {}, collection_cfg,
                 )
             time.sleep(POST_TASK_DELAY)
 

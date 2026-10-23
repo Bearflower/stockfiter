@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -429,100 +430,327 @@ class TestResultJsonContract:
 # =====================================================================
 
 class TestTaskStatusWrite:
-    """scheduler_kline._write_task_status 在假 DatabaseManager 下的写入路径。
+    """scheduler_kline._write_task_status 的轻量原子写入路径。"""
 
-    注意：_write_task_status 内部做的是
-        from data.database import DatabaseManager
-    所以 patch 必须打到 data.database.DatabaseManager，
-    不是 scripts.scheduler_kline.DatabaseManager（模块里没有这个属性）。
-    """
+    @staticmethod
+    def _write_once(**overrides):
+        from scripts.scheduler_kline import _write_task_status_once
 
-    def test_basic_insert_writes_three_columns(self):
-        """正常写入应包含 task_name, last_completed_at, status 三列。"""
-        from scripts.scheduler_kline import _write_task_status
+        kwargs = {
+            "task_name": "kline_update",
+            "status": "completed",
+            "target_date": "2026-10-16",
+            "details": {"foo": 1},
+            "db_connect_timeout_seconds": 10,
+            "db_query_timeout_seconds": 30,
+        }
+        kwargs.update(overrides)
+        return _write_task_status_once(**kwargs)
 
+    def test_atomic_upsert_writes_full_status_row(self):
+        """正常写入必须一次性保存状态、目标日与详情。"""
         fake_db = MagicMock()
         fake_cur = MagicMock()
-        fake_db.conn.cursor.return_value = fake_cur
+        fake_db.cursor.return_value = fake_cur
 
-        with patch("data.database.DatabaseManager", return_value=fake_db):
-            _write_task_status(
-                "kline_update", "completed", target_date="2026-10-16", details={'foo': 1},
-                db_connect_timeout_seconds=10, db_query_timeout_seconds=30,
-            )
+        with patch(
+            "scripts.scheduler_kline._connect_task_status_db",
+            return_value=fake_db,
+        ):
+            result = self._write_once()
 
-        # INSERT 一条（基础列） + UPDATE 一条（target_date/details）+ 一条 commit
-        assert fake_cur.execute.call_count >= 2
-        fake_db.conn.commit.assert_called_once()
+        assert result == (True, False, "")
+        fake_cur.execute.assert_called_once()
+        sql, params = fake_cur.execute.call_args.args
+        assert "ON CONFLICT" in sql
+        assert "target_date" in sql and "details" in sql
+        assert params[:4] == (
+            "kline_update",
+            params[1],
+            "completed",
+            "2026-10-16",
+        )
+        fake_db.commit.assert_called_once()
         fake_db.close.assert_called_once()
 
-    def test_database_manager_receives_explicit_timeouts(self):
-        """状态写入不得使用 libpq/PostgreSQL 无界默认超时。"""
-        from scripts.scheduler_kline import _write_task_status
+    def test_lightweight_connection_receives_explicit_timeouts(self):
+        """状态写入连接不得使用 libpq/PostgreSQL 无界默认超时。"""
+        from scripts.scheduler_kline import _connect_task_status_db
 
-        fake_db = MagicMock()
-        with patch("data.database.DatabaseManager", return_value=fake_db) as manager:
-            _write_task_status(
-                "kline_update", "failed",
+        with patch.dict(os.environ, {"DB_PASSWORD": "test-password"}), patch(
+            "psycopg2.connect", return_value=MagicMock()
+        ) as connect:
+            _connect_task_status_db(
                 db_connect_timeout_seconds=10,
                 db_query_timeout_seconds=30,
             )
 
-        manager.assert_called_once_with(connect_timeout=10, statement_timeout=30)
+        kwargs = connect.call_args.kwargs
+        assert kwargs["connect_timeout"] == 10
+        assert "statement_timeout=30000" in kwargs["options"]
 
-    def test_new_column_failure_rolls_back_and_retries_basic(self):
-        """P1-4：target_date/details 列写入失败时应 rollback 并重写基础列。"""
-        from scripts.scheduler_kline import _write_task_status
+    def test_deterministic_schema_failure_rolls_back_without_retry(self):
+        """确定性 schema 错误不得用降级写入掩盖，也不得无意义重试。"""
+        import psycopg2
 
-        fake_db = MagicMock()
+        fake_conn = MagicMock()
         fake_cur = MagicMock()
-        fake_db.conn.cursor.return_value = fake_cur
+        fake_conn.cursor.return_value = fake_cur
+        fake_cur.execute.side_effect = psycopg2.errors.UndefinedColumn("details")
 
-        # 第一次 execute（基础 INSERT）成功；第二次 execute（UPDATE 新列）抛异常；
-        # 第三次 execute（rollback 后重写基础 INSERT）成功
-        fake_cur.execute.side_effect = [
-            None,  # 基础 INSERT
-            RuntimeError("column target_date does not exist"),  # UPDATE 新列失败
-            None,  # rollback 后重写基础 INSERT
-        ]
+        with patch(
+            "scripts.scheduler_kline._connect_task_status_db",
+            return_value=fake_conn,
+        ) as connect:
+            result = self._write_once()
 
-        with patch("data.database.DatabaseManager", return_value=fake_db):
-            _write_task_status(
-                "kline_update", "completed", target_date="2026-10-16", details={},
-                db_connect_timeout_seconds=10, db_query_timeout_seconds=30,
+        assert result[0] is False
+        assert result[1] is False
+        connect.assert_called_once()
+        fake_conn.rollback.assert_called_once()
+        fake_conn.commit.assert_not_called()
+        fake_conn.close.assert_called_once()
+
+    def test_connection_failure_returns_false_without_raising(self):
+        """最终连接失败返回 False，由调用方记录业务闭环告警。"""
+
+        with patch(
+            "scripts.scheduler_kline._connect_task_status_db",
+            side_effect=RuntimeError("no db"),
+        ):
+            success, retryable, error = self._write_once(status="failed")
+        assert success is False
+        assert retryable is False
+        assert "no db" in error
+
+    def test_runtime_status_write_uses_lightweight_connection_without_migrations(self):
+        """运行期状态写入只能执行原子 UPSERT，不得构造 DatabaseManager 触发 DDL。"""
+        from scripts.scheduler_kline import _write_task_status_once
+
+        fake_conn = MagicMock()
+        fake_cur = MagicMock()
+        fake_conn.cursor.return_value = fake_cur
+
+        with patch.dict(os.environ, {"DB_PASSWORD": "test-password"}), patch(
+            "data.database.DatabaseManager",
+            side_effect=AssertionError("运行期状态写入不得触发迁移"),
+        ), patch("psycopg2.connect", return_value=fake_conn):
+            result = _write_task_status_once(
+                "kline_update",
+                "failed",
+                target_date="2026-10-22",
+                details={"completion_mode": "failed"},
+                db_connect_timeout_seconds=10,
+                db_query_timeout_seconds=30,
             )
 
-        # rollback 应该被调用
-        assert fake_db.conn.rollback.call_count >= 1
-        # rollback 后重写基础写入成功 → commit 被调用
-        fake_db.conn.commit.assert_called()
-        fake_db.close.assert_called_once()
+        assert result == (True, False, "")
+        assert fake_cur.execute.call_count == 1
+        sql = fake_cur.execute.call_args.args[0]
+        assert "ON CONFLICT" in sql
+        assert "target_date" in sql and "details" in sql
+        fake_conn.commit.assert_called_once()
+        fake_conn.close.assert_called_once()
 
-    def test_no_db_error_quietly_records_log(self):
-        """DatabaseManager 构造失败或其他顶层异常不崩溃。"""
+    def test_runtime_status_write_reconnects_after_retryable_timeout(self):
+        """瞬时 SQL timeout 后必须丢弃旧连接并用新连接重试。"""
         from scripts.scheduler_kline import _write_task_status
 
-        with patch("data.database.DatabaseManager", side_effect=RuntimeError("no db")):
-            # 不应 raise
-            _write_task_status(
-                "kline_update", "failed",
-                db_connect_timeout_seconds=10, db_query_timeout_seconds=30,
+        with patch(
+            "scripts.scheduler_kline._run_task_status_attempt",
+            side_effect=[
+                (False, True, "QueryCanceled: statement timeout"),
+                (True, False, ""),
+            ],
+        ) as run_attempt, patch("scripts.scheduler_kline.time.sleep") as sleep:
+            result = _write_task_status(
+                "kline_update",
+                "failed",
+                target_date="2026-10-22",
+                details={},
+                db_connect_timeout_seconds=10,
+                db_query_timeout_seconds=30,
+                task_status_write_retries=2,
+                task_status_write_retry_delay_seconds=1,
+                task_status_process_terminate_grace_seconds=1,
             )
+
+        assert result is True
+        assert run_attempt.call_count == 2
+        sleep.assert_called_once_with(1)
 
 
 def test_ensure_task_status_table_uses_explicit_database_timeouts():
     """启动建表也必须受连接与 SQL 超时约束。"""
     from scripts.scheduler_kline import _ensure_task_status_table
 
-    fake_db = MagicMock()
-    with patch("data.database.DatabaseManager", return_value=fake_db) as manager:
+    fake_conn = MagicMock()
+    with patch.dict(os.environ, {"DB_PASSWORD": "test-password"}), patch(
+        "psycopg2.connect", return_value=fake_conn
+    ) as connect:
         _ensure_task_status_table(
             db_connect_timeout_seconds=10,
             db_query_timeout_seconds=30,
         )
 
-    manager.assert_called_once_with(connect_timeout=10, statement_timeout=30)
-    fake_db.close.assert_called_once()
+    kwargs = connect.call_args.kwargs
+    assert kwargs["connect_timeout"] == 10
+    assert "statement_timeout=30000" in kwargs["options"]
+    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()
+
+
+def test_ensure_task_status_table_prepares_full_schema_without_database_manager():
+    """空库/旧三列表启动都必须在运行任务前准备 target_date/details。"""
+    from scripts.scheduler_kline import _ensure_task_status_table
+
+    fake_conn = MagicMock()
+    fake_cur = MagicMock()
+    fake_conn.cursor.return_value = fake_cur
+
+    with patch.dict(os.environ, {"DB_PASSWORD": "test-password"}), patch(
+        "data.database.DatabaseManager",
+        side_effect=AssertionError("task_status schema 应走轻量专用连接"),
+    ), patch("psycopg2.connect", return_value=fake_conn):
+        _ensure_task_status_table(
+            db_connect_timeout_seconds=10,
+            db_query_timeout_seconds=30,
+        )
+
+    sql = "\n".join(call.args[0] for call in fake_cur.execute.call_args_list)
+    assert "CREATE TABLE IF NOT EXISTS" in sql
+    assert "target_date" in sql and "details" in sql
+    assert "ALTER TABLE" in sql
+    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()
+
+
+def test_record_task_status_logs_business_context_when_write_fails(caplog):
+    """最终落库失败必须把业务状态、目标日和完成模式留在 CRITICAL 日志。"""
+    import logging
+    from scripts.scheduler_kline import _record_task_status
+
+    cfg = MagicMock(
+        db_connect_timeout_seconds=10,
+        db_query_timeout_seconds=30,
+        task_status_write_retries=3,
+        task_status_write_retry_delay_seconds=1,
+        task_status_process_terminate_grace_seconds=1,
+    )
+    with patch("scripts.scheduler_kline._write_task_status", return_value=False), caplog.at_level(
+        logging.CRITICAL, logger="kline_scheduler"
+    ):
+        result = _record_task_status(
+            "kline_update",
+            "failed",
+            "2026-10-22",
+            {"completion_mode": "failed"},
+            cfg,
+        )
+
+    assert result is False
+    message = caplog.text
+    assert "task=kline_update" in message
+    assert "target_date=2026-10-22" in message
+    assert "business_status=failed" in message
+    assert "completion_mode=failed" in message
+
+
+def test_task_status_attempt_hard_timeout_terminates_child_process(monkeypatch):
+    """数据库驱动即使永久卡住，也必须由父进程在 deadline 内终止。"""
+    from scripts import scheduler_kline
+
+    def _hang_forever(*_args, **_kwargs):
+        time.sleep(30)
+
+    monkeypatch.setattr(scheduler_kline, "_write_task_status_once", _hang_forever)
+    started = time.monotonic()
+    success, retryable, error = scheduler_kline._run_task_status_attempt(
+        task_name="kline_update",
+        status="failed",
+        target_date="2026-10-22",
+        details={"completion_mode": "failed"},
+        db_connect_timeout_seconds=1,
+        db_query_timeout_seconds=1,
+        attempt_timeout_seconds=0.05,
+        process_terminate_grace_seconds=0.05,
+    )
+    elapsed = time.monotonic() - started
+
+    assert success is False
+    assert retryable is True
+    assert "timeout" in error
+    assert elapsed < 1.0
+
+
+def test_task_status_attempt_unreaped_child_is_not_retryable(monkeypatch):
+    """旧写入进程未回收时禁止再拉起新写入进程。"""
+    from scripts import scheduler_kline
+
+    def _hang_forever(*_args, **_kwargs):
+        time.sleep(30)
+
+    monkeypatch.setattr(scheduler_kline, "_write_task_status_once", _hang_forever)
+    real_terminate = scheduler_kline._terminate_status_process
+
+    def _terminate_but_report_unreaped(process, grace_seconds):
+        real_terminate(process, grace_seconds)
+        return False
+
+    monkeypatch.setattr(
+        scheduler_kline, "_terminate_status_process", _terminate_but_report_unreaped
+    )
+    success, retryable, error = scheduler_kline._run_task_status_attempt(
+        task_name="kline_update",
+        status="failed",
+        target_date="2026-10-22",
+        details={},
+        db_connect_timeout_seconds=1,
+        db_query_timeout_seconds=1,
+        attempt_timeout_seconds=0.05,
+        process_terminate_grace_seconds=0.05,
+    )
+
+    assert success is False
+    assert retryable is False
+    assert "pid_not_reaped" in error
+
+
+def test_task_status_attempt_exception_with_unreaped_child_is_not_retryable(
+    monkeypatch,
+):
+    """进程/IPC 异常也必须先确认旧 PID 已回收，不能固定允许重试。"""
+    from scripts import scheduler_kline
+
+    process = MagicMock()
+    process.pid = 15001
+    process.start.side_effect = RuntimeError("start failed after pid allocation")
+    process.is_alive.return_value = True
+    context = MagicMock()
+    context.Pipe.return_value = (MagicMock(), MagicMock())
+    context.Process.return_value = process
+
+    monkeypatch.setattr(
+        scheduler_kline.multiprocessing, "get_context", lambda _method: context
+    )
+    terminate = MagicMock(return_value=False)
+    monkeypatch.setattr(scheduler_kline, "_terminate_status_process", terminate)
+
+    success, retryable, error = scheduler_kline._run_task_status_attempt(
+        task_name="kline_update",
+        status="failed",
+        target_date="2026-10-22",
+        details={},
+        db_connect_timeout_seconds=1,
+        db_query_timeout_seconds=1,
+        attempt_timeout_seconds=0.05,
+        process_terminate_grace_seconds=0.05,
+    )
+
+    assert success is False
+    assert retryable is False
+    assert "pid_not_reaped=15001" in error
+    terminate.assert_called_once_with(process, 0.05)
 
 
 def test_scheduler_rejects_invalid_config_before_any_database_access():

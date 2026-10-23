@@ -138,3 +138,25 @@ def test_shadow_extreme_weak_false_allow_entry_is_normal():
     )
     leak, metrics_missing = _run_block((dm, 0, "completed_zero"))
     assert (leak, metrics_missing) == ("0", "0")
+
+
+def test_blocked_data_with_explicit_zero_and_empty_metrics_is_not_duplicate_alert():
+    """blocked_data 已由数据阻断告警负责，合法空指标不再重复报极弱缺失。"""
+    leak, metrics_missing = _run_block(({}, 0, "blocked_data"))
+    assert (leak, metrics_missing) == ("0", "0")
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        ("{broken-json", 0, "blocked_data"),
+        ({}, None, "blocked_data"),
+        ({}, -1, "blocked_data"),
+        ({}, 1, "blocked_data"),
+    ],
+)
+def test_blocked_data_only_suppresses_strictly_valid_empty_metrics(row):
+    """坏 JSON、NULL/负数/正信号均不得借 blocked_data 静默通过。"""
+    leak, metrics_missing = _run_block(row)
+    assert leak == "0"
+    assert metrics_missing == "1"

@@ -90,6 +90,9 @@ class CollectionConfig:
     max_quarantined_retries: int
     db_query_timeout_seconds: int
     db_connect_timeout_seconds: int
+    task_status_write_retries: int
+    task_status_write_retry_delay_seconds: int
+    task_status_process_terminate_grace_seconds: int
     initial_scan_time: str
     kline_wait_timeout_seconds: int
     min_coverage_rate: float
@@ -242,6 +245,15 @@ def load_collection_config(
         db_connect_timeout_seconds=_require_positive_int(
             kline_cfg, "db_connect_timeout_seconds"
         ),
+        task_status_write_retries=_require_positive_int(
+            kline_cfg, "task_status_write_retries"
+        ),
+        task_status_write_retry_delay_seconds=_require_non_negative_int(
+            kline_cfg, "task_status_write_retry_delay_seconds"
+        ),
+        task_status_process_terminate_grace_seconds=_require_positive_int(
+            kline_cfg, "task_status_process_terminate_grace_seconds"
+        ),
         initial_scan_time=initial_scan_time,
         kline_wait_timeout_seconds=int(kline_wait_timeout_seconds),
         min_coverage_rate=min_coverage_rate,
@@ -269,6 +281,23 @@ def load_collection_config(
             "recovery_deadline_buffer_seconds 必须小于 kline_wait_timeout_seconds，"
             f"否则截止时间早于初扫开始（buffer={config.recovery_deadline_buffer_seconds}，"
             f"wait={config.kline_wait_timeout_seconds}）"
+        )
+
+    task_status_budget = (
+        config.task_status_write_retries
+        * (
+            config.db_connect_timeout_seconds
+            + config.db_query_timeout_seconds
+            + 2 * config.task_status_process_terminate_grace_seconds
+        )
+        + (config.task_status_write_retries - 1)
+        * config.task_status_write_retry_delay_seconds
+    )
+    if task_status_budget >= config.recovery_deadline_buffer_seconds:
+        raise CollectionConfigError(
+            "task_status 写入最坏预算必须严格小于 recovery_deadline_buffer_seconds，"
+            f"实际为 {task_status_budget}s >= "
+            f"{config.recovery_deadline_buffer_seconds}s"
         )
     return config
 
@@ -578,6 +607,39 @@ def _read_json(path: str) -> dict | None:
         return None
 
 
+def _is_valid_worker_result(outcome: "WorkerOutcome", target_date: str) -> bool:
+    """校验工作进程结果契约；非法结果按会话异常处理。"""
+    result = outcome.result
+    if not isinstance(result, dict):
+        return False
+    if result.get("contract_version") != CONTRACT_VERSION:
+        return False
+    if result.get("mode") != "chunk" or result.get("target_date") != target_date:
+        return False
+    processed = result.get("processed")
+    failed_codes = result.get("failed_codes")
+    if (
+        not isinstance(processed, int)
+        or isinstance(processed, bool)
+        or not 0 <= processed <= len(outcome.chunk_codes)
+        or not isinstance(failed_codes, list)
+        or not all(isinstance(code, str) for code in failed_codes)
+    ):
+        return False
+    chunk_codes = set(outcome.chunk_codes)
+    processed_prefix = set(outcome.chunk_codes[:processed])
+    return (
+        result.get("chunk_index") == outcome.chunk_index
+        and result.get("chunk_size") == len(outcome.chunk_codes)
+        and len(failed_codes) <= processed
+        and len(set(failed_codes)) == len(failed_codes)
+        and all(
+            code in chunk_codes and code in processed_prefix
+            for code in failed_codes
+        )
+    )
+
+
 # ---------------------------------------------------------------------------
 # 监督者
 # ---------------------------------------------------------------------------
@@ -819,6 +881,47 @@ def run_supervised_collection(
             )
             outcome.worker_processes += 1
 
+            valid_result = _is_valid_worker_result(worker_outcome, target_date)
+            abnormal_exit = (
+                worker_outcome.timed_out
+                or not worker_outcome.pid_gone
+                or worker_outcome.exit_code not in (
+                    EXIT_CHUNK_COMPLETE,
+                    EXIT_CHUNK_BREAKER,
+                )
+                or not valid_result
+            )
+            attempted_codes.update(
+                _attempted_codes(worker_outcome, trust_result=valid_result)
+            )
+
+            # 旧 PID 未回收时不得先发起任何轮后数据库访问，否则查询异常会掩盖
+            # 更高风险的残留进程，还可能与下一轮产生并发会话。
+            if not worker_outcome.pid_gone:
+                outcome.rounds.append(
+                    CollectionRound(
+                        round_index=chunk_index,
+                        chunk_index=chunk_index,
+                        chunk_size=len(chunk),
+                        chunk_start_code=chunk[0]["code"] if chunk else "",
+                        chunk_end_code=chunk[-1]["code"] if chunk else "",
+                        timed_out=worker_outcome.timed_out,
+                        exit_code=worker_outcome.exit_code,
+                        duration_seconds=worker_outcome.duration_seconds,
+                        covered_before=covered,
+                        covered_after=covered,
+                        newly_covered=0,
+                        last_started_code=worker_outcome.last_started_code,
+                        killed=worker_outcome.killed,
+                        error=worker_outcome.error or "worker_pid_not_reaped",
+                    )
+                )
+                logger.error(
+                    f"旧工作进程 PID {worker_outcome.pid} 未回收，禁止轮后查询和新会话"
+                )
+                outcome.stop_reason = STOP_WORKER_FATAL
+                break
+
             post_query_skipped = (
                 deadline - now_fn()
             ).total_seconds() <= config.db_query_timeout_seconds
@@ -841,7 +944,6 @@ def run_supervised_collection(
 
             newly_covered = max(0, covered_after - covered)
             outcome.covered = covered_after
-            attempted_codes.update(_attempted_codes(worker_outcome))
 
             collection_round = CollectionRound(
                 round_index=chunk_index,
@@ -901,15 +1003,17 @@ def run_supervised_collection(
                 f" 耗时={worker_outcome.duration_seconds:.1f}s 延后轮次={is_retry_round}"
             )
 
-            if newly_covered <= 0 and not is_retry_round and not newly_quarantined:
+            if (
+                not abnormal_exit
+                and newly_covered <= 0
+                and not is_retry_round
+                and not newly_quarantined
+            ):
                 consecutive_no_progress += 1
             elif newly_covered > 0 or newly_quarantined:
                 consecutive_no_progress = 0
 
             # 本轮未能正常完成分片 → 计一次会话重建（下次必须用新进程/新会话）
-            abnormal_exit = worker_outcome.timed_out or (
-                worker_outcome.result is None and worker_outcome.exit_code != EXIT_CHUNK_COMPLETE
-            )
             if abnormal_exit:
                 restart_count += 1
                 outcome.session_restarts = restart_count
@@ -946,8 +1050,10 @@ def run_supervised_collection(
 
     # 最终覆盖以数据库为准；失败 = 已尝试过但仍缺目标日，跳过 = 从未尝试
     final_query_budget_available = (
-        deadline - now_fn()
-    ).total_seconds() > config.db_query_timeout_seconds
+        outcome.stop_reason != STOP_WORKER_FATAL
+        and (deadline - now_fn()).total_seconds()
+        > config.db_query_timeout_seconds
+    )
     if final_query_budget_available:
         try:
             final_codes = store.target_date_codes(target_date) & set(pool_index)
@@ -1019,14 +1125,18 @@ def _select_chunk_codes(
     return [], False
 
 
-def _attempted_codes(outcome: WorkerOutcome) -> set[str]:
+def _attempted_codes(
+    outcome: WorkerOutcome,
+    *,
+    trust_result: bool = True,
+) -> set[str]:
     """推导本轮工作进程真正发出过请求的股票集合。
 
     - 有 result：取 processed 前缀，并补上 result.failed_codes；
     - 无 result（超时/被杀）：按 last_started_code 在分片中的位置取已尝试前缀；
     - 无进度文件：返回空集，不臆造。
     """
-    if outcome.result:
+    if trust_result and outcome.result:
         processed = outcome.result.get("processed")
         if isinstance(processed, int) and not isinstance(processed, bool):
             codes = list(outcome.chunk_codes[: max(0, processed)])

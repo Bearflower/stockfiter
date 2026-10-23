@@ -31,6 +31,11 @@
          failure_window_min_samples 同时受 window 与 chunk 上限约束；
          目标测试 56 passed，全量 378 passed / 8 skipped；独立复审回看通过，无新增 P1/P2/P3
 - [x] Task 5：补齐 completion mode、会话重建次数和最终覆盖率监控，关联降噪
+- [x] Checkpoint B6（生产观察后韧性跟进）：异常会话不消耗内容无进展额度；
+      task_status 运行期轻量原子写入与有界重试；旧 completed 目标日校验；
+      覆盖率只统计股票池交集；blocked_data 严格降噪。聚焦 114 passed / 3 skipped，
+      无数据库全量 430 passed / 11 skipped；隔离 PostgreSQL 专项 10 passed、
+      同环境全量 441 passed / 0 skipped；数据残留 0，测试库和 SSH 隧道已清理；独立复审通过。
 - [ ] Task 6：完成本地故障注入、全量回归、hard_filter 部署与五层验证
       —— 本地部分已完成（全量回归 + 静态检查 + compose 语法），部署未授权，等待复审
 - [ ] Checkpoint C：连续观察 5 个交易日，确认回补恢复为兜底路径

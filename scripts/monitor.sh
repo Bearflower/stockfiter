@@ -335,12 +335,19 @@ target = '$target_date'
 db = DatabaseManager()
 cur = db.conn.cursor()
 
-# 股票池规模
-cur.execute('SELECT COUNT(*) FROM schema_stockfilter.stocks')
+# 股票池规模（与覆盖分子统一按股票池中的唯一 code 口径）
+cur.execute('SELECT COUNT(DISTINCT code) FROM schema_stockfilter.stocks')
 pool_count = cur.fetchone()[0] or 0
+if pool_count <= 0:
+    raise RuntimeError('股票池为空，无法计算覆盖率')
 
-# 目标日 K 线覆盖
-cur.execute(\"SELECT COUNT(DISTINCT code) FROM schema_stockfilter.klines WHERE date = %s AND frequency = 'd'\", (target,))
+# 目标日 K 线覆盖：只统计当前股票池内代码，排除指数等池外 K 线
+cur.execute(\"\"\"
+    SELECT COUNT(DISTINCT k.code)
+    FROM schema_stockfilter.klines k
+    JOIN schema_stockfilter.stocks s ON s.code = k.code
+    WHERE k.date = %s AND k.frequency = 'd'
+\"\"\", (target,))
 covered = cur.fetchone()[0] or 0
 
 rate = covered / pool_count if pool_count > 0 else 0
@@ -479,20 +486,27 @@ except Exception as e:
     fi
 
     while IFS='|' read -r task status target_date mode stop restarts timeouts hung coverage; do
+        local expected_target="$OBPC_RESCAN_DATE"
+        if [ "$task" = "kline_update" ]; then
+            expected_target="$OBPC_TARGET_DATE"
+        fi
+
         # 超时后自动恢复：按目标日 + 停止原因 + 重建次数去重，只告警一次
         if [ "$task" = "kline_update" ] && [ "$mode" = "recovered_after_timeout" ]; then
             recovery_mode="recovered"
             recovery_key="recovered|${target_date}|${stop}|${restarts}|${timeouts}"
         fi
 
-        if [ "$status" != "completed" ]; then
+        if [ -z "$expected_target" ] || [ "$status" != "completed" ] || \
+           [ "$target_date" != "$expected_target" ]; then
             anomaly=1
             msg_parts="${msg_parts}• ${task}: status=${status} target_date=${target_date}
+  expected_target=${expected_target:-unresolved}
   completion_mode=${mode} stop_reason=${stop}
   会话重建=${restarts} 超时分片=${timeouts} 超时股票=${hung}
   覆盖率=${coverage}
 "
-            key="${key}_${task}_${status}_${mode}_${stop}"
+            key="${key}_${task}_${status}_${target_date}_${expected_target}_${mode}_${stop}"
         fi
     done <<< "$result"
 
@@ -946,19 +960,48 @@ else:
         metrics_missing = 1
         leak_info = f'目标交易日 {target} 无 scan_runs 运行记录'
     else:
-        dm = row[0] or {}
-        if isinstance(dm, str):
+        raw_dm = row[0]
+        dm_valid = True
+        if raw_dm is None:
+            dm = {}
+        elif isinstance(raw_dm, str):
             try:
-                dm = json.loads(dm)
+                dm = json.loads(raw_dm)
             except Exception:
                 dm = {}
-        sel = row[1] or 0
+                dm_valid = False
+        elif isinstance(raw_dm, dict):
+            dm = raw_dm
+        else:
+            dm = {}
+            dm_valid = False
+        if not isinstance(dm, dict):
+            dm = {}
+            dm_valid = False
+
+        raw_sel = row[1]
+        sel_valid = (
+            isinstance(raw_sel, int)
+            and not isinstance(raw_sel, bool)
+            and raw_sel >= 0
+        )
+        sel = raw_sel if sel_valid else None
         status = row[2] or ''
-        if status == 'running' and (not isinstance(dm, dict) or not dm):
+        if status == 'running' and dm_valid and not dm:
             # P1-4：晚间初扫刚启动（running 且指标未落库）暂不判定穿透，
             # 避免把「正在运行」误报为穿透/缺失；卡死场景由 check_obpc_scan_stale 兜底。
             leak_info = '初扫进行中 status=running（指标未落库），本轮暂不判定极弱穿透'
-        elif not isinstance(dm, dict) or not dm:
+        elif status == 'blocked_data' and dm_valid and not dm and sel_valid and sel == 0:
+            # 数据门已明确阻断且没有产出信号，由 blocked_data 专项告警负责；
+            # 仅严格合法的空指标 + 整数零允许抑制重复的极弱指标缺失告警。
+            leak_info = '数据门已阻断 status=blocked_data，未进入市场风控裁决'
+        elif not dm_valid:
+            metrics_missing = 1
+            leak_info = f'data_metrics 非法或无法解析 status={status}'
+        elif not sel_valid:
+            metrics_missing = 1
+            leak_info = f'selected_count 非法（{raw_sel!r}）status={status}'
+        elif not dm:
             # 指标缺失：无法确认是否穿透 → fail-closed
             metrics_missing = 1
             leak_info = f'data_metrics 缺失或为空 status={status}'
