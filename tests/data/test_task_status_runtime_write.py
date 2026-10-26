@@ -201,6 +201,38 @@ def test_row_lock_timeout_reconnects_and_succeeds_after_release():
         conn.close()
 
 
+def test_runtime_poll_connection_does_not_hold_lock_against_schema_change():
+    """复现夜间故障：一次轮询 SELECT 后，另一连接的 DDL 不得被长事务阻塞。"""
+    from data.database import DatabaseManager
+    from psycopg2.extensions import TRANSACTION_STATUS_IDLE
+
+    with _isolated_schema() as (params, schema):
+        setup = _schema_connection(params, schema)
+        with setup.cursor() as cur:
+            cur.execute('CREATE TABLE task_status (task_name TEXT PRIMARY KEY, status TEXT)')
+            cur.execute("INSERT INTO task_status VALUES ('kline_update', 'failed')")
+        setup.commit()
+        setup.close()
+
+        db = DatabaseManager(initialize_schema=False, autocommit=True)
+        try:
+            with db.conn.cursor() as cur:
+                cur.execute(f'SELECT status FROM "{schema}".task_status')
+                assert cur.fetchone() == ("failed",)
+            assert db.conn.get_transaction_status() == TRANSACTION_STATUS_IDLE
+
+            ddl = _schema_connection(params, schema)
+            try:
+                with ddl.cursor() as cur:
+                    cur.execute("SET lock_timeout = '1000ms'")
+                    cur.execute(f'ALTER TABLE "{schema}".task_status ADD COLUMN details JSONB')
+                ddl.commit()
+            finally:
+                ddl.close()
+        finally:
+            db.close()
+
+
 def test_monitor_coverage_sql_uses_stock_pool_intersection():
     """用真实 PostgreSQL 最小数据集证明池外指数和重复 K 线不进入覆盖分子。"""
     monitor_text = (

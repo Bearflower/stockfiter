@@ -156,7 +156,9 @@ class DatabaseManager:
 
     def __init__(self, connection_string: Optional[str] = None,
                  connect_timeout: Optional[int] = None,
-                 statement_timeout: Optional[int] = None):
+                 statement_timeout: Optional[int] = None,
+                 initialize_schema: bool = False,
+                 autocommit: bool = False):
         """
         初始化数据库连接
 
@@ -166,6 +168,8 @@ class DatabaseManager:
                 供 K 线监督者这类有整体截止时间的调用方使用）
             statement_timeout: SQL 语句超时秒数（None 表示沿用 PostgreSQL 默认）。
                 通过连接 options 从建连时生效，覆盖构造期建表与迁移。
+            initialize_schema: 仅启动期显式开启建表和迁移；运行期默认禁止 DDL。
+            autocommit: 只读轮询连接启用后，每次查询自动结束事务。
         """
         self.host = os.getenv("DB_HOST", "localhost")
         self.port = os.getenv("DB_PORT", "5432")
@@ -186,9 +190,13 @@ class DatabaseManager:
         self.connection_string = connection_string
         self.connect_timeout = connect_timeout
         self.statement_timeout = statement_timeout
+        self.autocommit = autocommit
         self.conn = None
         self._connect()
         try:
+            self.conn.autocommit = autocommit
+            if not initialize_schema:
+                return
             self._create_tables()
             self._migrate_add_frequency()
             # 2026-10-18 新增：幂等迁移链
@@ -416,6 +424,18 @@ class DatabaseManager:
             table_exists = cursor.fetchone()[0]
             if not table_exists:
                 logger.info("task_status 表尚未创建，跳过列扩展（scheduler 首次启动时会自动建表）")
+                return
+
+            cursor.execute(
+                """
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = %s AND table_name = 'task_status'
+                  AND column_name IN ('target_date', 'details')
+                """,
+                (self.schema,),
+            )
+            if {row[0] for row in cursor.fetchall()} == {"target_date", "details"}:
+                self.conn.commit()
                 return
 
             logger.info("执行迁移：task_status 表新增 target_date / details 列...")

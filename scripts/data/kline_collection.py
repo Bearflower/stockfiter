@@ -410,6 +410,8 @@ def load_stock_pool(
     db = DatabaseManager(
         connect_timeout=connect_timeout,
         statement_timeout=statement_timeout,
+        initialize_schema=False,
+        autocommit=True,
     )
     try:
         pool = db.get_stock_list()

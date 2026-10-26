@@ -1,5 +1,7 @@
 # stockfilter_v3 文档总索引
 
+2026-10-26 K 线采集锁等待与日志留存热修记录：[事故证据、修复和上线验收](reports/2026-10-26-kline-lock-and-log-persistence.md)。
+
 ## 文档目录结构
 
 ```

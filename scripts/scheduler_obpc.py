@@ -235,7 +235,7 @@ def _wait_for_task_completed(task_name: str, target_date: str, task_label: str) 
     """
     from data.database import DatabaseManager
 
-    db = DatabaseManager()
+    db = DatabaseManager(initialize_schema=False, autocommit=True)
     try:
         deadline = datetime.now(TZ) + timedelta(seconds=KLINE_WAIT_TIMEOUT)
         waited = 0

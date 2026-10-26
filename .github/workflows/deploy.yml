@@ -137,12 +137,13 @@ jobs:
 
           # 1. 用 curl 从 GitHub raw 下载最新 compose 文件（绕过 scp）
           echo "📥 下载 docker-compose.yml..."
-          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/main/docker-compose.yml" -o docker-compose.yml
+          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/docker-compose.yml" -o docker-compose.yml
 
           # 1b. 同步 config/config.yaml（CI 不打包 config，靠 volume 挂载注入）：
           #     与服务器现有文件比对，有变化才替换，并置 NEED_RESTART=1 供步骤 4b 重启加载
           echo "📥 下载 config/config.yaml..."
-          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/main/config/config.yaml" -o /tmp/config.yaml.new
+          NEED_RESTART=0
+          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/config/config.yaml" -o /tmp/config.yaml.new
           if ! cmp -s /tmp/config.yaml.new config/config.yaml; then
             echo "♻️  config.yaml 有变化，已更新（将重启容器以生效）"
             mv /tmp/config.yaml.new config/config.yaml
@@ -159,7 +160,21 @@ jobs:
           echo "📥 docker compose pull..."
           docker compose pull
 
-          # 4. 更新所有容器
+          # 4. 先停止旧容器以冻结 Docker 日志，再紧邻重建动作归档。
+          #    归档失败时恢复旧容器并终止部署，不会删除唯一的旧日志副本。
+          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/scripts/archive_container_logs.sh" -o /tmp/stockfilter-archive-container-logs.sh
+          if ! docker compose stop; then
+            docker compose start
+            echo "❌ 旧容器停止失败，已尝试恢复，停止部署" >&2
+            exit 1
+          fi
+          if ! bash /tmp/stockfilter-archive-container-logs.sh /root/stockfilter_v3/logs/container_archive; then
+            docker compose start
+            echo "❌ 旧容器日志归档失败，已恢复原容器，停止部署" >&2
+            exit 1
+          fi
+
+          # 5. 更新所有容器
           echo "🔄 docker compose up -d..."
           docker compose up -d --remove-orphans
 

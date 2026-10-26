@@ -78,7 +78,7 @@ def database():
             self.cleanup_codes = set()       # scan_results / stocks 的 code
             self.cleanup_scan_dates = set()  # scan_results 的 scan_date
             self.cleanup_push_keys = set()   # push_history 的 (code, push_date)
-            super().__init__()
+            super().__init__(initialize_schema=True)
 
         def save_scan_result(self, scan_date, results):
             for item in results or []:

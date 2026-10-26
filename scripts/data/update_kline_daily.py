@@ -204,6 +204,11 @@ class ChunkResult:
     finished_at: Optional[str] = None
     duration_seconds: float = 0.0
 
+    @property
+    def processed_count(self) -> int:
+        """已完成处理的股票数，供进度文件记录。"""
+        return self.success + self.failed + self.skipped
+
     def to_dict(self) -> dict:
         from scripts.data.kline_collection import CONTRACT_VERSION
         return {
@@ -352,7 +357,7 @@ class DailyKlineUpdater:
             recent_results.append(1)
             logger.warning(f"{code} {message}")
 
-        self.db = DatabaseManager()
+        self.db = DatabaseManager(initialize_schema=False)
         try:
             with BaostockSession() as session:
                 for row in stocks:
@@ -585,6 +590,8 @@ def run_update(
     db = DatabaseManager(
         connect_timeout=collection_cfg.db_connect_timeout_seconds,
         statement_timeout=collection_cfg.db_query_timeout_seconds,
+        initialize_schema=False,
+        autocommit=True,
     )
     try:
         store = DatabaseGapStore(

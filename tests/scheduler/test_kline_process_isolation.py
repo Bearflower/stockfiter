@@ -977,7 +977,12 @@ def test_load_stock_pool_passes_database_timeouts(tmp_path, monkeypatch):
     )
 
     assert len(pool) == 1
-    assert captured == {"connect_timeout": 10, "statement_timeout": 30}
+    assert captured == {
+        "connect_timeout": 10,
+        "statement_timeout": 30,
+        "initialize_schema": False,
+        "autocommit": True,
+    }
 
 
 def test_database_manager_applies_statement_timeout_at_connection_start(monkeypatch):
@@ -1004,7 +1009,7 @@ def test_database_manager_applies_statement_timeout_at_connection_start(monkeypa
     ):
         monkeypatch.setattr(database_module.DatabaseManager, method_name, lambda self: None)
 
-    database_module.DatabaseManager(connect_timeout=10, statement_timeout=30)
+    database_module.DatabaseManager(connect_timeout=10, statement_timeout=30, initialize_schema=True)
 
     assert captured["connect_timeout"] == 10
     assert "-c search_path=schema_stockfilter" in captured["options"]
@@ -1025,7 +1030,7 @@ def test_database_manager_closes_connection_when_constructor_migration_fails(mon
     )
 
     with pytest.raises(RuntimeError, match="migration timeout"):
-        database_module.DatabaseManager(connect_timeout=10, statement_timeout=30)
+        database_module.DatabaseManager(connect_timeout=10, statement_timeout=30, initialize_schema=True)
 
     fake_conn.close.assert_called_once()
 

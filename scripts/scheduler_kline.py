@@ -522,6 +522,15 @@ def main() -> None:
         db_connect_timeout_seconds=collection_cfg.db_connect_timeout_seconds,
         db_query_timeout_seconds=collection_cfg.db_query_timeout_seconds,
     )
+    # 全库迁移只在服务启动时执行一次；后续采集、扫描和监控连接默认不做 DDL。
+    from data.database import DatabaseManager
+
+    startup_db = DatabaseManager(
+        connect_timeout=collection_cfg.db_connect_timeout_seconds,
+        statement_timeout=collection_cfg.db_query_timeout_seconds,
+        initialize_schema=True,
+    )
+    startup_db.close()
 
     # 当天已触发过的任务（防止同一分钟多次触发）
     last_run_kline: str = ""

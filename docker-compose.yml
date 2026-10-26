@@ -47,9 +47,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -u scripts/scheduler_kline.py
+    command: python -u scripts/persistent_log_runner.py --service kline --log-dir /app/logs/services --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_kline.py
     healthcheck:
-      test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q 'scheduler_kline.py' || exit 1"]
+      test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "scripts/scheduler_kline.py"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -88,9 +88,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -u scripts/scheduler_obpc.py
+    command: python -u scripts/persistent_log_runner.py --service obpc --log-dir /app/logs/services --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_obpc.py
     healthcheck:
-      test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q 'scheduler_obpc.py' || exit 1"]
+      test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "scripts/scheduler_obpc.py"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -119,9 +119,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -u distill_changying/scripts/advisor/scheduler.py
+    command: python -u scripts/persistent_log_runner.py --service eadvisor --log-dir /app/logs/services --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u distill_changying/scripts/advisor/scheduler.py
     healthcheck:
-      test: ["CMD-SHELL", "cat /proc/1/cmdline | tr '\\0' ' ' | grep -q 'advisor/scheduler.py' || exit 1"]
+      test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "distill_changying/scripts/advisor/scheduler.py"]
       interval: 30s
       timeout: 10s
       retries: 3
