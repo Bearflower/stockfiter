@@ -9,16 +9,14 @@ on:
       - 'docs/**'
       - 'data/backtest/**'
       - '*.md'
+      - '**/*.md'
       - '*.sqlite3'
   workflow_dispatch:
 
+# 中途取消会打断 stop→archive→up，发布必须串行排队。
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_OWNER: bearflower
+  cancel-in-progress: false
 
 jobs:
   build-and-push:
@@ -27,7 +25,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     strategy:
       fail-fast: false
       matrix:
@@ -35,38 +32,40 @@ jobs:
           - service: kline
             dockerfile: Dockerfile.kline
             image_tag: ghcr.io/bearflower/stockfilter-kline:latest
-            dir: ""
           - service: obpc
             dockerfile: Dockerfile.obpc
             image_tag: ghcr.io/bearflower/stockfilter-obpc:latest
-            dir: ""
           - service: eadvisor
             dockerfile: Dockerfile.eadvisor
             image_tag: ghcr.io/bearflower/stockfilter-eadvisor:latest
-            dir: ""
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 🔍 判断是否需要构建
+      - name: 🔍 判断完整 push 是否需要构建
         id: check
+        shell: bash
         run: |
-          CHANGED_FILES=$(git diff HEAD~1 HEAD --name-only 2>/dev/null || echo "")
-          echo "本次修改:"
-          echo "$CHANGED_FILES"
-
-          # stockfilter_v3 是单目录项目，任何源代码变更都影响所有容器
-          # 只有 config.yaml、.env、文档、backtest 数据等不触发构建
-          if echo "$CHANGED_FILES" | grep -qE '^(\.trae/|\.agents/|docs/|data/backtest/|logs/|\.env|\.gitignore|ARCHIVE|AGENTS\.md|README\.md)'; then
-            # 但如果除了上面还有别的变更，还是要构建
-            OTHER_CHANGES=$(echo "$CHANGED_FILES" | grep -vE '^(\.trae/|\.agents/|docs/|data/backtest/|logs/|\.env|\.gitignore|ARCHIVE|AGENTS\.md|README\.md)$' || true)
-            if [ -z "$OTHER_CHANGES" ]; then
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              echo "⏭️  仅文档/配置/规则变更，跳过构建"
-              exit 0
-            fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          BEFORE="${{ github.event.before }}"
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "push 基准提交不可用，保守构建全部镜像"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "$BEFORE" "${{ github.sha }}" > "$RUNNER_TEMP/changed_files.txt"
+          echo "本次 push 完整变更："
+          sed -n '1,100p' "$RUNNER_TEMP/changed_files.txt"
+          if grep -Ev '(^\.trae/|^\.agents/|^docs/|^data/backtest/|^logs/|^\.env$|^\.gitignore$|^config/config\.yaml$|\.md$|\.sqlite3$)' "$RUNNER_TEMP/changed_files.txt" | grep -q .; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "仅文档或配置变更，跳过镜像构建"
+          fi
 
       - name: 🐳 Setup buildx
         if: steps.check.outputs.skip == 'false'
@@ -89,6 +88,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ matrix.image_tag }}
+          build-args: |
+            SOURCE_REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -99,16 +100,16 @@ jobs:
     permissions:
       contents: read
       packages: read
-
     steps:
       - name: 🔑 配置 SSH
+        shell: bash
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 43.156.242.184 >> ~/.ssh/known_hosts
-
-          # SSH 客户端配置：统一设置 Host/User/IdentityFile + 超时加固参数
           cat >> ~/.ssh/config << 'SSH_CONFIG'
           Host 43.156.242.184
             User root
@@ -118,97 +119,15 @@ jobs:
             ServerAliveCountMax 3
           SSH_CONFIG
           chmod 600 ~/.ssh/config
+          ssh 43.156.242.184 "echo 'SSH 连通 OK' && hostname && whoami"
 
-          # 仅测试 ssh 连通性，不依赖 scp
-          ssh 43.156.242.184 "echo '✅ SSH 连通 OK' && hostname && whoami"
-
-      - name: 🚀 远程部署
+      - name: 🚀 远程部署（健康门槛 + 监控切换 + 日志归档）
+        shell: bash
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
-          # 远程执行完整部署流程（compose 文件用 curl 从 GitHub 直接拉，不走 scp）
-          DEPLOY_CMD=$(cat <<REMOTE
-          set -e
-          cd /root/stockfilter_v3
-
-          echo "========================================"
-          echo "stockfilter_v3 CI/CD 自动部署"
-          echo "commit: ${{ github.sha }}"
-          echo "时间: \$(date '+%Y-%m-%d %H:%M:%S')"
-          echo "========================================"
-
-          # 1. 用 curl 从 GitHub raw 下载最新 compose 文件（绕过 scp）
-          echo "📥 下载 docker-compose.yml..."
-          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/docker-compose.yml" -o docker-compose.yml
-
-          # 1b. 同步 config/config.yaml（CI 不打包 config，靠 volume 挂载注入）：
-          #     与服务器现有文件比对，有变化才替换，并置 NEED_RESTART=1 供步骤 4b 重启加载
-          echo "📥 下载 config/config.yaml..."
-          NEED_RESTART=0
-          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/config/config.yaml" -o /tmp/config.yaml.new
-          if ! cmp -s /tmp/config.yaml.new config/config.yaml; then
-            echo "♻️  config.yaml 有变化，已更新（将重启容器以生效）"
-            mv /tmp/config.yaml.new config/config.yaml
-            NEED_RESTART=1
-          else
-            echo "✅ config.yaml 无变化"
-            rm -f /tmp/config.yaml.new
-          fi
-
-          # 2. GHCR 认证
-          echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u bearflower --password-stdin
-
-          # 3. 拉新镜像
-          echo "📥 docker compose pull..."
-          docker compose pull
-
-          # 4. 先停止旧容器以冻结 Docker 日志，再紧邻重建动作归档。
-          #    归档失败时恢复旧容器并终止部署，不会删除唯一的旧日志副本。
-          curl -fsSL "https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/scripts/archive_container_logs.sh" -o /tmp/stockfilter-archive-container-logs.sh
-          if ! docker compose stop; then
-            docker compose start
-            echo "❌ 旧容器停止失败，已尝试恢复，停止部署" >&2
-            exit 1
-          fi
-          if ! bash /tmp/stockfilter-archive-container-logs.sh /root/stockfilter_v3/logs/container_archive; then
-            docker compose start
-            echo "❌ 旧容器日志归档失败，已恢复原容器，停止部署" >&2
-            exit 1
-          fi
-
-          # 5. 更新所有容器
-          echo "🔄 docker compose up -d..."
-          docker compose up -d --remove-orphans
-
-          # 4b. config.yaml 有变化时重启容器：config 走 volume 挂载，
-          #     若镜像未变则 up -d 不会重建容器、进程不会重读配置，必须 restart 才生效
-          if [ "\$NEED_RESTART" = "1" ]; then
-            echo "🔄 重启容器以加载新 config.yaml..."
-            docker compose restart
-          fi
-
-          # 5. 等就绪
-          echo "⏳ 等待 15s..."
-          sleep 15
-
-          # 6. 状态检查
-          echo ""
-          echo "✅ 当前容器状态："
-          docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}" | grep stockfilter || echo "⚠️ 未找到 stockfilter 容器"
-
-          # 7. 写部署日志
-          mkdir -p deploy_logs
-          DEPLOY_TIME="\$(date '+%Y-%m-%d %H:%M:%S')"
-          echo "[\${DEPLOY_TIME}] DEPLOY_SUCCESS commit=${{ github.sha }}" >> "deploy_logs/\$(date '+%Y%m%d').log"
-
-          # 8. 清理悬空镜像（pull 新 latest 后旧镜像残留，防磁盘堆积打满）
-          #    只删未被任何容器使用的悬空镜像，保留被 stopped 容器占用的旧版本镜像，
-          #    失败不阻断部署结果
-          echo "🧹 清理悬空镜像..."
-          docker image prune -f || true
-
-          echo ""
-          echo "🎉 stockfilter_v3 CI/CD 部署完成！"
-          REMOTE
-          )
-
-          # 远程执行（base64 编码避免转义问题）
-          echo "$DEPLOY_CMD" | base64 -w0 | ssh 43.156.242.184 "base64 -d | bash -s"
+          remote_script="/tmp/stockfilter-deploy-${{ github.run_id }}.sh"
+          raw="https://raw.githubusercontent.com/Bearflower/stockfiter/${{ github.sha }}/scripts/deploy_release.sh"
+          ssh 43.156.242.184 "curl -fsSL --retry 3 '$raw' -o '$remote_script' && bash -n '$remote_script'"
+          printf '%s\n' "$GHCR_PULL_TOKEN" | \
+            ssh 43.156.242.184 "bash '$remote_script' '${{ github.sha }}' '${{ github.run_id }}'"

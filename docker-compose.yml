@@ -33,6 +33,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
       - PYTHONPATH=/app
+      - CONTAINER_NAME=stockfilter-kline
       # 分片采集截止时间与 OBPC 初扫等待窗口同源（禁止另写 23:40 绝对时刻）
       - KLINE_WAIT_TIMEOUT=${KLINE_WAIT_TIMEOUT:-1800}
       - SCHEDULE_SCAN=${SCHEDULE_SCAN:-23:15}
@@ -47,7 +48,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -u scripts/persistent_log_runner.py --service kline --log-dir /app/logs/services --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_kline.py
+    command: python -u scripts/persistent_log_runner.py --service kline --log-dir /app/logs --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_kline.py
     healthcheck:
       test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "scripts/scheduler_kline.py"]
       interval: 30s
@@ -70,6 +71,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
       - DB_SCHEMA=${DB_SCHEMA:-schema_stockfilter}
       - PYTHONPATH=/app
+      - CONTAINER_NAME=stockfilter-obpc
       - KLINE_WAIT_TIMEOUT=${KLINE_WAIT_TIMEOUT:-1800}
       - KLINE_WAIT_INTERVAL=${KLINE_WAIT_INTERVAL:-60}
       - SCHEDULE_SCAN=${SCHEDULE_SCAN:-23:15}
@@ -88,7 +90,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -u scripts/persistent_log_runner.py --service obpc --log-dir /app/logs/services --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_obpc.py
+    command: python -u scripts/persistent_log_runner.py --service obpc --log-dir /app/logs --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_obpc.py
     healthcheck:
       test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "scripts/scheduler_obpc.py"]
       interval: 30s
@@ -106,6 +108,7 @@ services:
       - FEISHU_WEBHOOK_EADVISOR=${FEISHU_WEBHOOK_EADVISOR}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - PYTHONPATH=/app:/app/distill_changying
+      - CONTAINER_NAME=stockfilter-eadvisor
     volumes:
       - ./logs:/app/logs
       - ./distill_changying/docs/blog:/app/distill_changying/docs/blog:ro
@@ -119,7 +122,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -u scripts/persistent_log_runner.py --service eadvisor --log-dir /app/logs/services --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u distill_changying/scripts/advisor/scheduler.py
+    command: python -u scripts/persistent_log_runner.py --service eadvisor --log-dir /app/logs --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u distill_changying/scripts/advisor/scheduler.py
     healthcheck:
       test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "distill_changying/scripts/advisor/scheduler.py"]
       interval: 30s

@@ -61,6 +61,12 @@ OBPC_TARGET_DEGRADED="0"
 LOG_DIR="/root/stockfilter_v3/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/monitor.log"
+# 宿主机单实例锁；部署辅助脚本还会核对 PID/cwd，锁防止人工重复启动。
+exec 9>"$LOG_DIR/monitor.lock"
+if ! flock -n 9; then
+    echo "已有 monitor.sh 实例运行，拒绝重复启动" >&2
+    exit 1
+fi
 
 # 容器内 Python 同时会输出 Loguru 日志；查询结果必须使用独立协议前缀，
 # 禁止再按日期或任意竖线 grep，否则时间戳/日志字段会被误当成业务数据。
@@ -1122,6 +1128,8 @@ LAST_KLINE_STATUS=$(get_container_status "stockfilter-kline")
 LAST_OBPC_STATUS=$(get_container_status "stockfilter-obpc")
 LAST_EADVISOR_STATUS=$(get_container_status "stockfilter-eadvisor")
 log "初始状态: kline=$LAST_KLINE_STATUS obpc=$LAST_OBPC_STATUS eadvisor=$LAST_EADVISOR_STATUS"
+# 发布辅助脚本只在启动初始化确实完成后认可此进程；旧 PID 的标记不算就绪。
+printf '%s\n' "$$" > "$LOG_DIR/monitor.ready"
 
 # 主循环
 while true; do

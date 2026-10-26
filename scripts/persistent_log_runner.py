@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -12,6 +13,7 @@ import signal
 import subprocess
 import sys
 import time
+import re
 
 
 def independent_descendant_groups(root_pid: int, proc_root: Path = Path("/proc")) -> set[int]:
@@ -94,8 +96,14 @@ def run_logged_process(
         raise ValueError("命令、日志大小与保留份数必须有效")
 
     log_dir.mkdir(parents=True, exist_ok=True)
+    revision = os.environ.get("SOURCE_REVISION", "unknown")
+    if not (revision == "unknown" or re.fullmatch(r"[0-9a-f]{40}", revision)):
+        raise ValueError("SOURCE_REVISION 必须是完整提交 SHA 或 unknown")
+    container = os.environ.get("CONTAINER_NAME", f"stockfilter-{service}")
+    if not re.fullmatch(r"stockfilter-(?:kline|obpc|eadvisor)", container):
+        raise ValueError("CONTAINER_NAME 非法")
     handler = RotatingFileHandler(
-        log_dir / f"{service}.log",
+        log_dir / f"{service}_scheduler.log",
         maxBytes=max_bytes,
         backupCount=backup_count,
         encoding="utf-8",
@@ -136,9 +144,11 @@ def run_logged_process(
         killed_descendants = False
 
         def persist_line(raw_line: bytes) -> None:
+            message = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+            stamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
             record = logging.LogRecord(
                 service, logging.INFO, __file__, 0,
-                raw_line.decode("utf-8", errors="replace").rstrip("\r\n"),
+                f"{stamp} container={container} revision={revision} {message}",
                 (), None,
             )
             handler.emit(record)

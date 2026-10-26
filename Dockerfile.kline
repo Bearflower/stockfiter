@@ -11,3 +11,7 @@ RUN pip install --no-cache-dir -r requirements-kline.txt ${PIP_INDEX_URL:+--inde
 
 # 复制全部源码
 COPY . /app/
+
+ARG SOURCE_REVISION=unknown
+ENV SOURCE_REVISION=${SOURCE_REVISION}
+LABEL org.opencontainers.image.revision=${SOURCE_REVISION}

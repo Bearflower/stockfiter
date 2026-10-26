@@ -31,7 +31,7 @@ def test_runner_keeps_subprocess_output_and_exit_code_across_restarts(tmp_path):
         capture_output=True, text=True, timeout=10,
     )
     assert second.returncode == 0
-    persisted = (tmp_path / "kline.log").read_text()
+    persisted = (tmp_path / "kline_scheduler.log").read_text()
     assert "first" in persisted and "problem" in persisted and "second" in persisted
 
 
@@ -46,8 +46,8 @@ def test_runner_rotates_persistent_file_without_losing_stdout(tmp_path):
     )
     assert result.returncode == 0
     assert "alpha" in result.stdout and "beta" in result.stdout
-    assert (tmp_path / "obpc.log.1").exists()
-    assert "beta" in (tmp_path / "obpc.log").read_text()
+    assert (tmp_path / "obpc_scheduler.log.1").exists()
+    assert "beta" in (tmp_path / "obpc_scheduler.log").read_text()
 
 
 def test_runner_exits_when_scheduler_exits_but_descendant_holds_stdout(tmp_path):
@@ -107,7 +107,7 @@ def test_runner_forwards_container_stop_to_scheduler(tmp_path):
         runner.terminate()
         runner.wait(timeout=5)
         assert marker.read_text() == "stopped"
-        assert "ready" in (tmp_path / "obpc.log").read_text()
+        assert "ready" in (tmp_path / "obpc_scheduler.log").read_text()
     finally:
         if runner.poll() is None:
             runner.kill()
@@ -121,8 +121,8 @@ def test_archive_captures_each_existing_container_before_recreation(tmp_path):
     docker.write_text(
         "#!/bin/sh\n"
         "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\nstockfilter-eadvisor\\n'; exit 0; fi\n"
-        "if [ \"$1\" = inspect ]; then echo id-$4; exit 0; fi\n"
-        "if [ \"$1\" = logs ]; then echo old-log-$4; exit 0; fi\n"
+        "if [ \"$1\" = inspect ]; then echo id-$4'|'image-$4'|'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; exit 0; fi\n"
+        "if [ \"$1\" = logs ]; then echo '2026-10-26T00:00:00Z old-log-'$3; exit 0; fi\n"
         "exit 2\n"
     )
     docker.chmod(0o755)
@@ -133,9 +133,18 @@ def test_archive_captures_each_existing_container_before_recreation(tmp_path):
         capture_output=True, text=True, timeout=10,
     )
     assert result.returncode == 0, result.stderr
-    archives = list(archive_dir.glob("*.log.gz"))
+    archives = list(archive_dir.glob("*/*.log.gz"))
     assert len(archives) == 3
     assert all("old-log" in gzip.open(path, "rt").read() for path in archives)
+    assert all("revision=" + "a" * 40 in gzip.open(path, "rt").read() for path in archives)
+    assert len(list(archive_dir.glob("*/manifest.json"))) == 1
+    second = subprocess.run(
+        ["bash", str(ARCHIVER), str(archive_dir)], env=env,
+        capture_output=True, text=True, timeout=10,
+    )
+    assert second.returncode == 0, second.stderr
+    assert len(list(archive_dir.glob("*/manifest.json"))) == 2
+    assert all(path.exists() for path in archives)
 
 
 def test_archive_failure_stops_before_publishing_partial_file(tmp_path):
@@ -145,7 +154,7 @@ def test_archive_failure_stops_before_publishing_partial_file(tmp_path):
     docker.write_text(
         "#!/bin/sh\n"
         "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\nstockfilter-eadvisor\\n'; exit 0; fi\n"
-        "if [ \"$1\" = inspect ]; then echo id-$4; exit 0; fi\n"
+        "if [ \"$1\" = inspect ]; then echo id-$4'|'image-$4'|'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; exit 0; fi\n"
         "if [ \"$1\" = logs ]; then echo partial-line; exit 1; fi\n"
         "exit 2\n"
     )
@@ -157,7 +166,24 @@ def test_archive_failure_stops_before_publishing_partial_file(tmp_path):
         capture_output=True, text=True, timeout=10,
     )
     assert result.returncode != 0
-    assert list(archive_dir.glob("*.log.gz")) == []
+    assert list(archive_dir.glob("*/*.log.gz")) == []
+
+
+def test_runner_persists_timestamp_container_and_revision_without_changing_stdout(tmp_path):
+    env = dict(os.environ, SOURCE_REVISION="a" * 40, HOSTNAME="stockfilter-kline")
+    result = subprocess.run(
+        [sys.executable, str(RUNNER), "--service", "kline", "--log-dir", str(tmp_path),
+         "--max-bytes", "4096", "--backup-count", "2", "--terminate-grace-seconds", "1", "--",
+         sys.executable, "-c", "print('business-event')"],
+        env=env, capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0
+    assert result.stdout == "business-event\n"
+    line = (tmp_path / "kline_scheduler.log").read_text().strip()
+    assert "container=stockfilter-kline" in line
+    assert f"revision={'a' * 40}" in line
+    assert line.endswith("business-event")
+    assert line.startswith("20") and "T" in line
 
 
 def test_archive_inspect_failure_is_not_treated_as_missing_container(tmp_path):
@@ -166,7 +192,7 @@ def test_archive_inspect_failure_is_not_treated_as_missing_container(tmp_path):
     docker = fake_bin / "docker"
     docker.write_text(
         "#!/bin/sh\n"
-        "if [ \"$1\" = ps ]; then echo stockfilter-kline; exit 0; fi\n"
+        "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\nstockfilter-eadvisor\\n'; exit 0; fi\n"
         "if [ \"$1\" = inspect ]; then echo 'permission denied' >&2; exit 1; fi\n"
         "exit 2\n"
     )
@@ -178,6 +204,71 @@ def test_archive_inspect_failure_is_not_treated_as_missing_container(tmp_path):
     )
     assert result.returncode != 0
     assert "inspect" in result.stderr
+
+
+def test_archive_failure_on_second_container_never_publishes_partial_release(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\nstockfilter-eadvisor\\n'; exit 0; fi\n"
+        "if [ \"$1\" = inspect ]; then echo id-$4'|'image-$4'|'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; exit 0; fi\n"
+        "if [ \"$1\" = logs ] && [ \"$3\" = stockfilter-obpc ]; then echo broken; exit 2; fi\n"
+        "if [ \"$1\" = logs ]; then echo old-log; exit 0; fi\n"
+        "exit 2\n"
+    )
+    docker.chmod(0o755)
+    env = dict(os.environ, PATH=f"{fake_bin}:{os.environ['PATH']}")
+    archive_dir = tmp_path / "archive"
+    result = subprocess.run(["bash", str(ARCHIVER), str(archive_dir)], env=env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0
+    assert not list(archive_dir.glob("*/manifest.json"))
+    assert not list(archive_dir.glob("*/*.log.gz"))
+
+
+def test_archive_marks_unlabelled_old_image_unknown_without_guessing_commit(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\nstockfilter-eadvisor\\n'; exit 0; fi\n"
+        "if [ \"$1\" = inspect ]; then echo 'oldid|sha256:oldimage|<no value>'; exit 0; fi\n"
+        "if [ \"$1\" = logs ]; then echo '2026-10-26T00:00:00Z old'; exit 0; fi\n"
+        "exit 2\n"
+    )
+    docker.chmod(0o755)
+    env = dict(os.environ, PATH=f"{fake_bin}:{os.environ['PATH']}")
+    archive_dir = tmp_path / "archive"
+    result = subprocess.run(["bash", str(ARCHIVER), str(archive_dir)], env=env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    content = gzip.open(next(archive_dir.glob("*/*.log.gz")), "rt").read()
+    assert "revision=unknown" in content
+    assert "image=sha256:oldimage" in content
+
+
+def test_archive_refuses_missing_old_container_instead_of_publishing_partial(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\n'; exit 0; fi\n"
+        "if [ \"$1\" = inspect ]; then echo 'id|image|<no value>'; exit 0; fi\n"
+        "if [ \"$1\" = logs ]; then echo old; exit 0; fi\n"
+        "exit 2\n"
+    )
+    docker.chmod(0o755)
+    env = dict(os.environ, PATH=f"{fake_bin}:{os.environ['PATH']}")
+    root = tmp_path / "archive"
+    result = subprocess.run(["bash", str(ARCHIVER), str(root)], env=env,
+                            capture_output=True, text=True, timeout=10)
+    assert result.returncode != 0
+    assert "stockfilter-eadvisor" in result.stderr
+    assert not list(root.glob("*/manifest.json"))
 
 
 def test_runner_stops_independent_worker_group_on_sigterm(tmp_path):

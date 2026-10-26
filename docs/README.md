@@ -2,6 +2,8 @@
 
 2026-10-26 K 线采集锁等待与日志留存热修记录：[事故证据、修复和上线验收](reports/2026-10-26-kline-lock-and-log-persistence.md)。
 
+部署日志与宿主机监控后续整改：[设计与验收边界](superpowers/specs/2026-10-26-deployment-log-operability-design.md)、[实施计划](superpowers/plans/2026-10-26-deployment-log-operability.md)。生产生效状态以发布记录和部署后验收为准。
+
 ## 文档目录结构
 
 ```
