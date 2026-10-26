@@ -7,11 +7,12 @@ import time
 import pytest
 
 
-def fake_process(root: Path, pid: int, argv: list[str], cwd: Path) -> None:
+def fake_process(root: Path, pid: int, argv: list[str], cwd: Path, ppid: int = 1) -> None:
     process = root / str(pid)
     process.mkdir(parents=True)
     (process / "cmdline").write_bytes(b"\0".join(arg.encode() for arg in argv) + b"\0")
     (process / "cwd").symlink_to(cwd, target_is_directory=True)
+    (process / "status").write_text(f"Name:\tbash\nPPid:\t{ppid}\n")
 
 
 def test_monitor_identity_requires_exact_script_and_cwd(tmp_path):
@@ -27,6 +28,20 @@ def test_monitor_identity_requires_exact_script_and_cwd(tmp_path):
     fake_process(proc, 101, ["bash", "monitor.sh"], other_dir)
     fake_process(proc, 102, ["bash", "monitor.sh.backup"], script_dir)
     fake_process(proc, 103, ["bash", str(script_dir / "monitor.sh")], script_dir)
+    assert monitor_pids(script_dir, proc) == [100, 103]
+
+
+def test_monitor_identity_ignores_bash_subshells_but_counts_independent_roots(tmp_path):
+    from scripts.monitor_deploy import monitor_pids
+
+    script_dir = tmp_path / "scripts"
+    script_dir.mkdir()
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    fake_process(proc, 100, ["bash", "monitor.sh"], script_dir)
+    fake_process(proc, 101, ["bash", "monitor.sh"], script_dir, ppid=100)
+    fake_process(proc, 102, ["bash", "monitor.sh"], script_dir, ppid=101)
+    fake_process(proc, 103, ["bash", "monitor.sh"], script_dir)
     assert monitor_pids(script_dir, proc) == [100, 103]
 
 

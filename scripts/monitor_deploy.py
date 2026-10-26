@@ -14,10 +14,20 @@ import tempfile
 import time
 
 
+def _parent_pid(proc_root: Path, pid: int) -> int | None:
+    try:
+        for line in (proc_root / str(pid) / "status").read_text().splitlines():
+            if line.startswith("PPid:"):
+                return int(line.split(":", 1)[1].strip())
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def monitor_pids(script_dir: Path, proc_root: Path = Path("/proc")) -> list[int]:
-    """只认 cwd 为目标 scripts 目录且命令恰为 bash monitor.sh 的进程。"""
+    """只认目标 scripts 目录的顶层 bash monitor.sh；忽略其短暂 Bash 子进程。"""
     expected = script_dir.resolve()
-    pids = []
+    matched = set()
     for entry in proc_root.iterdir():
         if not entry.name.isdigit():
             continue
@@ -29,8 +39,20 @@ def monitor_pids(script_dir: Path, proc_root: Path = Path("/proc")) -> list[int]
         if len(args) != 2 or Path(args[0]).name != "bash" or cwd != expected:
             continue
         if args[1] in ("monitor.sh", str(expected / "monitor.sh")):
-            pids.append(int(entry.name))
-    return sorted(pids)
+            matched.add(int(entry.name))
+    roots = []
+    for pid in sorted(matched):
+        ancestor = _parent_pid(proc_root, pid)
+        for _ in range(64):
+            if ancestor in matched:
+                break
+            if ancestor is None or ancestor <= 1:
+                roots.append(pid)
+                break
+            ancestor = _parent_pid(proc_root, ancestor)
+        else:
+            roots.append(pid)  # 祖先链异常时保守计为独立实例，避免误判单实例。
+    return roots
 
 
 def _single_pid(script_dir: Path, proc_root: Path) -> int:
