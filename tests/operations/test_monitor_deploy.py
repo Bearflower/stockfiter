@@ -61,6 +61,34 @@ def test_pause_rejects_missing_or_multiple_monitor_instances(tmp_path):
         pause_monitor(script_dir, tmp_path / "state", proc_root=proc)
 
 
+def test_stop_monitor_terminates_dedicated_session_including_lock_holding_children(tmp_path, monkeypatch):
+    import scripts.monitor_deploy as deploy
+
+    script_dir = tmp_path / "scripts"
+    script_dir.mkdir()
+    live = [777]
+    killed_groups = []
+    monkeypatch.setattr(deploy, "monitor_pids", lambda *_args: live.copy())
+    monkeypatch.setattr(deploy.os, "getsid", lambda _pid: 777)
+    monkeypatch.setattr(deploy.os, "getpgid", lambda _pid: 777)
+    monkeypatch.setattr(deploy.os, "kill", lambda *_args: pytest.fail("专属会话不应仅终止主 PID"))
+
+    def kill_group(pgid, sig):
+        killed_groups.append((pgid, sig))
+        live.clear()
+
+    monkeypatch.setattr(deploy.os, "killpg", kill_group)
+    deploy._stop_monitor(777, script_dir, tmp_path / "proc")
+    assert killed_groups == [(777, deploy.signal.SIGTERM)]
+
+
+def test_monitor_long_sleep_does_not_inherit_lock_descriptor():
+    script = (Path(__file__).resolve().parents[2] / "scripts" / "monitor.sh").read_text()
+    sleep_lines = [line.strip() for line in script.splitlines() if line.strip().startswith("sleep ")]
+    assert sleep_lines
+    assert all(line.endswith("9>&-") for line in sleep_lines)
+
+
 def test_activate_and_restore_never_leave_new_script_as_old_fallback(tmp_path, monkeypatch):
     import scripts.monitor_deploy as deploy
 

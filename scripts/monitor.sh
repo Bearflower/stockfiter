@@ -1121,7 +1121,7 @@ log "=========================================="
 # 启动通知
 send_feishu "$WEBHOOK" "🔔 监控服务已启动" "stockfilter_v3 监控已就绪（K线 + OBPC + E大估值）\n\n检查间隔：$((CHECK_INTERVAL / 60)) 分钟\n\n仅在状态异常时发送告警" "INFO"
 
-sleep 10
+sleep 10 9>&-
 
 # 初始化状态
 LAST_KLINE_STATUS=$(get_container_status "stockfilter-kline")
@@ -1157,5 +1157,5 @@ while true; do
     check_container "stockfilter-eadvisor" "$WEBHOOK" "E大估值策略" "LAST_EADVISOR_STATUS"
 
     log "下次检查：$(date -d "+$CHECK_INTERVAL seconds" '+%H:%M:%S')"
-    sleep $CHECK_INTERVAL
+    sleep $CHECK_INTERVAL 9>&-
 done

@@ -77,7 +77,12 @@ def _write_state(state_dir: Path, data: dict) -> None:
 def _stop_monitor(pid: int, script_dir: Path, proc_root: Path) -> None:
     if pid not in monitor_pids(script_dir, proc_root):
         raise RuntimeError("目标监控 PID 身份已变化，拒绝发送信号")
-    os.kill(pid, signal.SIGTERM)
+    # 发布辅助脚本以独立会话启动监控；其 sleep 等子进程可能继承锁 FD。
+    # 仅在 PID 同时是会话和进程组首进程时终止整组，旧式启动则只终止目标 PID。
+    if os.getsid(pid) == pid and os.getpgid(pid) == pid:
+        os.killpg(pid, signal.SIGTERM)
+    else:
+        os.kill(pid, signal.SIGTERM)
     until = time.monotonic() + 10
     while time.monotonic() < until:
         if pid not in monitor_pids(script_dir, proc_root):
