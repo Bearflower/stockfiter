@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ============================================================
-# stockfilter_v3 - 3容器分离架构（CI/CD 自动部署版）
+# stockfilter_v3 - 4容器分离架构（CI/CD 自动部署版）
 # ============================================================
 # 镜像来自 GHCR：ghcr.io/bearflower/stockfilter-xxx:latest
 # 配置文件 config.yaml 通过 volume 挂载，不进镜像
@@ -125,6 +125,36 @@ services:
     command: python -u scripts/persistent_log_runner.py --service eadvisor --log-dir /app/logs --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u distill_changying/scripts/advisor/scheduler.py
     healthcheck:
       test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "distill_changying/scripts/advisor/scheduler.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ==================== 容器 4: 伊利股份前复权波段日报 ====================
+  strategy-yili:
+    image: ghcr.io/bearflower/stockfilter-obpc:latest
+    container_name: stockfilter-yili
+    working_dir: /app
+    environment:
+      - TZ=Asia/Shanghai
+      - FEISHU_WEBHOOK=${FEISHU_WEBHOOK}
+      - PYTHONPATH=/app
+      - CONTAINER_NAME=stockfilter-yili
+    volumes:
+      - ./logs:/app/logs
+      - ./signals/yili_swing:/app/signals/yili_swing
+      - ./config/config.yaml:/app/config/config.yaml:ro
+    restart: unless-stopped
+    networks:
+      - common_service_common_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: python -u scripts/persistent_log_runner.py --service yili --log-dir /app/logs --max-bytes ${PERSISTENT_LOG_MAX_BYTES:-20971520} --backup-count ${PERSISTENT_LOG_BACKUP_COUNT:-10} --terminate-grace-seconds ${PERSISTENT_LOG_TERMINATE_GRACE_SECONDS:-5} -- python -u scripts/scheduler_yili.py
+    healthcheck:
+      test: ["CMD", "python", "scripts/persistent_log_runner.py", "--healthcheck", "scripts/scheduler_yili.py"]
       interval: 30s
       timeout: 10s
       retries: 3

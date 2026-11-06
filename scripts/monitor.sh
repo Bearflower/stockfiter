@@ -42,7 +42,11 @@ PUSH_CHECK_HHMM=810
 
 # ---- OBPC 目标交易日（P1-4 修复：按时段区分 initial / rescan 语义） ----
 # 初扫触发时间（HHMM，北京时区），须与 scheduler_obpc.py 的 SCHEDULE_SCAN（默认 23:15）保持一致
-OBPC_INITIAL_SCAN_HHMM=2315
+OBPC_INITIAL_SCAN_TIME="${SCHEDULE_SCAN-23:15}"
+OBPC_INITIAL_SCAN_HHMM=""
+if [[ "$OBPC_INITIAL_SCAN_TIME" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+    OBPC_INITIAL_SCAN_HHMM=${OBPC_INITIAL_SCAN_TIME/:/}
+fi
 
 # 每轮检查前解析一次并写入全局，供所有 OBPC 检查复用（禁止 naive weekday 推算）：
 #   OBPC_INITIAL_DATE    = nearest_trading_date(now, inclusive=True) 「当日（收盘后）初扫目标」
@@ -122,6 +126,7 @@ OBPC_RUNNING_TIMEOUT_SECONDS=${SCAN_TIMEOUT:-3600}
 LAST_KLINE_STATUS="ok"
 LAST_OBPC_STATUS="ok"
 LAST_EADVISOR_STATUS="ok"
+LAST_YILI_STATUS="ok"
 LAST_KLINE_DATA_STATUS="ok"
 LAST_KLINE_SYNC_STATUS="ok"
 # OBPC 新增告警状态追踪
@@ -266,6 +271,14 @@ db.close()
 # 因此按当前北京时间相对 OBPC_INITIAL_SCAN_HHMM 的位置选择应监控的目标：
 #   已过 23:15 → 监控当天 initial；未到 23:15 → 监控上一交易日 rescan。
 resolve_obpc_target_date() {
+    if [ -z "$OBPC_INITIAL_SCAN_HHMM" ]; then
+        OBPC_INITIAL_DATE=""
+        OBPC_RESCAN_DATE=""
+        OBPC_TARGET_DATE=""
+        OBPC_TARGET_DEGRADED="0"
+        log "⚠️ SCHEDULE_SCAN 非法，无法确定监控目标，按查询失败处理"
+        return
+    fi
     # 显式取北京时区当前时间传入容器，避免依赖容器内部 TZ 导致跨零点日期错位
     local now_iso
     now_iso=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
@@ -549,6 +562,30 @@ except Exception as e:
 }
 
 # 告警 3：最近交易日没有 scan_runs 记录
+is_obpc_initial_wait_window() {
+    # 仅表示尚未到缺记录告警期限，不代表调度器健康，也不清除旧告警。
+    # 与调度器使用同一 .env 参数；按目标交易日构造截止时间，支持跨零点。
+    local now_iso
+    now_iso=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
+    python3 - "$OBPC_TARGET_DATE" "$now_iso" "${SCHEDULE_SCAN-23:15}" "${KLINE_WAIT_TIMEOUT-1800}" <<'PY'
+import re
+import sys
+from datetime import datetime, timedelta
+
+try:
+    target, now_text, schedule, timeout_text = sys.argv[1:]
+    if not re.fullmatch(r'([01][0-9]|2[0-3]):[0-5][0-9]', schedule):
+        sys.exit(1)
+    timeout = int(timeout_text)
+    start = datetime.strptime(target + ' ' + schedule, '%Y-%m-%d %H:%M')
+    now = datetime.strptime(now_text, '%Y-%m-%d %H:%M:%S')
+    waiting = timeout > 0 and start <= now < start + timedelta(seconds=timeout)
+except (ValueError, OverflowError):
+    sys.exit(1)
+sys.exit(0 if waiting else 1)
+PY
+}
+
 check_obpc_scan_missing() {
     # P1-1：target 统一由交易日历解析；解析失败按查询失败处理（fail-closed，不得当作「无缺失」）
     if [ -z "$OBPC_TARGET_DATE" ]; then
@@ -588,6 +625,10 @@ db.close()
     fi
 
     if [ "$count" = "0" ]; then
+        if is_obpc_initial_wait_window; then
+            log "OBPC ${target_date} 尚在初扫数据等待窗口，暂缓缺运行记录告警（未确认扫描状态）"
+            return
+        fi
         if [ "$LAST_OBPC_SCAN_MISSING" != "missing_${target_date}" ]; then
             LAST_OBPC_SCAN_MISSING="missing_${target_date}"
             local level="CRITICAL"
@@ -1059,7 +1100,9 @@ else:
             elif regime == 'extreme_weak' and sel > 0:
                 leak = 1
                 leak_info = f'regime=extreme_weak selected_count={sel} status={status} mode={mode}'
-    emit_monitor_result(target, leak, metrics_missing, leak_info)
+    # 诊断信息可能包含来自数据库的非法值，不能让分隔符/换行伪造机器字段。
+    leak_info = leak_info.replace('|', '／').replace(chr(10), ' ').replace(chr(13), ' ')
+    emit_monitor_result(target, leak, metrics_missing, leak_info, int(row is None))
 
 if db is not None:
     db.close()
@@ -1080,6 +1123,7 @@ if db is not None:
     local leak_flag=$(echo "$result" | cut -d'|' -f2)
     local metrics_missing=$(echo "$result" | cut -d'|' -f3)
     local leak_info=$(echo "$result" | cut -d'|' -f4)
+    local no_run=$(echo "$result" | cut -d'|' -f5)
 
     if [ "$leak_flag" = "1" ]; then
         # 极弱市场误放行 → 最高优先级
@@ -1090,6 +1134,11 @@ if db is not None:
                 "CRITICAL"
         fi
     elif [ "$metrics_missing" = "1" ]; then
+        # 必须由同一次查询明确确认无记录；已有行缺指标/旧协议均不得豁免。
+        if [ "$no_run" = "1" ] && is_obpc_initial_wait_window; then
+            log "OBPC ${target_date} 尚在初扫数据等待窗口，暂缓无记录导致的指标缺失告警（状态未知）"
+            return
+        fi
         # 指标/记录缺失：fail-closed，无法确认是否穿透
         if [ "$LAST_OBPC_EXTREME_WEAK_BLOCK" != "missing_${target_date}" ]; then
             LAST_OBPC_EXTREME_WEAK_BLOCK="missing_${target_date}"
@@ -1119,7 +1168,7 @@ log "Webhook：${WEBHOOK:0:40}..."
 log "=========================================="
 
 # 启动通知
-send_feishu "$WEBHOOK" "🔔 监控服务已启动" "stockfilter_v3 监控已就绪（K线 + OBPC + E大估值）\n\n检查间隔：$((CHECK_INTERVAL / 60)) 分钟\n\n仅在状态异常时发送告警" "INFO"
+send_feishu "$WEBHOOK" "🔔 监控服务已启动" "stockfilter_v3 监控已就绪（K线 + OBPC + E大估值 + 伊利波段）\n\n检查间隔：$((CHECK_INTERVAL / 60)) 分钟\n\n仅在状态异常时发送告警" "INFO"
 
 sleep 10 9>&-
 
@@ -1127,7 +1176,8 @@ sleep 10 9>&-
 LAST_KLINE_STATUS=$(get_container_status "stockfilter-kline")
 LAST_OBPC_STATUS=$(get_container_status "stockfilter-obpc")
 LAST_EADVISOR_STATUS=$(get_container_status "stockfilter-eadvisor")
-log "初始状态: kline=$LAST_KLINE_STATUS obpc=$LAST_OBPC_STATUS eadvisor=$LAST_EADVISOR_STATUS"
+LAST_YILI_STATUS=$(get_container_status "stockfilter-yili")
+log "初始状态: kline=$LAST_KLINE_STATUS obpc=$LAST_OBPC_STATUS eadvisor=$LAST_EADVISOR_STATUS yili=$LAST_YILI_STATUS"
 # 发布辅助脚本只在启动初始化确实完成后认可此进程；旧 PID 的标记不算就绪。
 printf '%s\n' "$$" > "$LOG_DIR/monitor.ready"
 
@@ -1155,6 +1205,9 @@ while true; do
 
     # E大估值组
     check_container "stockfilter-eadvisor" "$WEBHOOK" "E大估值策略" "LAST_EADVISOR_STATUS"
+
+    # 伊利波段独立调度容器
+    check_container "stockfilter-yili" "$WEBHOOK" "伊利波段策略" "LAST_YILI_STATUS"
 
     log "下次检查：$(date -d "+$CHECK_INTERVAL seconds" '+%H:%M:%S')"
     sleep $CHECK_INTERVAL 9>&-

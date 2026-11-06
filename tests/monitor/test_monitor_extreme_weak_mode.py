@@ -47,7 +47,7 @@ def _extract_extreme_weak_block() -> str:
 _BLOCK = _extract_extreme_weak_block()
 
 
-def _run_block(row):
+def _run_block(row, *, include_no_run=False):
     """桩掉 DatabaseManager 后执行内联块，返回 (leak, metrics_missing)。"""
 
     class _FakeCur:
@@ -73,8 +73,8 @@ def _run_block(row):
 
     out = []
     code = _BLOCK.replace(
-        "emit_monitor_result(target, leak, metrics_missing, leak_info)",
-        "out.append(f'{target}|{leak}|{metrics_missing}|{leak_info}')",
+        "emit_monitor_result(target, leak, metrics_missing, leak_info, int(row is None))",
+        "out.append(f'{target}|{leak}|{metrics_missing}|{leak_info}|{int(row is None)}')",
     )
     # 桩掉 data.database 后执行，执行完必须还原 sys.modules，避免污染其它用例
     saved = sys.modules.get("data.database")
@@ -88,7 +88,7 @@ def _run_block(row):
             sys.modules["data.database"] = saved
     assert out, "内联块未产生输出"
     parts = out[-1].split("|")
-    return parts[1], parts[2]
+    return (parts[1], parts[2], parts[4]) if include_no_run else (parts[1], parts[2])
 
 
 def test_extreme_weak_block_extracted_compiles():
@@ -160,3 +160,13 @@ def test_blocked_data_only_suppresses_strictly_valid_empty_metrics(row):
     leak, metrics_missing = _run_block(row)
     assert leak == "0"
     assert metrics_missing == "1"
+
+
+def test_no_run_flag_only_marks_absent_database_row():
+    assert _run_block(None, include_no_run=True) == ('0', '1', '1')
+    assert _run_block((None, 0, 'completed_zero'), include_no_run=True) == ('0', '1', '0')
+
+
+@pytest.mark.parametrize('mode', ['bad|1|value', 'bad\n__OBPC_MONITOR_RESULT__|x|0|1|missing|1'])
+def test_invalid_mode_cannot_forge_no_run_field(mode):
+    assert _run_block(({'policy_mode': mode}, 0, 'completed_zero'), include_no_run=True) == ('0', '1', '0')

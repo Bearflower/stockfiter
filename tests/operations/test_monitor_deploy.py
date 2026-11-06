@@ -245,3 +245,39 @@ def test_legacy_monitor_restore_can_be_verified_without_new_ready_protocol(tmp_p
     identities = iter(([], [777], [777]))
     monkeypatch.setattr(deploy, "monitor_pids", lambda *_args: next(identities, [777]))
     assert deploy._start_monitor(script_dir, tmp_path / "proc", require_ready=False) == 777
+
+
+def test_exited_subshell_is_not_reported_as_an_independent_monitor(tmp_path, monkeypatch):
+    """枚举后退出的短命 Bash 子进程不能成为陈旧根 PID。"""
+    import shutil
+    import scripts.monitor_deploy as deploy
+
+    script_dir = tmp_path / 'scripts'
+    script_dir.mkdir()
+    proc = tmp_path / 'proc'
+    proc.mkdir()
+    fake_process(proc, 100, ['bash', 'monitor.sh'], script_dir)
+    fake_process(proc, 101, ['bash', 'monitor.sh'], script_dir, ppid=100)
+    original = deploy._parent_pid
+
+    def exiting_parent(root, pid):
+        if pid == 101:
+            shutil.rmtree(proc / '101')
+            return None
+        return original(root, pid)
+
+    monkeypatch.setattr(deploy, '_parent_pid', exiting_parent)
+    assert deploy.monitor_pids(script_dir, proc) == [100]
+
+
+def test_live_monitor_with_unknown_parent_is_not_hidden(tmp_path, monkeypatch):
+    import scripts.monitor_deploy as deploy
+
+    script_dir = tmp_path / 'scripts'
+    script_dir.mkdir()
+    proc = tmp_path / 'proc'
+    proc.mkdir()
+    fake_process(proc, 100, ['bash', 'monitor.sh'], script_dir)
+    fake_process(proc, 103, ['bash', 'monitor.sh'], script_dir)
+    monkeypatch.setattr(deploy, '_parent_pid', lambda *_: None)
+    assert deploy.monitor_pids(script_dir, proc) == [100, 103]

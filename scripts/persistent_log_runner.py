@@ -100,7 +100,7 @@ def run_logged_process(
     if not (revision == "unknown" or re.fullmatch(r"[0-9a-f]{40}", revision)):
         raise ValueError("SOURCE_REVISION 必须是完整提交 SHA 或 unknown")
     container = os.environ.get("CONTAINER_NAME", f"stockfilter-{service}")
-    if not re.fullmatch(r"stockfilter-(?:kline|obpc|eadvisor)", container):
+    if not re.fullmatch(r"stockfilter-(?:kline|obpc|eadvisor|yili)", container):
         raise ValueError("CONTAINER_NAME 非法")
     handler = RotatingFileHandler(
         log_dir / f"{service}_scheduler.log",

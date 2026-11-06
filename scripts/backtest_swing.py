@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-个股波段择时回测研究脚本（基线扫描）
+个股波段择时回测研究脚本（基线扫描与伊利趋势 RSI）
 
 目的：验证"对固定单只股票做波段择时"在 2020-2026 的表现，为后续优化提供基线。
-研究对象：伊利股份(600887)、云图控股(002539)，各独立回测。
+研究对象：伊利股份(600887)、云图控股(002539)；趋势 RSI 仅用于伊利。
 
 策略基线（4 个经典技术指标）：
   1. 均线交叉 MA(5/20)    —— 趋势跟随
@@ -20,61 +20,55 @@
   - T+1 日开盘执行买入/卖出
   - 止盈止损在持仓期间用当日 high/low 盘中检查
 
-成本（复用 OBPC 口径）：佣金 0.025% 双边 + 印花税 0.1% 卖出 + 滑点 0.1% 双边，
-合计约 0.35% / 次完整交易。
+成本：从 config/config.yaml 读取；卖出印花税按交易日期切换。
 
-数据：本地 CSV（后复权日线，从服务器 PostgreSQL 拉取）。
-运行：python scripts/backtest_swing.py
+数据：本地前复权 CSV（例如 scripts/fetch_swing_front.py 在本机导出）。
+运行：SWING_DATA_FILE=data/backtest/yili_front.csv SWING_DATA_ADJUSTMENT=front python3 scripts/backtest_swing.py
 """
 
 import os
 import sys
+from datetime import date
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pandas as pd
 
+from strategy.yili_swing.strategy import calculate_indicators as calculate_yili_indicators
+from strategy.yili_swing.strategy import generate_signals as generate_yili_signals
+from strategy.yili_swing.strategy import load_strategy_params
+
 # ==================== 配置加载（H-1：禁止模块级业务阈值硬编码） ====================
 def _load_swing_config(config_path: str = 'config/config.yaml') -> dict:
-    """从 config.yaml 读取 section_backtest.swing 节（禁止硬编码）。
-
-    当配置缺失时回退到脚本原默认值，保证向后兼容。
-
-    Args:
-        config_path: 配置文件路径
-
-    Returns:
-        dict: section_backtest.swing 完整配置字典
-    """
-    default_cfg = {
-        'commission': 0.00025,
-        'stamp_tax': 0.001,
-        'slippage': 0.001,
-        'take_profit': 0.15,
-        'stop_loss': 0.08,
-        'strategy_params': {
-            'ma_cross': {'fast': 5, 'slow': 20},
-            'macd': {'fast': 12, 'slow': 26, 'signal': 9},
-            'rsi': {'period': 14, 'oversold': 30, 'overbought': 70},
-            'boll': {'period': 20, 'num_std': 2.0},
-        },
-    }
+    """从配置读取完整波段参数；缺项时拒绝回测。"""
     try:
         import yaml
         with open(config_path, 'r', encoding='utf-8') as f:
             full = yaml.safe_load(f) or {}
         cfg = (full.get('section_backtest') or {}).get('swing') or {}
-        # strategy_params 需要深合并，防止只覆盖部分子项时其他子项丢失
-        if 'strategy_params' in cfg:
-            merged_sp = dict(default_cfg['strategy_params'])
-            for name, params in cfg['strategy_params'].items():
-                if name in merged_sp:
-                    merged_sp[name] = dict(merged_sp[name], **params)
-            cfg['strategy_params'] = merged_sp
-        default_cfg.update(cfg)
-    except Exception:
-        # config 加载失败时用默认值继续，不阻断脚本运行
-        pass
-    return default_cfg
+        required = ('commission', 'stamp_tax', 'stamp_tax_before',
+                    'stamp_tax_change_date', 'slippage', 'take_profit',
+                    'stop_loss', 'strategy_params')
+        if not isinstance(cfg, dict) or any(key not in cfg for key in required):
+            raise ValueError('波段配置缺少必需参数')
+        params = cfg['strategy_params']
+        required_strategies = {
+            'ma_cross': ('fast', 'slow'),
+            'macd': ('fast', 'slow', 'signal'),
+            'rsi': ('period', 'oversold', 'overbought'),
+            'boll': ('period', 'num_std'),
+        }
+        if not isinstance(params, dict) or any(
+            name not in params or any(key not in params[name] for key in keys)
+            for name, keys in required_strategies.items()
+        ):
+            raise ValueError('波段策略参数缺项')
+        return cfg
+    except Exception as exc:
+        raise ValueError(f'波段回测配置读取失败：{config_path}') from exc
 
 
 # 加载 swing 配置（启动时一次性读取，后续模块内直接用全局常量）
@@ -83,7 +77,7 @@ _sw_cfg = _load_swing_config()
 # ==================== 配置（H-1：所有业务阈值从 section_backtest.swing 读取） ====================
 
 # 数据文件路径（默认从环境变量读取，未设置时用本地缓存文件）
-DATA_FILE = os.environ.get("SWING_DATA_FILE", "/tmp/obpc_two_stocks_ohlc.csv")
+DATA_FILE = os.environ.get("SWING_DATA_FILE", "data/backtest/yili_front.csv")
 
 # 目标股票：code -> 名称（研究目标常量，不是业务阈值，保留）
 STOCKS = {
@@ -97,14 +91,12 @@ COST = {
     "stamp_tax": _sw_cfg['stamp_tax'],      # 印花税（仅卖出）
     "slippage": _sw_cfg['slippage'],        # 滑点（双边）
 }
-COST["total"] = (
-    COST["commission"] * 2
-    + COST["stamp_tax"]
-    + COST["slippage"] * 2
-)
+COST["stamp_tax_before"] = _sw_cfg['stamp_tax_before']
+COST["stamp_tax_change_date"] = date.fromisoformat(_sw_cfg['stamp_tax_change_date'])
 
 # H-1：各策略的技术指标参数（从 config 读）
-STRATEGY_PARAMS = _sw_cfg['strategy_params']
+STRATEGY_PARAMS = dict(_sw_cfg['strategy_params'])
+STRATEGY_PARAMS['trend_rsi'] = load_strategy_params()
 
 # H-1：固定止盈止损参数（从 config 读）
 STOP_PARAMS = {
@@ -116,18 +108,41 @@ STOP_PARAMS = {
 EXIT_MODES = ["indicator", "stop"]
 
 
+def strategies_for_stock(code: str):
+    """最终伊利策略只对研究标的运行，其他股票保留基线对比。"""
+    return [name for name in STRATEGY_PARAMS
+            if name != "trend_rsi" or code == STRATEGY_PARAMS["trend_rsi"]["code"]]
+
+
+def _stamp_tax_at(trade_date) -> float:
+    """按卖出日选择证券交易印花税。"""
+    return (COST["stamp_tax_before"] if trade_date.date()
+            < COST["stamp_tax_change_date"] else COST["stamp_tax"])
+
+
 # ==================== 数据加载 ====================
 
-def load_data(file_path: str) -> pd.DataFrame:
+def load_data(file_path: str) -> dict:
     """加载本地 CSV，返回按 code 分组的 DataFrame 字典"""
-    df = pd.read_csv(
-        file_path,
-        names=["code", "date", "open", "high", "low", "close", "volume"],
-        dtype={"code": str},
-    )
-    df["date"] = pd.to_datetime(df["date"])
+    with open(file_path, encoding="utf-8") as stream:
+        first = stream.readline().strip().split(",")
+    fields = ["code", "date", "open", "high", "low", "close", "volume"]
+    if first[0] == "code":
+        df = pd.read_csv(file_path, dtype={"code": str})
+    else:
+        if len(first) not in (7, 8):
+            raise ValueError("波段数据必须是七列或八列 CSV")
+        names = fields + (["amount"] if len(first) == 8 else [])
+        df = pd.read_csv(file_path, names=names, dtype={"code": str})
+    if not set(fields).issubset(df.columns):
+        raise ValueError("波段数据缺少必要列")
+    df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="raise")
     for col in ("open", "high", "low", "close", "volume"):
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+        df[col] = pd.to_numeric(df[col], errors="raise")
+    if df[fields].isna().any().any() or (df[["open", "high", "low", "close"]] <= 0).any().any():
+        raise ValueError("波段数据包含空值或非正价格")
+    if df.duplicated(["code", "date"]).any():
+        raise ValueError("波段数据包含重复股票日期")
     return {code: g.sort_values("date").reset_index(drop=True)
             for code, g in df.groupby("code")}
 
@@ -154,6 +169,9 @@ def calc_indicators(df: pd.DataFrame) -> pd.DataFrame:
     avg_loss = loss.ewm(alpha=1 / STRATEGY_PARAMS["rsi"]["period"], adjust=False).mean()
     rs = avg_gain / avg_loss
     df["rsi"] = 100 - 100 / (1 + rs)
+    trend_frame = calculate_yili_indicators(df, STRATEGY_PARAMS["trend_rsi"])
+    for column in ("rsi_trend", "ma_trend_fast", "ma_trend_slow"):
+        df[column] = trend_frame[column]
     # 布林带
     p = STRATEGY_PARAMS["boll"]
     mid = close.rolling(p["period"]).mean()
@@ -184,6 +202,8 @@ def gen_signals(df: pd.DataFrame, strategy: str):
         p = STRATEGY_PARAMS["rsi"]
         buy = (df["rsi"] < p["oversold"]) & (df["rsi"].shift(1) >= p["oversold"])
         sell = (df["rsi"] > p["overbought"]) & (df["rsi"].shift(1) <= p["overbought"])
+    elif strategy == "trend_rsi":
+        buy, sell = generate_yili_signals(df, STRATEGY_PARAMS["trend_rsi"])
     elif strategy == "boll":
         buy = (df["close"] < df["boll_low"]) & \
               (df["close"].shift(1) >= df["boll_low"].shift(1))
@@ -196,7 +216,8 @@ def gen_signals(df: pd.DataFrame, strategy: str):
 
 # ==================== 回测引擎 ====================
 
-def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float = 1.0):
+def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float = 1.0,
+                 close_at_end: bool = True, return_position: bool = False):
     """
     事件驱动回测，返回交易列表、日持仓标记序列和统一净值曲线（R20）
 
@@ -249,7 +270,7 @@ def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float =
             # R19：卖出优先级重构（原：止损→止盈→指标离场；新：指标离场→止损→止盈）
             # 指标离场是 T-1 收盘卖出信号 → 今日开盘执行，开盘价即第一笔成交价
             # 应优先于盘中止损/止盈（开盘离场后当日盘中已不在仓内）
-            if sell_sig.iloc[i - 1]:
+            if exit_mode == "indicator" and sell_sig.iloc[i - 1]:
                 exit_price = today_open
                 reason = "指标离场"
             # 盘中止损（同一天同时触发时按止损价）
@@ -259,19 +280,20 @@ def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float =
                 reason = "止损"
             # 固定止盈（仅 stop 模式）
             elif exit_mode == "stop" and float(df["high"].iloc[i]) >= tp_price:
-                exit_price = tp_price
+                exit_price = max(tp_price, today_open)
                 reason = "止盈"
 
             if exit_price is not None:
                 # R20：卖出时的实际成交价（扣除滑点）
                 actual_exit = exit_price * (1 - COST["slippage"])
                 # 卖出成本：佣金 + 印花税
-                sell_cost = actual_exit * (COST["commission"] + COST["stamp_tax"])
+                tax = _stamp_tax_at(df["date"].iloc[i])
+                sell_cost = actual_exit * pos["shares"] * (COST["commission"] + tax)
                 # 更新现金账户
                 cash += actual_exit * pos["shares"] - sell_cost
                 shares = 0.0
 
-                net = exit_price / pos["entry"] - 1 - COST["total"]
+                net = cash / pos["entry_cash"] - 1
                 trades.append({
                     "entry_date": pos["entry_date"],
                     "exit_date": df["date"].iloc[i].strftime("%Y-%m-%d"),
@@ -289,9 +311,8 @@ def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float =
             # R20：买入时用全部现金（扣除买入成本后满仓）
             # 买入价 = 开盘价 + 滑点
             actual_entry = today_open * (1 + COST["slippage"])
-            buy_cost = actual_entry * COST["commission"]
-            # 满仓买入（扣除成本后）
-            shares = (cash - buy_cost) / actual_entry
+            entry_cash = cash
+            shares = cash / (actual_entry * (1 + COST["commission"]))
             cash = 0.0
 
             pos = {
@@ -299,6 +320,7 @@ def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float =
                 "entry_date": df["date"].iloc[i].strftime("%Y-%m-%d"),
                 "idx": i,
                 "shares": shares,
+                "entry_cash": entry_cash,
             }
             held[i] = True
 
@@ -306,17 +328,18 @@ def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float =
         equity[i] = cash + shares * today_close
 
     # R20：期末未平仓，按最后收盘价平仓
-    if pos is not None:
+    if pos is not None and close_at_end:
         i = len(df) - 1
         close_price = float(df["close"].iloc[i])
         actual_exit = close_price * (1 - COST["slippage"])
-        sell_cost = actual_exit * (COST["commission"] + COST["stamp_tax"])
+        tax = _stamp_tax_at(df["date"].iloc[i])
+        sell_cost = actual_exit * pos["shares"] * (COST["commission"] + tax)
         cash += actual_exit * pos["shares"] - sell_cost
         shares = 0.0
         # 更新 equity 为平仓后的现金
         equity[i] = cash
 
-        net = close_price / pos["entry"] - 1 - COST["total"]
+        net = cash / pos["entry_cash"] - 1
         trades.append({
             "entry_date": pos["entry_date"],
             "exit_date": df["date"].iloc[i].strftime("%Y-%m-%d"),
@@ -327,6 +350,8 @@ def run_backtest(df, buy_sig, sell_sig, exit_mode, tp, sl, init_capital: float =
             "hold_days": i - pos["idx"],
         })
 
+    if return_position:
+        return trades, held, equity, pos
     return trades, held, equity
 
 
@@ -350,8 +375,11 @@ def compute_metrics(df, trades, held, equity=None):
     n = len(df)
     trading_days = n - 1
 
-    # 买入持有基准（含买入成本，期末卖出成本）
-    bh_ret = df["close"].iloc[-1] / df["close"].iloc[0] - 1 - COST["total"]
+    # 买入持有基准：首日收盘买入、末日收盘卖出，按实际费用和滑点结算
+    bh_ret = (df["close"].iloc[-1] / df["close"].iloc[0]
+              * (1 - COST["slippage"])
+              * (1 - COST["commission"] - _stamp_tax_at(df["date"].iloc[-1]))
+              / ((1 + COST["slippage"]) * (1 + COST["commission"])) - 1)
 
     if not trades:
         return {
@@ -412,10 +440,11 @@ def fmt_pct(x):
 def print_report(results):
     """打印基线对比报告"""
     print("=" * 100)
-    print("个股波段择时回测基线对比  (2020-01 ~ 2026-09, 成本已计 0.35%/次)")
+    print("个股波段择时回测（费用与印花税按交易日计）")
     print("=" * 100)
 
-    for stock_code, stock_name in STOCKS.items():
+    for stock_code in results:
+        stock_name = STOCKS[stock_code]
         print(f"\n【{stock_name} {stock_code}】")
         print("-" * 100)
         header = (f"{'策略':<8} {'离场':<9} {'交易数':>5} {'胜率':>8} "
@@ -424,9 +453,9 @@ def print_report(results):
         print(header)
         print("-" * 100)
 
-        strategies = list(STRATEGY_PARAMS.keys())
+        strategies = strategies_for_stock(stock_code)
         for strat in strategies:
-            for mode in EXIT_MODES:
+            for mode in (["indicator"] if strat == "trend_rsi" else EXIT_MODES):
                 r = results[stock_code][strat][mode]
                 print(f"{strat:<8} {mode:<9} {r['trades']:>5} "
                       f"{fmt_pct(r['win_rate']):>8} {fmt_pct(r['avg_ret']):>10} "
@@ -437,14 +466,23 @@ def print_report(results):
 
         print("-" * 100)
         print(f"买入持有基准（{stock_name}）: {fmt_pct(results[stock_code]['_bh'])}")
+        if "_latest" in results[stock_code]:
+            snapshot = results[stock_code]["_latest"]
+            rsi_text = (f"{snapshot['rsi']:.2f}" if pd.notna(snapshot['rsi'])
+                        else "无变化")
+            print(f"最新收盘信号（{snapshot['date']}）：{snapshot['signal']}；"
+                  f"RSI(10)={rsi_text}，MA20={snapshot['ma20']:.2f}，"
+                  f"MA60={snapshot['ma60']:.2f}。收盘信号于下一交易日开盘执行。")
 
 
 def main():
     if not os.path.exists(DATA_FILE):
         print(f"数据文件不存在：{DATA_FILE}")
-        print("请先从服务器导出数据，例如：")
-        print("  ssh root@server 'docker exec ... psql ...' > /tmp/obpc_two_stocks_ohlc.csv")
+        print("请先在本机运行：python3 scripts/fetch_swing_front.py")
         sys.exit(1)
+
+    if os.environ.get("SWING_DATA_ADJUSTMENT") != "front":
+        raise ValueError("波段回测需要前复权日线；确认数据后设置 SWING_DATA_ADJUSTMENT=front")
 
     data = load_data(DATA_FILE)
     results = {}
@@ -454,19 +492,34 @@ def main():
             print(f"警告：数据中缺少 {code}")
             continue
         df = calc_indicators(data[code].copy())
-        results[code] = {"_bh": df["close"].iloc[-1] / df["close"].iloc[0] - 1 - COST["total"]}
+        if code == STRATEGY_PARAMS["trend_rsi"]["code"] and len(df) < STRATEGY_PARAMS["trend_rsi"]["slow_ma"]:
+            raise ValueError("伊利趋势 RSI 数据不足，无法计算长期均线")
+        results[code] = {}
 
-        for strat in STRATEGY_PARAMS:
+        for strat in strategies_for_stock(code):
             buy, sell = gen_signals(df, strat)
             results[code][strat] = {}
-            for mode in EXIT_MODES:
+            for mode in (["indicator"] if strat == "trend_rsi" else EXIT_MODES):
                 # R20：run_backtest 返回三元组 (trades, held, equity)
                 trades, held, equity = run_backtest(
                     df, buy, sell, mode,
-                    STOP_PARAMS["take_profit"], STOP_PARAMS["stop_loss"],
+                    STOP_PARAMS["take_profit"],
+                    (STRATEGY_PARAMS["trend_rsi"]["stop_loss"]
+                     if strat == "trend_rsi" else STOP_PARAMS["stop_loss"]),
                 )
                 # R20：compute_metrics 接收 equity，统一从净值曲线导出指标
                 results[code][strat][mode] = compute_metrics(df, trades, held, equity)
+
+        results[code]["_bh"] = results[code]["rsi"]["indicator"]["bh_ret"]
+        if code == STRATEGY_PARAMS["trend_rsi"]["code"]:
+            buy, sell = gen_signals(df, "trend_rsi")
+            results[code]["_latest"] = {
+                "date": df["date"].iloc[-1].strftime("%Y-%m-%d"),
+                "signal": "买入" if buy.iloc[-1] else "卖出" if sell.iloc[-1] else "无",
+                "rsi": df["rsi_trend"].iloc[-1],
+                "ma20": df["ma_trend_fast"].iloc[-1],
+                "ma60": df["ma_trend_slow"].iloc[-1],
+            }
 
     print_report(results)
 

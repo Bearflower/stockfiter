@@ -1,5 +1,11 @@
 # stockfilter_v3 文档总索引
 
+伊利股份独立波段策略的规则、数据口径和单次运行方法：[伊利股份独立波段策略](designs/伊利股份独立波段策略.md)。
+
+伊利股份波段研究的代码复核、修复范围与待重算事项：[2026-11-06 复核报告](reports/2026-11-06-yili-swing-recheck.md)。
+
+伊利股份前复权数据已从服务器导出并在本机重算：[回测结果与逐笔交易](reports/2026-11-06-yili-swing-server-data-backtest.md)。
+
 2026-10-26 K 线采集锁等待与日志留存热修记录：[事故证据、修复和上线验收](reports/2026-10-26-kline-lock-and-log-persistence.md)。
 
 部署日志与宿主机监控后续整改：[设计与验收边界](superpowers/specs/2026-10-26-deployment-log-operability-design.md)、[实施计划](superpowers/plans/2026-10-26-deployment-log-operability.md)。生产生效状态以发布记录和部署后验收为准。
@@ -157,3 +163,5 @@ docs/
 
 **文档版本**：V1.4（2026-10-22：新增 K 线采集进程隔离与断点续采交付索引；V1.3 为 2026-10-18 OBPC 扫描可靠性整改索引）
 **最后更新**：2026-10-22
+
+2026-11-05 OBPC 初扫等待窗口提前告警：[根因、修复范围与测试证据](reports/2026-11-05-obpc-initial-wait-monitor.md)。已完成宿主机热修，详见[发布验收记录](deployment/2026-11-05-monitor-wait-hotfix.md)。

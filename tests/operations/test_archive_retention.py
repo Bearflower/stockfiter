@@ -7,11 +7,13 @@ from pathlib import Path
 
 
 def make_archive(root: Path, stamp: datetime, suffix: str, extra: bool = False,
-                 single: bool = False) -> Path:
+                 single: bool = False, yili: bool = False) -> Path:
     directory = root / f"{stamp:%Y%m%dT%H%M%SZ}-run-{suffix}-12345678"
     directory.mkdir()
     containers = ("stockfilter-kline",) if single else (
         "stockfilter-kline", "stockfilter-obpc", "stockfilter-eadvisor")
+    if yili:
+        containers += ("stockfilter-yili",)
     for container in containers:
         with gzip.open(directory / f"{container}.log.gz", "wt") as output:
             output.write("old log\n")
@@ -59,3 +61,11 @@ def test_single_container_manifest_is_not_a_complete_release(tmp_path):
     now = datetime(2026, 10, 26, tzinfo=timezone.utc)
     single = make_archive(tmp_path, now, "single", single=True)
     assert not _complete_archive(single)
+
+
+def test_four_container_manifest_is_complete_after_yili_rollout(tmp_path):
+    from scripts.prune_container_archives import _complete_archive
+
+    archive = make_archive(tmp_path, datetime(2026, 11, 6, tzinfo=timezone.utc),
+                           "yili", yili=True)
+    assert _complete_archive(archive)

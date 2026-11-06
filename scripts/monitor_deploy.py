@@ -28,6 +28,7 @@ def monitor_pids(script_dir: Path, proc_root: Path = Path("/proc")) -> list[int]
     """只认目标 scripts 目录的顶层 bash monitor.sh；忽略其短暂 Bash 子进程。"""
     expected = script_dir.resolve()
     matched = set()
+    parents = {}
     for entry in proc_root.iterdir():
         if not entry.name.isdigit():
             continue
@@ -40,9 +41,10 @@ def monitor_pids(script_dir: Path, proc_root: Path = Path("/proc")) -> list[int]
             continue
         if args[1] in ("monitor.sh", str(expected / "monitor.sh")):
             matched.add(int(entry.name))
+            parents[int(entry.name)] = _parent_pid(proc_root, int(entry.name))
     roots = []
     for pid in sorted(matched):
-        ancestor = _parent_pid(proc_root, pid)
+        ancestor = parents[pid]
         for _ in range(64):
             if ancestor in matched:
                 break
@@ -52,7 +54,20 @@ def monitor_pids(script_dir: Path, proc_root: Path = Path("/proc")) -> list[int]
             ancestor = _parent_pid(proc_root, ancestor)
         else:
             roots.append(pid)  # 祖先链异常时保守计为独立实例，避免误判单实例。
-    return roots
+    # /proc 不是原子快照：短命子进程可能在枚举后退出，祖先读取失败不代表新实例。
+    # 仅丢弃明确消失/身份改变的候选；权限等读取异常继续抛错，不能掩盖活实例。
+    live_roots = []
+    for pid in roots:
+        entry = proc_root / str(pid)
+        try:
+            args = [part.decode("utf-8") for part in (entry / "cmdline").read_bytes().split(b"\0") if part]
+            cwd = (entry / "cwd").resolve(strict=True)
+        except FileNotFoundError:
+            continue
+        if (len(args) == 2 and Path(args[0]).name == "bash" and cwd == expected
+                and args[1] in ("monitor.sh", str(expected / "monitor.sh"))):
+            live_roots.append(pid)
+    return live_roots
 
 
 def _single_pid(script_dir: Path, proc_root: Path) -> int:

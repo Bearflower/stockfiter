@@ -147,6 +147,27 @@ def test_archive_captures_each_existing_container_before_recreation(tmp_path):
     assert all(path.exists() for path in archives)
 
 
+def test_archive_includes_yili_when_container_exists(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = ps ]; then printf 'stockfilter-kline\\nstockfilter-obpc\\nstockfilter-eadvisor\\nstockfilter-yili\\n'; exit 0; fi\n"
+        "if [ \"$1\" = inspect ]; then echo id-$4'|'image-$4'|'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; exit 0; fi\n"
+        "if [ \"$1\" = logs ]; then echo 'old-log-'$3; exit 0; fi\n"
+        "exit 2\n"
+    )
+    docker.chmod(0o755)
+    env = dict(os.environ, PATH=f"{fake_bin}:{os.environ['PATH']}")
+    result = subprocess.run(
+        ["bash", str(ARCHIVER), str(tmp_path / "archive")], env=env,
+        capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert len(list((tmp_path / "archive").glob("*/*.log.gz"))) == 4
+
+
 def test_archive_failure_stops_before_publishing_partial_file(tmp_path):
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()

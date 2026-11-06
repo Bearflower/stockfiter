@@ -1,4 +1,4 @@
-"""原子归档重建前尚由 Docker 保留的三个容器日志。"""
+"""原子归档重建前尚由 Docker 保留的核心容器及伊利容器日志。"""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from uuid import uuid4
 
 
 CONTAINERS = ("stockfilter-kline", "stockfilter-obpc", "stockfilter-eadvisor")
+OPTIONAL_CONTAINERS = ("stockfilter-yili",)
 REVISION_RE = re.compile(r"[0-9a-f]{40}")
 
 
@@ -38,12 +39,13 @@ def archive(root: Path, new_revision: str = "unknown", run_id: str = "manual") -
     missing = set(CONTAINERS) - existing
     if missing:
         raise RuntimeError(f"旧容器缺失，拒绝不完整归档：{', '.join(sorted(missing))}")
+    containers = CONTAINERS + tuple(name for name in OPTIONAL_CONTAINERS if name in existing)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     final = root / f"{stamp}-{run_id}-{new_revision[:12]}-{uuid4().hex[:8]}"
     pending = Path(tempfile.mkdtemp(prefix=".pending-", dir=root))
     entries = []
     try:
-        for container in CONTAINERS:
+        for container in containers:
             raw = docker_output(
                 "inspect", "-f",
                 '{{.Id}}|{{.Image}}|{{index .Config.Labels "org.opencontainers.image.revision"}}',

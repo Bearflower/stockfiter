@@ -31,6 +31,9 @@ on_exit() {
     if [[ "$phase" == "stopping" || "$phase" == "stopped" ]]; then
         cp "$stage/docker-compose.yml.old" docker-compose.yml
         cp "$stage/config.yaml.old" config/config.yaml
+        if ! grep -q '^  strategy-yili:' "$stage/docker-compose.yml.old"; then
+            docker stop stockfilter-yili >/dev/null 2>&1 || true
+        fi
         docker compose start
     fi
     python3 "$stage/monitor_deploy.py" restore "$root/scripts" "$state"
@@ -65,6 +68,12 @@ for container in stockfilter-kline stockfilter-obpc stockfilter-eadvisor; do
     docker tag "$old_image" "$rollback_tag"
     printf '%s\t%s\t%s\n' "$container" "$old_image" "$rollback_tag" >> "$stage/old-images.tsv"
 done
+if docker inspect stockfilter-yili >/dev/null 2>&1; then
+    old_image="$(docker inspect -f '{{.Image}}' stockfilter-yili)"
+    rollback_tag="stockfilter-yili:rollback-${run_id}"
+    docker tag "$old_image" "$rollback_tag"
+    printf '%s\t%s\t%s\n' stockfilter-yili "$old_image" "$rollback_tag" >> "$stage/old-images.tsv"
+fi
 
 python3 "$stage/monitor_deploy.py" pause "$root/scripts" "$state"
 phase="stopping"
@@ -83,7 +92,7 @@ health_interval="${DEPLOY_HEALTH_INTERVAL_SECONDS:-5}"
 [[ "$health_attempts" =~ ^[1-9][0-9]*$ && "$health_interval" =~ ^[1-9][0-9]*$ ]] || {
     echo "健康检查参数非法" >&2; exit 2;
 }
-for container in stockfilter-kline stockfilter-obpc stockfilter-eadvisor; do
+for container in stockfilter-kline stockfilter-obpc stockfilter-eadvisor stockfilter-yili; do
     healthy=0
     for ((attempt=1; attempt<=health_attempts; attempt++)); do
         status="$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null || true)"
@@ -99,11 +108,11 @@ done
 python3 "$stage/monitor_deploy.py" activate "$root/scripts" "$state" "$stage/monitor.sh"
 python3 "$stage/monitor_deploy.py" verify "$root/scripts" "$state"
 # 逐个等待健康可能耗时；最先通过的容器可能在此期间再次失效。
-for container in stockfilter-kline stockfilter-obpc stockfilter-eadvisor; do
+for container in stockfilter-kline stockfilter-obpc stockfilter-eadvisor stockfilter-yili; do
     status="$(docker inspect -f '{{.State.Health.Status}}' "$container" 2>/dev/null || true)"
     [[ "$status" == healthy ]] || { echo "发布成功前复查失败：${container} 状态=${status}" >&2; exit 1; }
 done
-# 监控切换和三个容器健康检查均完成后才能宣告成功。
+# 监控切换和四个容器健康检查均完成后才能宣告成功。
 printf '[%s] DEPLOY_SUCCESS commit=%s run=%s\n' "$(date '+%F %T')" "$revision" "$run_id" \
     >> "deploy_logs/$(date '+%Y%m%d').log"
 

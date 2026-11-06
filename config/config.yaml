@@ -138,6 +138,25 @@ global:
 
 # ==================== 策略配置 ====================
 strategies:
+  yili_swing:
+    # 独立容器获取前复权日线；不使用通用调度器的不复权生产 K 线
+    params:
+      code: "600887"
+      period: 10
+      oversold: 30
+      overbought: 70
+      fast_ma: 20
+      slow_ma: 60
+      stop_loss: 0.08
+    daily:
+      start_date: "2020-01-01"      # 与已验证样本起点一致，保持 RSI 初始化口径
+      schedule_time: "08:20"       # 北京时间，前一交易日数据已完成且早于开盘
+      cutoff_time: "09:10"         # 最晚启动重试，预留行情超时与开盘前处理时间
+      state_file: "signals/yili_swing/push_state.json"
+      poll_seconds: 30
+      retry_seconds: 900
+      fetch_timeout_seconds: 600
+
   oversold_bounce:
     enabled: true
     version: "v25"
@@ -457,9 +476,11 @@ section_backtest:
 
   # === swing 波段回测（scripts/backtest_swing.py） ===
   swing:
-    # 交易成本（复用 OBPC 口径，与 strategies.oversold_bounce.params 保持一致）
+    # 波段研究独立成本口径；印花税按卖出日期切换，暂不改变 OBPC 生产配置
     commission: 0.00025      # 佣金（双边）
-    stamp_tax: 0.001         # 印花税（仅卖出）
+    stamp_tax: 0.0005        # 2023-08-28 起卖出印花税减半
+    stamp_tax_before: 0.001 # 2023-08-28 前卖出印花税
+    stamp_tax_change_date: '2023-08-28'
     slippage: 0.001          # 滑点（双边）
     # 固定止盈止损（与 OBPC hard_stop_loss=0.10 不同，swing 独立配置）
     take_profit: 0.15        # 固定止盈比例

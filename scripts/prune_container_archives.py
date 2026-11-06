@@ -13,6 +13,7 @@ import sys
 
 NAME_RE = re.compile(r"(\d{8}T\d{6}Z)-[A-Za-z0-9_-]+-[0-9a-f]{8}")
 CONTAINERS = {"stockfilter-kline", "stockfilter-obpc", "stockfilter-eadvisor"}
+OPTIONAL_CONTAINERS = {"stockfilter-yili"}
 
 
 def _complete_archive(path: Path) -> bool:
@@ -25,20 +26,21 @@ def _complete_archive(path: Path) -> bool:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("version") != 1 or not isinstance(manifest.get("containers"), list):
             return False
-        if len(manifest["containers"]) != len(CONTAINERS):
+        if len(manifest["containers"]) not in (len(CONTAINERS),
+                                                  len(CONTAINERS | OPTIONAL_CONTAINERS)):
             return False
         expected = {"manifest.json"}
         seen = set()
         for entry in manifest["containers"]:
             container = entry["container"]
             filename = entry["file"]
-            if container not in CONTAINERS or container in seen:
+            if container not in CONTAINERS | OPTIONAL_CONTAINERS or container in seen:
                 return False
             if filename != f"{container}.log.gz":
                 return False
             seen.add(container)
             expected.add(filename)
-        if seen != CONTAINERS:
+        if seen not in (CONTAINERS, CONTAINERS | OPTIONAL_CONTAINERS):
             return False
         if {entry.name for entry in path.iterdir()} != expected:
             return False

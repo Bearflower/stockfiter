@@ -22,6 +22,9 @@ stockfilter_v3 是一套面向 A 股市场的**形态筛选 + 量化投顾**系�
 |------|------|------|
 | **超跌反弹回踩确认策略** | oversold_bounce v25 | 大跌 → 缩量 → 放量 → 回踩确认 四步检测，含 MACD 动量过滤与均线斜率过滤 |
 | **E大指数估值策略** | distill_changying v1 | 指数估值温度采集 + LLM 投顾决策 + ETF 推荐引擎 + 飞书日报推送 |
+| **伊利股份波段策略** | yili_swing v1 | 独立前复权趋势 RSI；盘前扫描前一已收盘交易日并推送飞书摘要，本地可重放模拟仓位 |
+
+伊利股份策略的单次运行命令、数据限制和信号含义见[独立策略说明](docs/designs/伊利股份独立波段策略.md)。
 
 ## 快速开始
 
@@ -103,32 +106,34 @@ python main.py --schedule
 
 ## Docker 部署
 
-项目采用 **3 容器分离架构**，每个策略独立容器运行，互不影响：
+项目采用 **4 容器分离架构**，伊利波段使用独立调度容器：
 
 ```bash
-# 构建并启动所有容器
-docker compose build
+# 拉取镜像并启动所有容器（镜像由 CI 构建）
+docker compose pull
 docker compose up -d
 
-# 单独更新某个策略容器
-docker compose build stockfilter-obpc && docker compose up -d stockfilter-obpc
+# 单独更新伊利策略容器
+docker compose up -d strategy-yili
 ```
 
-### 3 容器架构
+### 4 容器架构
 
 | 容器 | Dockerfile | 依赖文件 | 职责 |
 |------|------------|----------|------|
 | `stockfilter-kline` | `Dockerfile.kline` | `requirements-kline.txt` | K 线每日更新 + 历史数据补全 |
 | `stockfilter-obpc` | `Dockerfile.obpc` | `requirements-obpc.txt` | 形态扫描 + 飞书推送 |
 | `stockfilter-eadvisor` | `Dockerfile.eadvisor` | `requirements-eadvisor.txt` | 指数估值采集 + LLM 投顾决策 + ETF 推荐 + 日报推送 |
+| `stockfilter-yili` | 复用 `Dockerfile.obpc` 镜像 | `requirements-obpc.txt` | Baostock 前复权日线扫描 + 伊利飞书日报 |
 
 ### 定时任务时序
 
 ```
-22:00  容器1 (kline)     : K线更新 -> 写入 task_status 表
-22:10  容器2 (obpc)      : 等待K线完成 -> 形态扫描 -> 写入 scan_results
+23:00  容器1 (kline)     : K线更新 -> 写入 task_status 表
 23:10  容器3 (eadvisor)  : E大估值扫描 + LLM分析 + ETF推荐 + 飞书日报推送
+23:15  容器2 (obpc)      : 等待K线完成 -> 形态扫描 -> 写入 scan_results
 08:10  容器2 (obpc)      : 读取昨日扫描结果 -> 飞书推送
+08:20  容器4 (yili)      : 前一交易日前复权日线扫描 -> 伊利飞书日报
 ```
 
 ## 项目结构
@@ -170,7 +175,7 @@ stockfilter_v3/
 ├── requirements-kline.txt
 ├── requirements-obpc.txt
 ├── requirements-eadvisor.txt
-└── docker-compose.yml           # 3 容器编排配置
+└── docker-compose.yml           # 4 容器编排配置
 ```
 
 ## 核心模块说明
@@ -227,7 +232,7 @@ V3 与 V2 共享同一 PostgreSQL 实例的 `schema_stockfilter` schema，通过
 - **数据源**：Baostock
 - **LLM**：DeepSeek V4 Pro（思考模式 + JSON 输出）
 - **通知**：飞书机器人（远程 common_service + 本地 Webhook）
-- **部署**：Docker + Docker Compose（3 容器分离架构）
+- **部署**：Docker + Docker Compose（4 容器分离架构）
 - **日志**：loguru
 
 ## 文档
