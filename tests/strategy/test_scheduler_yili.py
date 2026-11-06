@@ -1,6 +1,9 @@
 """伊利独立调度器的触发与重试时序。"""
 
 from datetime import datetime, timedelta
+from pathlib import Path
+import subprocess
+import sys
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -10,6 +13,15 @@ from strategy.yili_swing.daily import resolve_target_date
 
 
 TZ = ZoneInfo("Asia/Shanghai")
+
+
+def test_scheduler_script_can_start_from_file_path():
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [sys.executable, "-c", "import runpy; runpy.run_path('scripts/scheduler_yili.py', run_name='startup_check')"],
+        cwd=root, capture_output=True, text=True, timeout=5,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_scheduler_waits_for_configured_time_and_retries_failures():
